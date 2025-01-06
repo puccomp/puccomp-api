@@ -1,0 +1,38 @@
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Logs
+logs/
+*.log
+debug.log
+
+# Environment Variables
+.env
+
+# Editor Config
+.vscode/
+.idea/
+
+# Multer Uploads
+uploads/
+
+# OS Specific
+.DS_Store
+Thumbs.db
+
+# Temporary Files
+*.swp
+*.tmp
+*.bak
+*.orig
+*.save
+
+# Coverage Reports
+coverage/
+
+# Build Artifacts
+dist/
+build/
