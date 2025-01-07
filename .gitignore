@@ -36,3 +36,5 @@ coverage/
 # Build Artifacts
 dist/
 build/
+
+data/

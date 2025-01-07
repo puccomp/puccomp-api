@@ -42,7 +42,6 @@ Below is a list of all available commands, their arguments, and example usages.
    - [create-proposal \<json-file>](#create-proposal-json-file)
    - [get-proposals](#get-proposals)
 
-
 ---
 
 ### Users
@@ -137,6 +136,7 @@ Below is a list of all available commands, their arguments, and example usages.
 **Example**:
 
 `member.json`
+
 ```json
 {
   "name": "John",
@@ -169,6 +169,7 @@ Below is a list of all available commands, their arguments, and example usages.
 **Example**:
 
 `member.json`
+
 ```json
 {
   "role": "Senior Developer",
@@ -211,6 +212,7 @@ Below is a list of all available commands, their arguments, and example usages.
 **Example**:
 
 `cv.json`
+
 ```json
 {
   "fullName": "John Doe",
@@ -271,6 +273,7 @@ Below is a list of all available commands, their arguments, and example usages.
 **Example**:
 
 `proposal.json`
+
 ```json
 {
   "fullName": "John Doe",
@@ -302,4 +305,3 @@ Below is a list of all available commands, their arguments, and example usages.
 ```
 
 ---
-

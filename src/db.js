@@ -1,9 +1,15 @@
 import Database from 'better-sqlite3'
 import bcrypt from 'bcryptjs'
+import fs from 'fs'
 
-const db = new Database(':memory:')
+const databaseDir = 'data'
+if (!fs.existsSync(databaseDir)) {
+  fs.mkdirSync(databaseDir, { recursive: true })
+  console.log(`Directory ${databaseDir} created.`)
+}
 
-// Table Creation Queries
+const db = new Database(`${databaseDir}/database.sqlite`)
+
 const createUserTableQuery = `
 CREATE TABLE IF NOT EXISTS Users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -56,44 +62,21 @@ db.exec(createMembersTableQuery)
 db.exec(createCvApplicationsTableQuery)
 db.exec(createProjectProposalTableQuery)
 
-// INITIAL INSERTS
+const seedDefaultUser = async () => {
+  const username = process.env.DEFAULT_ADMIN_USERNAME
+  const password = process.env.DEFAULT_ADMIN_PASSWORD
+  try {
+    const insertUserQuery = db.prepare(`
+      INSERT INTO users (username, password)
+      VALUES (?, ?)
+    `)
+    insertUserQuery.run(username, bcrypt.hashSync(password, 8))
+    console.log('Default user created successfully!')
+  } catch (error) {
+    console.error('Error creating default user:', error.message)
+  }
+}
 
-const insertMemberQuery = `
-INSERT INTO Members (name, surname, role, imageProfile, course, description, instagramUrl, githubUrl, linkedinUrl, date, isActive)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`
-
-db.prepare(insertMemberQuery).run(
-  'John',
-  'Doe',
-  'Developer',
-  null,
-  'Computer Science',
-  'Enthusiastic developer',
-  'https://instagram.com/johndoe',
-  'https://github.com/johndoe',
-  'https://linkedin.com/in/johndoe',
-  '2025-01-01',
-  1
-)
-
-db.prepare(insertMemberQuery).run(
-  'Jane',
-  'Smith',
-  'Designer',
-  null,
-  'Design',
-  'Creative designer focused on UI/UX',
-  'https://instagram.com/janesmith',
-  'https://github.com/janesmith',
-  'https://linkedin.com/in/janesmith',
-  '2025-01-02',
-  1
-)
-
-const insertUserQuery = `
-INSERT INTO Users (username, password)
-VALUES (?, ?);`
-
-db.prepare(insertUserQuery).run('aaa', bcrypt.hashSync('aaa', 8))
+seedDefaultUser()
 
 export default db
