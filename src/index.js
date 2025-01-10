@@ -1,4 +1,5 @@
 import express, { json } from 'express'
+import cors from 'cors'
 import path, { dirname } from 'path'
 import { fileURLToPath } from 'url'
 
@@ -9,11 +10,17 @@ import projectProposalRoutes from './routes/projectProposalRoutes.js'
 
 const app = express()
 const PORT = process.env.PORT || 8080
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 
 app.use(json())
+app.use(cors({
+  origin: FRONTEND_URL, 
+  methods: ['GET', 'POST', ], 
+  credentials: true, 
+}))
 app.use(express.static(path.join(__dirname, '../public')))
 
 // Routes

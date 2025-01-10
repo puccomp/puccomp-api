@@ -51,9 +51,9 @@ CREATE TABLE IF NOT EXISTS project_proposals (
     name TEXT NOT NULL,
     phone TEXT NOT NULL,
     description TEXT NOT NULL,
-    features TEXT NOT NULL,
-    visual_identity TEXT NOT NULL,
-    budget TEXT NOT NULL,
+    features TEXT,
+    visual_identity TEXT,
+    budget TEXT,
     date TEXT NOT NULL
 );`
 
