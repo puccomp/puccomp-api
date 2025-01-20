@@ -49,17 +49,19 @@ router.post('/', authMiddleware, (req, res) => {
     isActive,
   } = req.body
 
-  const dateRegex = /^\d{4}\/(1|2)$/;
-  const singleWordRegex = /^[^\s]+$/;
+  const dateRegex = /^\d{4}\/(1|2)$/
+  const singleWordRegex = /^[^\s]+$/
 
   if (!dateRegex.test(date))
-    return res.status(400).json({ error: 'Invalid date format. Use format YYYY/1 or YYYY/2.' });
+    return res
+      .status(400)
+      .json({ error: 'Invalid date format. Use format YYYY/1 or YYYY/2.' })
 
-  if (!singleWordRegex.test(name)) 
-    return res.status(400).json({ error: 'Name must be a single word.' });
+  if (!singleWordRegex.test(name))
+    return res.status(400).json({ error: 'Name must be a single word.' })
 
-  if (!singleWordRegex.test(surname)) 
-    return res.status(400).json({ error: 'Surname must be a single word.' });
+  if (!singleWordRegex.test(surname))
+    return res.status(400).json({ error: 'Surname must be a single word.' })
 
   try {
     const insertMember = database.prepare(`
