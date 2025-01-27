@@ -6,39 +6,39 @@
     <title>Welcome to the COMP API</title>
     <link rel="stylesheet" href="/styles.css" />
   </head>
+
   <body>
     <div class="container">
       <h1>Welcome to the COMP API</h1>
       <p>Version: <strong>1.0.0</strong></p>
-      <h2>Available Endpoints</h2>
+      <p>
+        This API is developed and maintained by the COMP Junior Company at PUC
+        Minas. You can find the project repository on
+        <a href="https://github.com/EJ-ICEI-PUC-Minas/comp-api" target="_blank"
+          >GitHub</a
+        >.
+      </p>
+      <h2>Some Public Endpoints</h2>
       <ul>
         <li>
-          <a href="/api/users" target="_blank">/api/users</a> - Manage users
+          <strong>GET All Members:</strong> 
+          Retrieve a list of all members. 
+          <a href="/api/members" target="_blank">/api/members</a>
         </li>
         <li>
-          <a href="/api/members" target="_blank">/api/members</a> - Manage
-          members
+          <strong>POST Login:</strong> 
+          Authenticate using your credentials to access protected resources. 
+          <a href="/api/login" target="_blank">/api/login</a>
         </li>
+        <li>
+          <strong>GET All Technologies:</strong> 
+          Retrieve a list of all available technologies. 
+          <a href="/api/technologies" target="_blank">/api/technologies</a>
+        </li>
+
       </ul>
-      <h2>Example Response</h2>
-      <h4>GET '/api/members/1'</h4>
-      <pre>
-{
-  "id": 1,
-  "name": "John",
-  "surname": "Doe",
-  "role": "Developer",
-  "imageProfile": null,
-  "course": "Computer Science",
-  "description": "Enthusiastic developer",
-  "instagramUrl": "https://instagram.com/johndoe",
-  "githubUrl": "https://github.com/johndoe",
-  "linkedinUrl": "https://linkedin.com/in/johndoe",
-  "date": "2025-01-01",
-  "isActive": 1
-}
-    </pre
-      >
-    </div>
+      <p>
+        To explore more features and endpoints, read the documentation and authenticate via the login endpoint.
+      </p>
   </body>
 </html>

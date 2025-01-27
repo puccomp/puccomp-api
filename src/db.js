@@ -1,6 +1,6 @@
 import Database from 'better-sqlite3'
-import bcrypt from 'bcryptjs'
 import fs from 'fs'
+import { seedDefaultAdmin, seedDefaultRole } from './seedDB.js'
 
 const databaseDir = 'data'
 
@@ -9,8 +9,8 @@ if (!fs.existsSync(databaseDir)) {
   console.log(`Directory ${databaseDir} created.`)
 }
 
-// const db = new Database(`${databaseDir}/database.sqlite`);
-const db = new Database(':memory:')
+const db = new Database(`${databaseDir}/database.sqlite`)
+// const db = new Database(':memory:')
 
 const createRole = `
 CREATE TABLE IF NOT EXISTS role (
@@ -117,171 +117,11 @@ CREATE TABLE IF NOT EXISTS project_proposal (
 
 console.log('All tables have been created or already exist.')
 
-const seedDefaultRole = () => {
-  const defaultRole = {
-    name: 'Diretor Técnico',
-    description: 'Responsável técnico principal da organização',
-    level: 0,
-  }
-
-  try {
-    const checkRoleQuery = db.prepare(`
-      SELECT id FROM role WHERE name = ?
-    `)
-    let role = checkRoleQuery.get(defaultRole.name)
-
-    if (!role) {
-      const insertRoleQuery = db.prepare(`
-        INSERT INTO role (name, description, level, created_at, updated_at)
-        VALUES (?, ?, ?, CURRENT_DATE, CURRENT_DATE)
-      `)
-
-      const result = insertRoleQuery.run(
-        defaultRole.name,
-        defaultRole.description,
-        defaultRole.level
-      )
-
-      role = { id: result.lastInsertRowid }
-      console.log(`Role "${defaultRole.name}" created successfully!`)
-    } else console.log(`Role "${defaultRole.name}" already exists.`)
-
-    return role.id
-  } catch (err) {
-    console.error('Error creating default role:', err.message)
-    throw err
-  }
-}
-
-const seedDefaultAdmin = (roleId) => {
-  const defaultAdmin = {
-    email: process.env.DEFAULT_ADMIN_EMAIL,
-    name: process.env.DEFAULT_ADMIN_NAME,
-    surname: process.env.DEFAULT_ADMIN_SURNAME,
-    course: process.env.DEFAULT_ADMIN_COURSE,
-    password: process.env.DEFAULT_ADMIN_PASSWORD,
-    entry_date: process.env.DEFAULT_ADMIN_ENTRY_DATE,
-    is_active: 1,
-    is_admin: 1,
-    role_id: roleId,
-  }
-
-  try {
-    const checkAdminQuery = db.prepare(`
-      SELECT COUNT(*) AS count FROM member WHERE is_admin = 1
-    `)
-    const { count } = checkAdminQuery.get()
-
-    if (count > 0) {
-      console.log('Default admin already exists. No action taken.')
-      return
-    }
-
-    const insertAdminQuery = db.prepare(`
-      INSERT INTO member (
-        email, name, surname, course, password, entry_date,
-        is_active, is_admin, role_id
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `)
-
-    insertAdminQuery.run(
-      defaultAdmin.email,
-      defaultAdmin.name,
-      defaultAdmin.surname,
-      defaultAdmin.course,
-      bcrypt.hashSync(defaultAdmin.password, 8),
-      defaultAdmin.entry_date,
-      defaultAdmin.is_active,
-      defaultAdmin.is_admin,
-      defaultAdmin.role_id
-    )
-
-    console.log('Default admin created successfully!')
-  } catch (err) {
-    console.error('Error creating default admin:', err.message)
-  }
-}
-
 try {
-  const defaultRoleId = seedDefaultRole()
-  seedDefaultAdmin(defaultRoleId)
+  const defaultRoleId = seedDefaultRole(db)
+  seedDefaultAdmin(db, defaultRoleId)
 } catch (err) {
   console.error('Error during seeding process:', err.message)
 }
-
-const seedProject = (name, description, imageUrl = null) => {
-  try {
-    const checkProjectQuery = db.prepare(
-      'SELECT id FROM project WHERE name = ?'
-    )
-    const existingProject = checkProjectQuery.get(name)
-
-    if (existingProject) {
-      console.log(`Project "${name}" already exists.`)
-      return existingProject.id
-    }
-
-    const insertProjectQuery = db.prepare(`
-      INSERT INTO project (name, description, image_url, created_at, updated_at)
-      VALUES (?, ?, ?, CURRENT_DATE, CURRENT_DATE)
-    `)
-
-    const result = insertProjectQuery.run(name, description, imageUrl)
-
-    console.log(`Project "${name}" created successfully!`)
-    return result.lastInsertRowid
-  } catch (err) {
-    console.error(`Error creating project "${name}":`, err.message)
-    throw err
-  }
-}
-
-try {
-  const projectId = seedProject(
-    'Project-Alpha',
-    'This is a description of Project Alpha.',
-    'https://example.com/image.png'
-  )
-  console.log(`Seeded project with ID: ${projectId}`)
-} catch (err) {
-  console.error('Error during project seeding:', err.message)
-}
-
-const seedTechnology = (name, iconUrl = null) => {
-  try {
-    const checkTechnologyQuery = db.prepare(`
-      SELECT id FROM technology WHERE name = ?
-    `)
-    const existingTechnology = checkTechnologyQuery.get(name)
-
-    if (existingTechnology) {
-      console.log(`Technology "${name}" already exists.`)
-      return existingTechnology.id
-    }
-
-    const insertTechnologyQuery = db.prepare(`
-      INSERT INTO technology (name, icon_url)
-      VALUES (?, ?)
-    `)
-    const result = insertTechnologyQuery.run(name, iconUrl)
-
-    console.log(`Technology "${name}" created successfully!`)
-    return result.lastInsertRowid
-  } catch (err) {
-    console.error(`Error creating technology "${name}":`, err.message)
-    throw err
-  }
-}
-
-;[
-  { name: 'JavaScript', icon_url: 'https://example.com/icons/javascript.png' },
-  { name: 'Python', icon_url: 'https://example.com/icons/python.png' },
-  { name: 'React', icon_url: 'https://example.com/icons/react.png' },
-  { name: 'Node.js', icon_url: 'https://example.com/icons/nodejs.png' },
-  { name: 'Django', icon_url: 'https://example.com/icons/django.png' },
-  { name: 'Vue.js', icon_url: 'https://example.com/icons/vuejs.png' },
-].forEach((tech) => {
-  seedTechnology(tech.name, tech.icon_url)
-})
 
 export default db
