@@ -1,6 +1,6 @@
 import express from 'express'
 import db from '../db.js'
-import authMiddleware from '../middleware/authMiddleware.js'
+import authMiddleware from '../middlewares/authMiddleware.js'
 import { sendEmail } from '../utils/emailService.js'
 
 const router = express.Router()
@@ -19,7 +19,7 @@ router.post('/', async (req, res) => {
 
     const submissionDate = new Date().toISOString()
     const stmt = db.prepare(`
-        INSERT INTO project_proposals
+        INSERT INTO project_proposal
         (name, phone, description, features, visual_identity, budget, date)
         VALUES (?, ?, ?, ?, ?, ?, ?)
       `)
@@ -35,15 +35,15 @@ router.post('/', async (req, res) => {
 
     res.status(200).json({ message: 'Data saved successfully' })
 
-    const subject = `New Project Proposal - Submission from ${fullName}`
+    const subject = `Nova Proposta de Projeto - Enviada por ${fullName}`
     const text = `
-        Name: ${fullName}
-        Phone: ${phone}
-        Description: ${projectDescription}
+        Nome: ${fullName}
+        Telefone: ${phone}
+        Descrição: ${projectDescription}
         Features: ${appFeatures}
-        Visual Identity: ${visualIdentity}
+        Identidade Visual: ${visualIdentity}
         Budget: ${budget}
-        Date: ${submissionDate}`
+        Data de envio: ${submissionDate}`
 
     try {
       await sendEmail(process.env.TARGET_EMAIL, subject, text)
@@ -59,7 +59,7 @@ router.post('/', async (req, res) => {
 // FIND ALL SUBMITS
 router.get('/', authMiddleware, (req, res) => {
   try {
-    const stmt = db.prepare('SELECT * FROM project_proposals')
+    const stmt = db.prepare('SELECT * FROM project_proposal')
     const proposals = stmt.all()
     res.status(200).json(proposals)
   } catch {
@@ -71,7 +71,7 @@ router.get('/', authMiddleware, (req, res) => {
 router.get('/:id', authMiddleware, (req, res) => {
   try {
     const { id } = req.params
-    const stmt = db.prepare('SELECT * FROM project_proposals WHERE id = ?')
+    const stmt = db.prepare('SELECT * FROM project_proposal WHERE id = ?')
     const proposal = stmt.get(id)
     if (!proposal) return res.status(404).json({ message: 'Not found' })
 

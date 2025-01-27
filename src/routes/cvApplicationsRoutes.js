@@ -2,8 +2,11 @@ import express from 'express'
 import path from 'path'
 import upload from '../multerConfig.js'
 import database from '../db.js'
-import authMiddleware from '../middleware/authMiddleware.js'
 import { sendEmail } from '../utils/emailService.js'
+
+//MIDDLEWARES
+import authMiddleware from '../middlewares/authMiddleware.js'
+import adminMiddleware from '../middlewares/adminMiddleware.js'
 
 const router = express.Router()
 
@@ -18,7 +21,7 @@ router.post('/', upload.single('resume'), async (req, res) => {
 
   try {
     const stmt = database.prepare(`
-        INSERT INTO cv_pplications (name, phone, linkedIn, gitHub, course, period, resume)
+        INSERT INTO cv_application (name, phone, linkedIn, gitHub, course, period, resume)
         VALUES (?, ?, ?, ?, ?, ?, ?)
       `)
 
@@ -26,14 +29,14 @@ router.post('/', upload.single('resume'), async (req, res) => {
 
     res.status(201).json({ message: 'CV Application submitted successfully' })
 
-    const subject = `CV - Submission from ${fullName}`
+    const subject = `CV - Enviada por ${fullName}`
     const text = `
-        Name: ${fullName}
-        Phone: ${phone}
+        Nome: ${fullName}
+        Telefone: ${phone}
         LinkedIn: ${linkedIn}
         GitHub: ${gitHub}
-        Course: ${course}
-        Period: ${period}
+        Curso: ${course}
+        Período: ${period}
       `
 
     try {
@@ -54,9 +57,9 @@ router.post('/', upload.single('resume'), async (req, res) => {
 })
 
 // FIND ALL SUBMITS
-router.get('/', authMiddleware, (req, res) => {
+router.get('/', authMiddleware, adminMiddleware, (req, res) => {
   try {
-    const stmt = database.prepare('SELECT * FROM cv_pplications')
+    const stmt = database.prepare('SELECT * FROM cv_application')
     const applications = stmt.all()
 
     res.json(applications)
@@ -67,7 +70,7 @@ router.get('/', authMiddleware, (req, res) => {
 })
 
 // FIND CV FILE
-router.get('/resume/:filename', authMiddleware, (req, res) => {
+router.get('/resume/:filename', authMiddleware, adminMiddleware, (req, res) => {
   const { filename } = req.params
 
   const filePath = path.join('uploads', filename)

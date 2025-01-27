@@ -1,307 +1,35 @@
 # COMP API
 
-## Client Script Usage
+**COMP** is a junior enterprise at [PUC-MG](https://www.pucminas.br/destaques/Paginas/default.aspx), specializing in on-demand software development, essentially operating as a *software house*. The organization comprises **Members**, who are students enrolled in programs under ICEI (Institute of Exact Sciences and Informatics) and actively contribute to COMP. 
 
-This script (`client.sh`) is designed to interact with a REST API running at `http://localhost:8080/api`.  
-It uses `curl` to make HTTP requests and `jq` to pretty-print JSON responses.
+Each Member holds a specific **Role**, defining their designated function within the company. Members collaborate on **Projects**, which are tailored solutions developed by the company to address specific problems faced by its clients. 
 
-Make sure you have:
+To ensure innovation and excellence in its solutions, COMP leverages a variety of **Technologies** throughout its project development process, always striving to push boundaries and deliver top-quality products.
 
-- **curl** installed
-- **jq** installed
-- The script is executable: `chmod +x client.sh`
+## Authentication and Authorization
 
-Below is a list of all available commands, their arguments, and example usages.
+Members are registered by an administrator (`is_admin: true`), who sets up their credentials. Access to resources is controlled based on permission levels, which determine who can interact with them. Permissions can be categorized as:
 
----
+- **Public**: Accessible by anyone without authentication.
+- **Members and Admins**: Restricted to authenticated members, including administrators.
+- **Admins Only**: Limited to administrators with elevated privileges.
 
-### Table of Contents
+### Authentication: Login Endpoint
+**Endpoint**: `POST /api/members/login`  
+**Description**:  
+Authenticates a member using their email and password, returning a JWT token valid for 15 minutes.  
 
-1. [Users](#users)
-
-   - [login \<username> \<password>](#login)
-   - [register \<username> \<password>](#register)
-   - [get-users](#get-users)
-
-2. [Members](#members)
-
-   - [get-members](#get-members)
-   - [get-member \<id>](#get-member-id)
-   - [create-member \<json-file>](#create-member-json-file)
-   - [update-member \<id> \<json-file>](#update-member-id-json-file)
-   - [delete-member \<id>](#delete-member-id)
-
-3. [CV Applications](#cv-applications)
-
-   - [create-cv-app \<json-file>](#create-cv-app-json-file)
-   - [get-cv-apps](#get-cv-apps)
-   - [get-cv-resume \<filename>](#get-cv-resume-filename)
-
-4. [Project Proposals](#project-proposals)
-
-   - [create-proposal \<json-file>](#create-proposal-json-file)
-   - [get-proposals](#get-proposals)
-
----
-
-### Users
-
-#### login
-
-```
-./client.sh login <username> <password>
-```
-
-- Logs in a user with the specified username and password.
-- The script will store a JWT in `token.tmp` if successful.
-
-**Example**:
-
-```bash
-./client.sh login aaa aaa
-```
-
-#### register
-
-```
-./client.sh register <username> <password>
-```
-
-- Registers a new user.
-- Requires a valid JWT token in `token.tmp` (you must be logged in as an authorized user).
-
-**Example**:
-
-```bash
-./client.sh register newuser newpass
-```
-
-#### get-users
-
-```
-./client.sh get-users
-```
-
-- Retrieves a list of all users.
-- Requires a valid JWT token in `token.tmp`.
-
-**Example**:
-
-```bash
-./client.sh get-users
-```
-
----
-
-## Members
-
-### get-members
-
-```
-./client.sh get-members
-```
-
-- Fetches a list of all members.
-- Does **not** require JWT (assuming your server allows public access to this route).
-
-**Example**:
-
-```bash
-./client.sh get-members
-```
-
-### get-member <id>
-
-```
-./client.sh get-member <id>
-```
-
-- Fetches a single member by ID.
-
-**Example**:
-
-```bash
-./client.sh get-member 1
-```
-
-### create-member <json-file>
-
-```
-./client.sh create-member <json-file>
-```
-
-- Creates a new member.
-- Requires a valid JWT token in `token.tmp`.
-
-**Example**:
-
-`member.json`
-
+**Request Body**:
 ```json
 {
-  "name": "John",
-  "surname": "Doe",
-  "role": "Developer",
-  "imageProfile": "https://example.com/avatar.jpg",
-  "course": "Computer Science",
-  "description": "Enthusiastic developer",
-  "instagramUrl": "https://instagram.com/johndoe",
-  "githubUrl": "https://github.com/johndoe",
-  "linkedinUrl": "https://linkedin.com/in/johndoe",
-  "date": "2025-01-01",
-  "isActive": true
+  "email": "example@example.com",
+  "password": "password123"
 }
 ```
 
-```bash
-./client.sh create-member member.json
-```
-
-### update-member <id> <json-file>
-
-```
-./client.sh update-member <id> <json-file>
-```
-
-- Updates an existing member by ID.
-- Requires a valid JWT token in `token.tmp`.
-
-**Example**:
-
-`member.json`
-
-```json
-{
-  "role": "Senior Developer",
-  "isActive": false
-}
-```
-
-```bash
-./client.sh update-member 1 update_member.json
-```
-
-### delete-member <id>
-
-```
-./client.sh delete-member <id>
-```
-
-- Deletes a member by ID.
-- Requires a valid JWT token in `token.tmp`.
-
-**Example**:
-
-```bash
-./client.sh delete-member 2
-```
-
----
-
-## CV Applications
-
-### create-cv-app <json-file>
-
-```
-./client.sh create-cv-app <json-file>
-```
-
-- Creates a new CV application (multipart/form-data) and uploads a PDF resume.
-- The JSON file must contain `resume` as a **local file path** to the PDF.
-
-**Example**:
-
-`cv.json`
-
-```json
-{
-  "fullName": "John Doe",
-  "phone": "+1234567890",
-  "linkedIn": "https://linkedin.com/in/johndoe",
-  "gitHub": "https://github.com/johndoe",
-  "course": "Computer Science",
-  "period": "6",
-  "resume": "my_resume.pdf"
-}
-```
-
-```bash
-./client.sh create-cv-app cv.json
-```
-
-### get-cv-apps
-
-```
-./client.sh get-cv-apps
-```
-
-- Fetches all CV applications.
-- Requires a valid JWT token in `token.tmp`.
-
-**Example**:
-
-```bash
-./client.sh get-cv-apps
-```
-
-### get-cv-resume <filename>
-
-```
-./client.sh get-cv-resume <filename>
-```
-
-- Downloads a resume from the server and saves it locally under the same filename.
-
-**Example**:
-
-```bash
-./client.sh get-cv-resume resume.pdf
-```
-
----
-
-## Project Proposals
-
-### create-proposal <json-file>
-
-```
-./client.sh create-proposal <json-file>
-```
-
-- Submits a new project proposal.
-
-**Example**:
-
-`proposal.json`
-
-```json
-{
-  "fullName": "John Doe",
-  "phone": "+1234567890",
-  "projectDescription": "A mobile app to connect freelancers with clients",
-  "appFeatures": "Messaging, payment, project tracking",
-  "visualIdentity": "Yes",
-  "budget": "$10,000"
-}
-```
-
-```bash
-./client.sh create-proposal proposal.json
-```
-
-### get-proposals
-
-```
-./client.sh get-proposals
-```
-
-- Fetches all project proposals.
-- Requires a valid JWT token in `token.tmp`.
-
-**Example**:
-
-```bash
-./client.sh get-proposals
-```
+**Token Claims**:
+- `id`: Member's unique identifier.
+- `is_active`: Indicates if the member is active.
+- `is_admin`: Indicates if the member has admin privileges.
 
 ---

@@ -8,7 +8,9 @@ function authMiddleware(req, res, next) {
 
   jwt.verify(token, process.env.JWT_SECRET, (error, decoded) => {
     if (error) return res.status(401).json({ message: 'Invalid token' })
-    req.userId = decoded.id
+    if (!decoded.is_active)
+      return res.status(403).json({ message: 'Member is inactive' })
+    req.user = decoded
     next()
   })
 }
