@@ -82,14 +82,13 @@ CREATE TABLE IF NOT EXISTS project_technology (
 
 const createCvApplication = `
 CREATE TABLE IF NOT EXISTS cv_application (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
+    cv_filename TEXT PRIMARY KEY,
+    fullname TEXT NOT NULL,
     phone TEXT NOT NULL,
     linkedin TEXT,
     github TEXT,
     course TEXT NOT NULL,
-    period TEXT NOT NULL,
-    resume TEXT NOT NULL
+    period TEXT NOT NULL
 );`
 
 const createProjectProposal = `

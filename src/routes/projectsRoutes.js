@@ -7,20 +7,22 @@ import authMiddleware from '../middlewares/authMiddleware.js'
 const router = express.Router()
 
 function validateProjectName(name) {
-  const projectNameRegex = /^[a-zA-Z0-9]([-_a-zA-Z0-9]*[a-zA-Z0-9])?$/
+  const projectNameRegex = /^[a-zA-Z0-9](?!.*[-_]{2})[-_a-zA-Z0-9]*[a-zA-Z0-9]$/
 
-  if (!name || name.length < 1 || name.length > 100)
+  if (!name || name.length < 1 || name.length > 100) {
     return {
       valid: false,
       message: 'Project name must be between 1 and 100 characters.',
     }
+  }
 
-  if (!projectNameRegex.test(name))
+  if (!projectNameRegex.test(name)) {
     return {
       valid: false,
       message:
-        'Project name can only contain alphanumeric characters, hyphens, and underscores, and cannot start or end with a hyphen or underscore.',
+        'Project name can only contain alphanumeric characters, single hyphens, and single underscores, and cannot start or end with a hyphen or underscore. Consecutive hyphens or underscores are not allowed.',
     }
+  }
 
   return { valid: true }
 }
@@ -78,8 +80,8 @@ router.get('/', (req, res) => {
     res.json(
       projects.map((project) => ({
         ...project,
-        contributors_url: `${baseUrl}/projects/${project.name}/contributors`,
-        technologies_url: `${baseUrl}/projects/${project.name}/technologies`,
+        contributors_url: `${baseUrl}/api/projects/${project.name}/contributors`,
+        technologies_url: `${baseUrl}/api/projects/${project.name}/technologies`,
       }))
     )
   } catch (err) {
@@ -100,8 +102,8 @@ router.get('/:name', (req, res) => {
     const baseUrl = `${req.protocol}://${req.get('host')}`
     res.json({
       ...project,
-      contributors_url: `${baseUrl}/projects/${project.name}/contributors`,
-      technologies_url: `${baseUrl}/projects/${project.name}/technologies`,
+      contributors_url: `${baseUrl}/api/projects/${project.name}/contributors`,
+      technologies_url: `${baseUrl}/api/projects/${project.name}/technologies`,
     })
   } catch (err) {
     console.error(err.message)
@@ -235,11 +237,6 @@ router.get('/:name/contributors', (req, res) => {
     `)
     const contributors = getContributorsQuery.all(project.id)
 
-    if (contributors.length === 0)
-      return res
-        .status(404)
-        .json({ message: 'No contributors found for this project.' })
-
     const baseUrl = `${req.protocol}://${req.get('host')}`
     res.json(
       contributors.map((contributor) => ({
@@ -254,7 +251,7 @@ router.get('/:name/contributors', (req, res) => {
   }
 })
 
-// DELETE A CONTRIBUTOR
+// DISASSOCIATE MEMBER <--> PROJECT
 router.delete('/:name/contributors/:member_id', authMiddleware, (req, res) => {
   const { name, member_id } = req.params
 
@@ -371,7 +368,7 @@ router.get('/:name/technologies', (req, res) => {
     if (!project) return res.status(404).json({ message: 'Project not found.' })
 
     const getTechnologiesQuery = db.prepare(`
-      SELECT t.id, t.name, t.icon_url, pt.usage_level
+      SELECT t.id, t.name, t.icon_url, t.type, pt.usage_level
       FROM project_technology pt
       JOIN technology t ON pt.technology_id = t.id
       WHERE pt.project_id = ?
@@ -384,5 +381,53 @@ router.get('/:name/technologies', (req, res) => {
     res.status(500).json({ message: 'Failed to fetch technologies.' })
   }
 })
+
+// DISASSOCIATE TECHNOLOGY <--> PROJECT
+router.delete(
+  '/:name/technologies/:technology_id',
+  authMiddleware,
+  (req, res) => {
+    const { name, technology_id } = req.params
+
+    try {
+      const project = findProjectByName(name)
+
+      if (!project)
+        return res.status(404).json({ message: 'Project not found.' })
+
+      const findTechnologyQuery = db.prepare(`
+      SELECT * 
+      FROM project_technology 
+      WHERE project_id = ? AND technology_id = ?
+    `)
+      const technologyAssociation = findTechnologyQuery.get(
+        project.id,
+        technology_id
+      )
+
+      if (!technologyAssociation)
+        return res.status(404).json({
+          message: 'Technology not associated with this project.',
+        })
+
+      const deleteTechnologyQuery = db.prepare(`
+      DELETE FROM project_technology 
+      WHERE project_id = ? AND technology_id = ?
+    `)
+      deleteTechnologyQuery.run(project.id, technology_id)
+
+      return res.json({
+        message: 'Technology removed successfully from the project.',
+        project_id: project.id,
+        technology_id: parseInt(technology_id),
+      })
+    } catch (err) {
+      console.error(err.message)
+      return res
+        .status(500)
+        .json({ message: 'Failed to remove technology from project.' })
+    }
+  }
+)
 
 export default router

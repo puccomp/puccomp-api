@@ -1,6 +1,6 @@
 import express from 'express'
 import path from 'path'
-import upload from '../multerConfig.js'
+import { uploadResumeMulter } from '../multerConfig.js'
 import database from '../db.js'
 import { sendEmail } from '../utils/emailService.js'
 
@@ -11,23 +11,24 @@ import adminMiddleware from '../middlewares/adminMiddleware.js'
 const router = express.Router()
 
 // SUBMIT CV
-router.post('/', upload.single('resume'), async (req, res) => {
+router.post('/', uploadResumeMulter.single('resume'), async (req, res) => {
   const { fullName, phone, linkedIn, gitHub, course, period } = req.body
 
   if (!req.file)
     return res.status(400).json({ error: 'Resume file is required' })
 
-  const resumeFilePath = path.join('uploads', req.file.filename)
+  const filename = req.file.filename
+  const resumeFilePath = path.join('uploads/resumes', req.file.filename)
 
   try {
     const stmt = database.prepare(`
-        INSERT INTO cv_application (name, phone, linkedIn, gitHub, course, period, resume)
+        INSERT INTO cv_application (cv_filename, fullname, phone, linkedIn, gitHub, course, period)
         VALUES (?, ?, ?, ?, ?, ?, ?)
       `)
 
-    stmt.run(fullName, phone, linkedIn, gitHub, course, period, resumeFilePath)
+    stmt.run(filename, fullName, phone, linkedIn, gitHub, course, period)
 
-    res.status(201).json({ message: 'CV Application submitted successfully' })
+    res.status(201).json({ message: 'CV submitted successfully' })
 
     const subject = `CV - Enviada por ${fullName}`
     const text = `
@@ -62,7 +63,17 @@ router.get('/', authMiddleware, adminMiddleware, (req, res) => {
     const stmt = database.prepare('SELECT * FROM cv_application')
     const applications = stmt.all()
 
-    res.json(applications)
+    const baseUrl = `${req.protocol}://${req.get('host')}`
+
+    res.json(
+      applications.map((app) => {
+        const { cv_filename, ...rest } = app
+        return {
+          ...rest,
+          cv_url: `${baseUrl}/api/cv-applications/${cv_filename}`,
+        }
+      })
+    )
   } catch (error) {
     console.error(error.message)
     res.status(500).json({ error: 'Failed to retrieve applications' })
@@ -70,10 +81,11 @@ router.get('/', authMiddleware, adminMiddleware, (req, res) => {
 })
 
 // FIND CV FILE
-router.get('/resume/:filename', authMiddleware, adminMiddleware, (req, res) => {
+router.get('/:filename', authMiddleware, adminMiddleware, (req, res) => {
   const { filename } = req.params
 
-  const filePath = path.join('uploads', filename)
+  const filePath = path.join('uploads/resumes', filename)
+  console.log(filePath)
   res.sendFile(filePath, { root: '.' }, (err) => {
     if (err) {
       console.error(err.message)

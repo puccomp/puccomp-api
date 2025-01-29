@@ -2,16 +2,22 @@ import multer from 'multer'
 import fs from 'fs'
 import path from 'path'
 
-const uploadDir = path.join(process.cwd(), 'uploads')
+const RESUMES_DIR = path.join(process.cwd(), 'uploads/resumes')
+const PROJECTS_DIR = path.join(process.cwd(), 'uploads/projects')
 
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true })
-  console.log(`${uploadDir} directory has been created`)
+if (!fs.existsSync(RESUMES_DIR)) {
+  fs.mkdirSync(RESUMES_DIR, { recursive: true })
+  console.log(`${RESUMES_DIR} directory has been created`)
 }
 
-const storage = multer.diskStorage({
+if (!fs.existsSync(PROJECTS_DIR)) {
+  fs.mkdirSync(PROJECTS_DIR, { recursive: true })
+  console.log(`${PROJECTS_DIR} directory has been created`)
+}
+
+const resumeStorage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, uploadDir)
+    cb(null, RESUMES_DIR)
   },
   filename: (req, file, cb) => {
     const uniqueName = `${Date.now()}-${file.originalname}`
@@ -19,6 +25,8 @@ const storage = multer.diskStorage({
   },
 })
 
-const upload = multer({ storage })
+const uploadResumeMulter = multer({ storage: resumeStorage })
 
-export default upload
+const uploadProjectMulter = multer({ storage: multer.memoryStorage() })
+
+export { uploadResumeMulter, uploadProjectMulter }
