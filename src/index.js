@@ -13,6 +13,8 @@ import uploadsRoutes from './routes/uploadsRoutes.js'
 
 const app = express()
 const PORT = process.env.PORT || 8080
+
+export const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173'
 
 const __filename = fileURLToPath(import.meta.url)

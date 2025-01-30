@@ -1,10 +1,11 @@
 import express from 'express'
 import db from '../db/db.js'
+import { BASE_URL } from '../index.js'
+import { getS3URL } from '../utils/s3Service.js.js'
 
 // MIDDLEWARES
 import authMiddleware from '../middlewares/authMiddleware.js'
 import { projectExistsMiddleware } from '../middlewares/projectMiddleware.js'
-import { getS3URL } from '../utils/s3Service.js.js'
 
 const router = express.Router()
 
@@ -70,15 +71,14 @@ router.get('/', (req, res) => {
     const getProjectsQuery = db.prepare('SELECT * FROM project')
     const projects = getProjectsQuery.all()
 
-    const baseUrl = `${req.protocol}://${req.get('host')}`
 
     return res.json(
       projects.map((project) => {
         const { image_key, ...rest } = project
         return {
           ...rest,
-          contributors_url: `${baseUrl}/api/projects/${project.name}/contributors`,
-          technologies_url: `${baseUrl}/api/projects/${project.name}/technologies`,
+          contributors_url: `${BASE_URL}/api/projects/${project.name}/contributors`,
+          technologies_url: `${BASE_URL}/api/projects/${project.name}/technologies`,
           image_url: image_key ? getS3URL(image_key) : null,
         }
       })
@@ -92,13 +92,12 @@ router.get('/', (req, res) => {
 // FIND BY NAME
 router.get('/:project_name', projectExistsMiddleware, (req, res) => {
   try {
-    const baseUrl = `${req.protocol}://${req.get('host')}`
     const { image_key, ...rest } = req.project
 
     return res.json({
       ...rest,
-      contributors_url: `${baseUrl}/api/projects/${req.project.name}/contributors`,
-      technologies_url: `${baseUrl}/api/projects/${req.project.name}/technologies`,
+      contributors_url: `${BASE_URL}/api/projects/${req.project.name}/contributors`,
+      technologies_url: `${BASE_URL}/api/projects/${req.project.name}/technologies`,
       image_url: image_key ? getS3URL(image_key) : null,
     })
   } catch (err) {
@@ -230,12 +229,12 @@ router.get(
     `)
       const contributors = getContributorsQuery.all(req.project.id)
 
-      const baseUrl = `${req.protocol}://${req.get('host')}`
+
       res.json(
         contributors.map((contributor) => ({
           ...contributor,
           is_active: Boolean(contributor.is_active),
-          member_url: `${baseUrl}/api/members/${contributor.member_id}`,
+          member_url: `${BASE_URL}/api/members/${contributor.member_id}`,
         }))
       )
     } catch (err) {
