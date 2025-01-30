@@ -1,5 +1,5 @@
 import express from 'express'
-import db from '../db.js'
+import db from '../db/db.js'
 import authMiddleware from '../middlewares/authMiddleware.js'
 import { sendEmail } from '../utils/emailService.js'
 

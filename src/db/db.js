@@ -2,7 +2,7 @@ import Database from 'better-sqlite3'
 import fs from 'fs'
 import { seedDefaultAdmin, seedDefaultRole } from './seedDB.js'
 
-const databaseDir = 'data'
+const databaseDir = 'storage'
 
 if (!fs.existsSync(databaseDir)) {
   fs.mkdirSync(databaseDir, { recursive: true })
@@ -48,7 +48,7 @@ CREATE TABLE IF NOT EXISTS project (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL UNIQUE,
     description TEXT NOT NULL,
-    image_url TEXT,
+    image_key TEXT,
     created_at DATE NOT NULL DEFAULT CURRENT_DATE,
     updated_at DATE NOT NULL DEFAULT CURRENT_DATE
 );`
@@ -82,7 +82,7 @@ CREATE TABLE IF NOT EXISTS project_technology (
 
 const createCvApplication = `
 CREATE TABLE IF NOT EXISTS cv_application (
-    cv_filename TEXT PRIMARY KEY,
+    cv_key TEXT PRIMARY KEY,
     fullname TEXT NOT NULL,
     phone TEXT NOT NULL,
     linkedin TEXT,

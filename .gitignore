@@ -16,9 +16,6 @@ debug.log
 .vscode/
 .idea/
 
-# Multer Uploads
-uploads/
-
 # OS Specific
 .DS_Store
 Thumbs.db
@@ -37,4 +34,4 @@ coverage/
 dist/
 build/
 
-data/
+storage
