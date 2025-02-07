@@ -15,8 +15,10 @@ router.post('/', isAuth, (req, res) => {
   if (!name)
     return res.status(400).json({ message: 'Technology name is required.' })
 
-  if(!validTypes.includes(type))
-    return res.status(400).json({ message: `Invalid type. Valid types: ${validTypes.join(', ')}` })
+  if (!validTypes.includes(type))
+    return res
+      .status(400)
+      .json({ message: `Invalid type. Valid types: ${validTypes.join(', ')}` })
 
   try {
     const id = technologyModel.save(name, icon_url, type)
@@ -51,11 +53,13 @@ router.put('/:id', isAuth, (req, res) => {
   const { id } = req.params
   const { name, icon_url, type } = req.body
 
-  if(type && !validTypes.includes(type))
-    return res.status(400).json({ message: `Invalid type. Valid types: ${validTypes.join(', ')}` })
+  if (type && !validTypes.includes(type))
+    return res
+      .status(400)
+      .json({ message: `Invalid type. Valid types: ${validTypes.join(', ')}` })
 
   try {
-    if (!technologyModel.exists(id)) 
+    if (!technologyModel.exists(id))
       return res.status(404).json({ message: 'Technology not found.' })
 
     technologyModel.update(name, icon_url, type, id)

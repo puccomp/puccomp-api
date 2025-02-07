@@ -1,7 +1,7 @@
 import express from 'express'
 
 import db from '../db/db.js'
-import { memUpload } from '../utils/uploads.js'
+import { memUpload, sanitizeFileName} from '../utils/uploads.js'
 import { sendEmail } from '../utils/email.js'
 import { uploadObjectToS3, getSignedS3URL } from '../utils/s3.js'
 
@@ -69,19 +69,27 @@ router.post(
 )
 
 // FIND ALL CV APPLICATIONS
-router.get('/', isAuth, isAdmin, (req, res) => {
-  const stmt = db.prepare('SELECT * FROM cv_application')
-  const applications = stmt.all()
+router.get('/', isAuth, isAdmin, async (req, res) => {
+  try {
+    const applications = db.prepare('SELECT * FROM cv_application').all()
 
-  return res.json(
-    applications.map((app) => {
-      const { cv_key, ...rest } = app
-      return {
-        ...rest,
-        resume_url: getSignedS3URL(cv_key),
-      }
-    })
-  )
+    const applicationsWithSignedURLs = await Promise.all(
+      applications.map(async (app) => {
+        const { cv_key, ...rest } = app
+        const signedUrl = await getSignedS3URL(cv_key)
+        return {
+          ...rest,
+          resume_url: signedUrl, 
+        }
+      })
+    )
+
+    return res.json(applicationsWithSignedURLs)
+  } catch (error) {
+    console.error('Error fetching CV applications:', error)
+    res.status(500).json({ message: 'Error retrieving CV applications' })
+  }
 })
+
 
 export default router

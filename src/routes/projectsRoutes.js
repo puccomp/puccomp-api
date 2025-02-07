@@ -16,12 +16,7 @@ const checkProjectExists = (req, res, next) => {
 
 const router = express.Router()
 
-router.post(
-  '/',
-  isAuth,
-  memUpload.single('image'),
-  projectsController.insert
-)
+router.post('/', isAuth, memUpload.single('image'), projectsController.insert)
 
 router.get('/', projectsController.all)
 
