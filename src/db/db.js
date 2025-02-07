@@ -1,6 +1,7 @@
 import Database from 'better-sqlite3'
 import fs from 'fs'
 import { seedDefaultAdmin, seedDefaultRole } from './seedDB.js'
+import { TechnologyType, TechnologyUsageLevel } from '../utils/enums.js'
 
 const databaseDir = 'storage'
 
@@ -67,14 +68,20 @@ CREATE TABLE IF NOT EXISTS technology (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL UNIQUE,
     icon_url TEXT,
-    type TEXT CHECK (type IN ('language', 'framework', 'library', 'tool', 'other')) DEFAULT 'other'
+    type TEXT CHECK (type IN (${Object.values(TechnologyType)
+      .map((type) => `'${type}'`)
+      .join(', ')})) DEFAULT '${TechnologyType.OTHER}'
 );`
 
 const createProjectTechnology = `
 CREATE TABLE IF NOT EXISTS project_technology (
     project_id INTEGER NOT NULL,
     technology_id INTEGER NOT NULL,
-    usage_level TEXT NOT NULL CHECK (usage_level IN ('primary', 'secondary', 'experimental')),
+    usage_level TEXT NOT NULL CHECK (usage_level IN (${Object.values(
+      TechnologyUsageLevel
+    )
+      .map((level) => `'${level}'`)
+      .join(', ')})),
     PRIMARY KEY (project_id, technology_id),
     FOREIGN KEY (project_id) REFERENCES project (id) ON DELETE CASCADE,
     FOREIGN KEY (technology_id) REFERENCES technology (id) ON DELETE CASCADE

@@ -2,13 +2,13 @@ import express from 'express'
 import db from '../db/db.js'
 
 // MIDDLEWARES
-import authMiddleware from '../middlewares/authMiddleware.js'
-import adminMiddleware from '../middlewares/adminMiddleware.js'
+import isAuth from '../middlewares/isAuth.js'
+import isAdmin from '../middlewares/isAdmin.js'
 
 const router = express.Router()
 
 // SAVE ROLE
-router.post('/', authMiddleware, adminMiddleware, (req, res) => {
+router.post('/', isAuth, isAdmin, (req, res) => {
   const { name, description, level } = req.body
 
   if (!name || level === undefined)
@@ -67,7 +67,7 @@ router.get('/:id', (req, res) => {
 })
 
 // UPDATE
-router.put('/:id', authMiddleware, adminMiddleware, (req, res) => {
+router.put('/:id', isAuth, isAdmin, (req, res) => {
   const { id } = req.params
   const { name, description, level } = req.body
 
@@ -102,7 +102,7 @@ router.put('/:id', authMiddleware, adminMiddleware, (req, res) => {
 })
 
 // DELETE
-router.delete('/:id', authMiddleware, adminMiddleware, (req, res) => {
+router.delete('/:id', isAuth, isAdmin, (req, res) => {
   const { id } = req.params
 
   try {

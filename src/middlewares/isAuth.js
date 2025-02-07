@@ -1,6 +1,6 @@
 import jwt from 'jsonwebtoken'
 
-function authMiddleware(req, res, next) {
+function isAuth(req, res, next) {
   const authHeader = req.headers['authorization']
   const token = authHeader && authHeader.split(' ')[1]
 
@@ -15,4 +15,4 @@ function authMiddleware(req, res, next) {
   })
 }
 
-export default authMiddleware
+export default isAuth

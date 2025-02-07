@@ -1,32 +1,28 @@
 import express from 'express'
 import db from '../db/db.js'
-import authMiddleware from '../middlewares/authMiddleware.js'
+import isAuth from '../middlewares/isAuth.js'
+import { TechnologyType } from '../utils/enums.js'
+import technologyModel from '../models/technologyModel.js'
+
+const validTypes = Object.values(TechnologyType)
 
 const router = express.Router()
 
 // SAVE
-router.post('/', authMiddleware, (req, res) => {
+router.post('/', isAuth, (req, res) => {
   const { name, icon_url, type } = req.body
 
   if (!name)
     return res.status(400).json({ message: 'Technology name is required.' })
 
-  const validTypes = ['language', 'framework', 'library', 'tool', 'other']
-  if (!validTypes.includes(type))
-    return res
-      .status(400)
-      .json({ message: `Invalid type. Valid types: ${validTypes.join(', ')}` })
+  if(!validTypes.includes(type))
+    return res.status(400).json({ message: `Invalid type. Valid types: ${validTypes.join(', ')}` })
 
   try {
-    const insertTechnologyQuery = db.prepare(`
-      INSERT INTO technology (name, icon_url, type)
-      VALUES (?, ?, ?)
-    `)
-    const result = insertTechnologyQuery.run(name, icon_url || null, type)
-
+    const id = technologyModel.save(name, icon_url, type)
     return res.status(201).json({
       message: 'Technology created successfully.',
-      technology_id: result.lastInsertRowid,
+      technology_id: id,
     })
   } catch (err) {
     if (err.code === 'SQLITE_CONSTRAINT_UNIQUE')
@@ -42,8 +38,7 @@ router.post('/', authMiddleware, (req, res) => {
 // FIND ALL
 router.get('/', (req, res) => {
   try {
-    const getTechnologiesQuery = db.prepare('SELECT * FROM technology')
-    const technologies = getTechnologiesQuery.all()
+    const technologies = technologyModel.all()
     res.json(technologies)
   } catch (err) {
     console.error(err.message)
@@ -51,57 +46,19 @@ router.get('/', (req, res) => {
   }
 })
 
-// FIND BY ID
-router.get('/:id', (req, res) => {
-  const { id } = req.params
-
-  try {
-    const getTechnologyQuery = db.prepare(
-      'SELECT * FROM technology WHERE id = ?'
-    )
-    const technology = getTechnologyQuery.get(id)
-
-    if (!technology) {
-      return res.status(404).json({ message: 'Technology not found.' })
-    }
-
-    res.json(technology)
-  } catch (err) {
-    console.error(err.message)
-    res.status(500).json({ message: 'Failed to fetch technology.' })
-  }
-})
-
 // UPDATE
-router.put('/:id', authMiddleware, (req, res) => {
+router.put('/:id', isAuth, (req, res) => {
   const { id } = req.params
   const { name, icon_url, type } = req.body
 
-  const validTypes = ['language', 'framework', 'library', 'tool', 'other']
-  if (type && !validTypes.includes(type))
-    return res
-      .status(400)
-      .json({ message: `Invalid type. Valid types: ${validTypes.join(', ')}` })
+  if(type && !validTypes.includes(type))
+    return res.status(400).json({ message: `Invalid type. Valid types: ${validTypes.join(', ')}` })
 
   try {
-    const checkTechnologyQuery = db.prepare(
-      'SELECT * FROM technology WHERE id = ?'
-    )
-    const technology = checkTechnologyQuery.get(id)
-
-    if (!technology) {
+    if (!technologyModel.exists(id)) 
       return res.status(404).json({ message: 'Technology not found.' })
-    }
 
-    const updateTechnologyQuery = db.prepare(`
-      UPDATE technology
-      SET 
-        name = COALESCE(?, name),
-        icon_url = COALESCE(?, icon_url),
-        type = COALESCE(?, type)
-      WHERE id = ?
-    `)
-    updateTechnologyQuery.run(name, icon_url, type, id)
+    technologyModel.update(name, icon_url, type, id)
 
     res.json({ message: 'Technology updated successfully.' })
   } catch (err) {
@@ -116,22 +73,14 @@ router.put('/:id', authMiddleware, (req, res) => {
 })
 
 // DELETE
-router.delete('/:id', authMiddleware, (req, res) => {
+router.delete('/:id', isAuth, (req, res) => {
   const { id } = req.params
 
   try {
-    const checkTechnologyQuery = db.prepare(
-      'SELECT id FROM technology WHERE id = ?'
-    )
-    const technology = checkTechnologyQuery.get(id)
-
-    if (!technology)
+    if (!technologyModel.exists(id))
       return res.status(404).json({ message: 'Technology not found.' })
 
-    const deleteTechnologyQuery = db.prepare(
-      'DELETE FROM technology WHERE id = ?'
-    )
-    deleteTechnologyQuery.run(id)
+    technologyModel.delete(id)
 
     res.json({ message: 'Technology deleted successfully.' })
   } catch (err) {

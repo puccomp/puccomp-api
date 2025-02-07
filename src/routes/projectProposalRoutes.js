@@ -1,7 +1,7 @@
 import express from 'express'
 import db from '../db/db.js'
-import authMiddleware from '../middlewares/authMiddleware.js'
-import { sendEmail } from '../utils/emailService.js'
+import isAuth from '../middlewares/isAuth.js'
+import { sendEmail } from '../utils/email.js'
 
 const router = express.Router()
 
@@ -57,7 +57,7 @@ router.post('/', async (req, res) => {
 })
 
 // FIND ALL SUBMITS
-router.get('/', authMiddleware, (req, res) => {
+router.get('/', isAuth, (req, res) => {
   try {
     const stmt = db.prepare('SELECT * FROM project_proposal')
     const proposals = stmt.all()
@@ -68,7 +68,7 @@ router.get('/', authMiddleware, (req, res) => {
 })
 
 // FIND SUBMITS BY ID
-router.get('/:id', authMiddleware, (req, res) => {
+router.get('/:id', isAuth, (req, res) => {
   try {
     const { id } = req.params
     const stmt = db.prepare('SELECT * FROM project_proposal WHERE id = ?')
