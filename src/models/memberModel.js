@@ -146,6 +146,7 @@ const memberModel = {
     isAdmin,
     roleID
   ) => {
+
     const result = db
       .prepare(
         `UPDATE member SET email = COALESCE(?, email),password = COALESCE(?, password), name = COALESCE(?, name), surname = COALESCE(?, surname), bio = COALESCE(?, bio), course = COALESCE(?, course), avatar_url = COALESCE(?, avatar_url), entry_date = COALESCE(?, entry_date), exit_date = COALESCE(?, exit_date), is_active = COALESCE(?, is_active), github_url = COALESCE(?, github_url), instagram_url = COALESCE(?, instagram_url),  linkedin_url = COALESCE(?, linkedin_url), is_admin = COALESCE(?, is_admin), role_id = COALESCE(?, role_id) WHERE id = ?`
@@ -160,11 +161,11 @@ const memberModel = {
         avatarUrl,
         entryDate,
         exitDate,
-        isActive ? 1 : 0,
+        isActive,
         githubUrl,
         instagramUrl,
         linkedinUrl,
-        isAdmin ? 1 : 0,
+        isAdmin,
         roleID,
         id
       )
