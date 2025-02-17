@@ -1,7 +1,7 @@
 import express from 'express'
 
 import db from '../db/db.js'
-import { memUpload, sanitizeFileName} from '../utils/uploads.js'
+import { memUpload, sanitizeFileName } from '../utils/uploads.js'
 import { sendEmail } from '../utils/email.js'
 import { uploadObjectToS3, getSignedS3URL } from '../utils/s3.js'
 
@@ -9,6 +9,7 @@ import { uploadObjectToS3, getSignedS3URL } from '../utils/s3.js'
 import isAuth from '../middlewares/isAuth.js'
 import isAdmin from '../middlewares/isAdmin.js'
 import { fileRequiredMiddleware } from '../middlewares/fileMiddleware.js'
+import { multerErrorHandler } from '../middlewares/errorHandlers.js'
 
 const router = express.Router()
 
@@ -68,6 +69,8 @@ router.post(
   }
 )
 
+router.use(multerErrorHandler)
+
 // FIND ALL CV APPLICATIONS
 router.get('/', isAuth, isAdmin, async (req, res) => {
   try {
@@ -79,7 +82,7 @@ router.get('/', isAuth, isAdmin, async (req, res) => {
         const signedUrl = await getSignedS3URL(cv_key)
         return {
           ...rest,
-          resume_url: signedUrl, 
+          resume_url: signedUrl,
         }
       })
     )
@@ -90,6 +93,5 @@ router.get('/', isAuth, isAdmin, async (req, res) => {
     res.status(500).json({ message: 'Error retrieving CV applications' })
   }
 })
-
 
 export default router

@@ -106,8 +106,16 @@ CREATE TABLE IF NOT EXISTS project_proposal (
     description TEXT NOT NULL,
     features TEXT,
     visual_identity TEXT,
-    budget TEXT,
     date DATE NOT NULL DEFAULT CURRENT_DATE
+);`
+
+const createImageMemory = `
+CREATE TABLE IF NOT EXISTS image_memory (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    key TEXT NOT NULL UNIQUE,
+    title TEXT,
+    description TEXT,
+    date TEXT
 );`
 
 ;[
@@ -119,6 +127,7 @@ CREATE TABLE IF NOT EXISTS project_proposal (
   createProjectTechnology,
   createCvApplication,
   createProjectProposal,
+  createImageMemory,
 ].forEach((query) => db.exec(query))
 
 console.log('All tables have been created or already exist.')

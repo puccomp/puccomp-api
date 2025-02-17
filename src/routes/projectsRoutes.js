@@ -5,6 +5,7 @@ import { memUpload } from '../utils/uploads.js'
 
 // MIDDLEWARES
 import isAuth from '../middlewares/isAuth.js'
+import { multerErrorHandler } from '../middlewares/errorHandlers.js'
 
 const checkProjectExists = (req, res, next) => {
   const { project_name } = req.params
@@ -18,10 +19,6 @@ const router = express.Router()
 
 router.post('/', isAuth, memUpload.single('image'), projectsController.insert)
 
-router.get('/', projectsController.all)
-
-router.get('/:project_name', checkProjectExists, projectsController.get)
-
 router.put(
   '/:project_name',
   isAuth,
@@ -29,6 +26,12 @@ router.put(
   memUpload.single('image'),
   projectsController.update
 )
+
+router.use(multerErrorHandler)
+
+router.get('/', projectsController.all)
+
+router.get('/:project_name', checkProjectExists, projectsController.get)
 
 router.delete(
   '/:project_name',

@@ -10,6 +10,7 @@ import projectsRoutes from './routes/projectsRoutes.js'
 import technologiesRoutes from './routes/technologiesRoutes.js'
 import rolesRoutes from './routes/rolesRoutes.js'
 import cvApplications from './routes/cvApplications.js'
+import memoriesRoutes from './routes/memoriesRoutes.js'
 
 const app = express()
 const PORT = process.env.PORT || 8080
@@ -40,5 +41,6 @@ app.use('/api/projects', projectsRoutes)
 app.use('/api/technologies', technologiesRoutes)
 app.use('/api/roles', rolesRoutes)
 app.use('/api/cv-applications', cvApplications)
+app.use('/api/memories', memoriesRoutes)
 
 app.listen(PORT, () => console.log(`API running on http://localhost:${PORT}`))

@@ -8,20 +8,14 @@ const router = express.Router()
 // SUBMIT PROJECT PROPOSAL
 router.post('/', async (req, res) => {
   try {
-    const {
-      fullName,
-      phone,
-      projectDescription,
-      appFeatures,
-      visualIdentity,
-      budget,
-    } = req.body
+    const { fullName, phone, projectDescription, appFeatures, visualIdentity } =
+      req.body
 
     const submissionDate = new Date().toISOString()
     const stmt = db.prepare(`
         INSERT INTO project_proposal
-        (name, phone, description, features, visual_identity, budget, date)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        (name, phone, description, features, visual_identity, date)
+        VALUES (?, ?, ?, ?, ?, ?)
       `)
     stmt.run(
       fullName,
@@ -29,7 +23,6 @@ router.post('/', async (req, res) => {
       projectDescription,
       appFeatures,
       visualIdentity,
-      budget,
       submissionDate
     )
 
@@ -42,12 +35,11 @@ router.post('/', async (req, res) => {
         Descrição: ${projectDescription}
         Features: ${appFeatures}
         Identidade Visual: ${visualIdentity}
-        Budget: ${budget}
         Data de envio: ${submissionDate}`
 
     try {
       await sendEmail(process.env.TARGET_EMAIL, subject, text)
-      console.log(`Email \"${subject}\" sent successfully.`)
+      console.log(`Email "${subject}" sent successfully.`)
     } catch (emailError) {
       console.error('Failed to send email:', emailError.message)
     }
