@@ -26,7 +26,7 @@ app.use(
   cors({
     origin: FRONTEND_URL,
     methods: ['GET', 'POST'],
-    credentials: true,
+    credentials: false,
   })
 )
 app.use(express.static(path.join(__dirname, '../public')))
