@@ -1,6 +1,7 @@
 import bcrypt from 'bcryptjs'
+import { type Database } from 'better-sqlite3'
 
-export const seedDefaultRole = (db) => {
+export const seedDefaultRole = (db: Database): number => {
   try {
     const defaultRole = {
       name: 'Diretor Técnico',
@@ -9,7 +10,9 @@ export const seedDefaultRole = (db) => {
     }
 
     const checkRoleQuery = db.prepare('SELECT id FROM role WHERE name = ?')
-    let role = checkRoleQuery.get(defaultRole.name)
+    let role = checkRoleQuery.get(defaultRole.name) as
+      | { id: number }
+      | undefined
 
     if (!role) {
       const insertRoleQuery = db.prepare(`
@@ -22,20 +25,18 @@ export const seedDefaultRole = (db) => {
         defaultRole.level
       )
 
-      role = { id: result.lastInsertRowid }
+      role = { id: Number(result.lastInsertRowid) }
       console.log(`Role "${defaultRole.name}" created successfully!`)
-    } else {
-      console.log(`Role "${defaultRole.name}" already exists.`)
-    }
+    } else console.log(`Role "${defaultRole.name}" already exists.`)
 
     return role.id
   } catch (err) {
-    console.error('Error creating default role:', err.message)
+    console.error('Error creating default role:', (err as Error).message)
     throw err
   }
 }
 
-export const seedDefaultAdmin = (db, roleId) => {
+export const seedDefaultAdmin = (db: Database, roleId: number): void => {
   try {
     const defaultAdmin = {
       email: process.env.DEFAULT_ADMIN_EMAIL,
@@ -52,7 +53,7 @@ export const seedDefaultAdmin = (db, roleId) => {
     const checkAdminQuery = db.prepare(`
       SELECT COUNT(*) AS count FROM member WHERE is_admin = 1
     `)
-    const { count } = checkAdminQuery.get()
+    const { count } = checkAdminQuery.get() as { count: number }
 
     if (count > 0) {
       console.log('Default admin already exists. No action taken.')
@@ -71,7 +72,7 @@ export const seedDefaultAdmin = (db, roleId) => {
       defaultAdmin.name,
       defaultAdmin.surname,
       defaultAdmin.course,
-      bcrypt.hashSync(defaultAdmin.password, 8),
+      bcrypt.hashSync(defaultAdmin.password!, 8),
       defaultAdmin.entry_date,
       defaultAdmin.is_active,
       defaultAdmin.is_admin,
@@ -80,11 +81,11 @@ export const seedDefaultAdmin = (db, roleId) => {
 
     console.log('Default admin created successfully!')
   } catch (err) {
-    console.error('Error creating default admin:', err.message)
+    console.error('Error creating default admin:', (err as Error).message)
   }
 }
 
-export const seedProject = (db) => {
+export const seedProject = (db: Database): number => {
   try {
     const project = {
       name: 'Project-Alpha',
@@ -95,7 +96,9 @@ export const seedProject = (db) => {
     const checkProjectQuery = db.prepare(
       'SELECT id FROM project WHERE name = ?'
     )
-    const existingProject = checkProjectQuery.get(project.name)
+    const existingProject = checkProjectQuery.get(project.name) as
+      | { id: number }
+      | undefined
 
     if (existingProject) {
       console.log(`Project "${project.name}" already exists.`)
@@ -114,14 +117,14 @@ export const seedProject = (db) => {
     )
 
     console.log(`Project "${project.name}" created successfully!`)
-    return result.lastInsertRowid
+    return Number(result.lastInsertRowid)
   } catch (err) {
-    console.error('Error creating project:', err.message)
+    console.error('Error creating project:', (err as Error).message)
     throw err
   }
 }
 
-export const seedTechnologies = (db) => {
+export const seedTechnologies = (db: Database): void => {
   try {
     const technologies = [
       {
@@ -154,6 +157,6 @@ export const seedTechnologies = (db) => {
       }
     })
   } catch (err) {
-    console.error('Error seeding technologies:', err.message)
+    console.error('Error seeding technologies:', (err as Error).message)
   }
 }

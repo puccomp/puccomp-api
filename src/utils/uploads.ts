@@ -4,7 +4,7 @@ const storage = multer.memoryStorage()
 
 const memUpload = multer({ storage })
 
-function sanitizeFileName(filename) {
+function sanitizeFileName(filename: string): string {
   return filename
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')

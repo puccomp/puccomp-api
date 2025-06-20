@@ -1,9 +1,9 @@
-import express from 'express'
+import express, { RequestHandler, Router } from 'express'
 import db from '../db/db.js'
 import isAuth from '../middlewares/isAuth.js'
 import { sendEmail } from '../utils/email.js'
 
-const router = express.Router()
+const router: Router = express.Router()
 
 // SUBMIT PROJECT PROPOSAL
 router.post('/', async (req, res) => {
@@ -38,10 +38,10 @@ router.post('/', async (req, res) => {
         Data de envio: ${submissionDate}`
 
     try {
-      await sendEmail(process.env.TARGET_EMAIL, subject, text)
+      await sendEmail(process.env.TARGET_EMAIL!, subject, text)
       console.log(`Email "${subject}" sent successfully.`)
     } catch (emailError) {
-      console.error('Failed to send email:', emailError.message)
+      console.error('Failed to send email:', (emailError as Error).message)
     }
   } catch (error) {
     res.status(500).json({ message: 'Error saving data' })
@@ -60,7 +60,7 @@ router.get('/', isAuth, (req, res) => {
 })
 
 // FIND SUBMITS BY ID
-router.get('/:id', isAuth, (req, res) => {
+router.get('/:id', isAuth, ((req, res) => {
   try {
     const { id } = req.params
     const stmt = db.prepare('SELECT * FROM project_proposal WHERE id = ?')
@@ -71,6 +71,6 @@ router.get('/:id', isAuth, (req, res) => {
   } catch {
     res.status(500).json({ message: 'Error fetching data' })
   }
-})
+}) as RequestHandler)
 
 export default router

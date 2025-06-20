@@ -1,9 +1,48 @@
 import db from '../db/db.js'
+import { TechnologyUsageLevel } from '../utils/enums.js'
+
+interface Project {
+  id: number
+  name: string
+  description: string
+  image_key: string | null
+  created_at: string
+  updated_at: string
+}
+
+interface ProjectContributor {
+  member_id: number
+  name: string
+  surname: string
+  github_url: string | null
+  linkedin_url: string | null
+  instagram_url: string | null
+  avatar_url: string | null
+  is_active: 1 | 0
+}
+
+interface ProjectTechnology {
+  id: number
+  name: string
+  icon_url: string | null
+  type: string
+  usage_level: TechnologyUsageLevel
+}
+
+type ProjectData = Partial<Omit<Project, 'id'>>
 
 const projectModel = {
-  save: (name, description, image_key, createdAt = null, updatedAt = null) => {
-    const useCurrentDateForCreated = createdAt === null
-    const useCurrentDateForUpdated = updatedAt === null
+  save: (data: Omit<ProjectData, 'id'>): number | bigint => {
+    const {
+      name,
+      description,
+      image_key,
+      created_at = null,
+      updated_at = null,
+    } = data
+
+    const useCurrentDateForCreated = created_at === null
+    const useCurrentDateForUpdated = updated_at === null
 
     const query = `
       INSERT INTO project (name, description, image_key, created_at, updated_at)
@@ -11,18 +50,19 @@ const projectModel = {
                    ${useCurrentDateForUpdated ? 'CURRENT_DATE' : '?'})
     `
     const params = [name, description, image_key]
-    if (!useCurrentDateForCreated) params.push(createdAt)
-    if (!useCurrentDateForUpdated) params.push(updatedAt)
+    if (!useCurrentDateForCreated) params.push(created_at)
+    if (!useCurrentDateForUpdated) params.push(updated_at)
 
     const result = db.prepare(query).run(...params)
     return result.lastInsertRowid
   },
 
-  find: (name) => db.prepare('SELECT * FROM project WHERE name = ?').get(name),
+  find: (name: string) =>
+    db.prepare('SELECT * FROM project WHERE name = ?').get(name),
 
-  all: () => db.prepare('SELECT * FROM project').all(),
+  all: (): Project[] => db.prepare('SELECT * FROM project').all() as Project[],
 
-  update: (name, description, imageKey, createdAt, updatedAt, oldName) => {
+  update: (oldName: string, data: ProjectData): number => {
     const result = db
       .prepare(
         `
@@ -36,16 +76,23 @@ const projectModel = {
       WHERE name = ?
     `
       )
-      .run(name, description, imageKey, createdAt, updatedAt, oldName)
+      .run(
+        data.name,
+        data.description,
+        data.image_key,
+        data.created_at,
+        data.updated_at,
+        oldName
+      )
     return result.changes
   },
 
-  delete: (name) => {
+  delete: (name: string) => {
     const result = db.prepare('DELETE FROM project WHERE name = ?').run(name)
     return result.changes
   },
 
-  saveContributor: (memberID, id) => {
+  saveContributor: (memberID: number, id: number): number => {
     const result = db
       .prepare(
         `
@@ -58,7 +105,7 @@ const projectModel = {
     return result.changes
   },
 
-  allContributors: (id) =>
+  allContributors: (id: number): ProjectContributor[] =>
     db
       .prepare(
         `
@@ -76,9 +123,9 @@ const projectModel = {
         WHERE c.project_id = ?
       `
       )
-      .all(id),
+      .all(id) as ProjectContributor[],
 
-  hasContributor: (memberID, id) => {
+  hasContributor: (memberID: number, id: number): boolean => {
     return !!db
       .prepare(
         `SELECT 1 FROM contributor WHERE member_id = ? AND project_id = ?`
@@ -86,7 +133,7 @@ const projectModel = {
       .get(memberID, id)
   },
 
-  deleteContributor: (memberID, id) => {
+  deleteContributor: (memberID: number, id: number): number => {
     const result = db
       .prepare(`DELETE FROM contributor WHERE member_id = ? AND project_id = ?`)
       .run(memberID, id)
@@ -94,14 +141,18 @@ const projectModel = {
     return result.changes
   },
 
-  hasTech: (technologyID, id) =>
+  hasTech: (technologyID: number, id: number): boolean =>
     !!db
       .prepare(
         `SELECT 1 FROM project_technology WHERE technology_id = ? AND  project_id = ?`
       )
       .get(technologyID, id),
 
-  saveTech: (technologyID, id, usageLevel) => {
+  saveTech: (
+    technologyID: number,
+    id: number,
+    usageLevel: TechnologyUsageLevel
+  ): number => {
     const result = db
       .prepare(
         `
@@ -113,7 +164,7 @@ const projectModel = {
     return result.changes
   },
 
-  allTechs: (id) =>
+  allTechs: (id: number): ProjectTechnology[] =>
     db
       .prepare(
         `SELECT t.id, t.name, t.icon_url, t.type, pt.usage_level
@@ -121,9 +172,9 @@ const projectModel = {
       JOIN technology t ON pt.technology_id = t.id
       WHERE pt.project_id = ?`
       )
-      .all(id),
+      .all(id) as ProjectTechnology[],
 
-  deleteTech: (technologyID, id) => {
+  deleteTech: (technologyID: number, id: number): number => {
     const result = db
       .prepare(
         `
@@ -136,4 +187,5 @@ const projectModel = {
   },
 }
 
+export type { Project, ProjectContributor, ProjectTechnology, ProjectData }
 export default projectModel
