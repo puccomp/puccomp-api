@@ -7,14 +7,23 @@ import {
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 
 const s3Client = new S3Client({
-  region: process.env.AWS_REGION,
+  region: process.env.AWS_REGION!,
   credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
   },
 })
 
-export async function uploadObjectToS3(file, fileKey) {
+export interface UploadedFile {
+  buffer: Buffer
+  mimetype: string
+  originalname: string
+}
+
+export async function uploadObjectToS3(
+  file: UploadedFile,
+  fileKey: string
+): Promise<{ Key: string }> {
   const params = {
     Bucket: process.env.AWS_S3_BUCKET_NAME,
     Key: fileKey,
@@ -27,7 +36,7 @@ export async function uploadObjectToS3(file, fileKey) {
   return { Key: fileKey }
 }
 
-export async function deleteObjectFromS3(fileKey) {
+export async function deleteObjectFromS3(fileKey: string): Promise<void> {
   const params = {
     Bucket: process.env.AWS_S3_BUCKET_NAME,
     Key: fileKey,
@@ -36,11 +45,14 @@ export async function deleteObjectFromS3(fileKey) {
   await s3Client.send(command)
 }
 
-export function getS3URL(fileKey) {
+export function getS3URL(fileKey: string): string {
   return `https://${process.env.AWS_S3_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${fileKey}`
 }
 
-export async function getSignedS3URL(fileKey, expiresInSeconds = 3600) {
+export async function getSignedS3URL(
+  fileKey: string,
+  expiresInSeconds: number = 3600
+): Promise<string> {
   const params = {
     Bucket: process.env.AWS_S3_BUCKET_NAME,
     Key: fileKey,

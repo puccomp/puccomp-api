@@ -1,21 +1,41 @@
-import express from 'express'
+import express, { Request, Response, NextFunction, Router } from 'express'
 import projectsController from '../controllers/projectController.js'
-import projectModel from '../models/projectModel.js'
+import projectModel, { Project } from '../models/projectModel.js'
 import { memUpload } from '../utils/uploads.js'
 
 // MIDDLEWARES
 import isAuth from '../middlewares/isAuth.js'
 import { multerErrorHandler } from '../middlewares/errorHandlers.js'
 
-const checkProjectExists = (req, res, next) => {
-  const { project_name } = req.params
-  const project = projectModel.find(project_name)
-  if (!project) return res.status(404).json({ message: 'Project not found.' })
-  req.project = project
-  next()
+declare global {
+  namespace Express {
+    export interface Request {
+      project?: Project
+    }
+  }
 }
 
-const router = express.Router()
+const checkProjectExists = (
+  req: Request<{ project_name: string }>,
+  res: Response,
+  next: NextFunction
+): void => {
+  const { project_name } = req.params
+  try {
+    const project = projectModel.find(project_name)
+    if (!project) {
+      res.status(404).json({ message: 'Project not found.' })
+      return
+    }
+    req.project = project as Project
+    next()
+  } catch (error) {
+    console.error(error)
+    res.status(500).json({ message: 'Error while fetching project data.' })
+  }
+}
+
+const router: Router = express.Router()
 
 router.post('/', isAuth, memUpload.single('image'), projectsController.insert)
 

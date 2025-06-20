@@ -136,7 +136,7 @@ try {
   const defaultRoleId = seedDefaultRole(db)
   seedDefaultAdmin(db, defaultRoleId)
 } catch (err) {
-  console.error('Error during seeding process:', err.message)
+  console.error('Error during seeding process:', (err as Error).message)
 }
 
 export default db

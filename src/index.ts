@@ -32,7 +32,7 @@ app.use(
 app.use(express.static(path.join(__dirname, '../public')))
 
 // ROUTES
-app.get('/', (req, res) =>
+app.get('/', (_req, res) =>
   res.sendFile(path.join(__dirname, 'public', 'index.html'))
 )
 app.use('/api/members', membersRoutes)
