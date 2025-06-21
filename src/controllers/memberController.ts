@@ -2,199 +2,298 @@ import { RequestHandler } from 'express'
 import jwt from 'jsonwebtoken'
 import bcrypt from 'bcryptjs'
 import { TokenPayload } from '../middlewares/isAuth.js'
-import memberModel, { Member, MemberData } from '../models/memberModel.js'
+import { Member, Prisma, Role } from '@prisma/client'
+import { BASE_URL, prisma } from '../index.js'
+import { formatDate, keysToSnakeCase } from '../utils/formats.js'
 
-type CreateMemberDTO = Omit<Member, 'id'>
+interface LoginDTO {
+  email: string
+  password: string
+}
+
+interface CreateMemberDTO {
+  email: string
+  password: string
+  name: string
+  surname: string
+  bio?: string
+  course: string
+  avatar_url?: string
+  entry_date: string // YYYY-MM-DD
+  exit_date?: string // YYYY-MM-DD
+  is_active?: boolean
+  github_url?: string
+  instagram_url?: string
+  linkedin_url?: string
+  is_admin?: boolean
+  role_id: number
+}
+
+type UpdateMemberDTO = Partial<CreateMemberDTO>
 
 const memberController = {
-  login: ((req, res) => {
+  login: (async (req, res) => {
+    const { email, password } = req.body as LoginDTO
+    if (!email || !password) {
+      res.status(400).json({ message: 'Email and password are required.' })
+      return
+    }
+
     try {
-      const { email, password } = req.body
-      if (!email || !password) {
-        res.status(400).json({ message: 'Email and password are required.' })
-        return
-      }
-      const member = memberModel.findByEmail(email)
+      const member = await prisma.member.findUnique({
+        where: { email },
+      })
+
       if (!member) {
-        res.status(404).send({ message: 'Member not found' })
+        res.status(404).json({ message: 'Member not found' })
         return
       }
 
-      const isPasswordValid = bcrypt.compareSync(password, member.password)
+      const isPasswordValid = await bcrypt.compare(password, member.password)
       if (!isPasswordValid) {
-        res.status(401).send({ message: 'Invalid password' })
+        res.status(401).json({ message: 'Invalid credentials' })
         return
       }
 
       const tokenPayload: TokenPayload = {
         id: member.id,
-        is_active: Boolean(member.is_active),
-        is_admin: Boolean(member.is_admin),
+        is_active: member.isActive,
+        is_admin: member.isAdmin,
       }
       const token: string = jwt.sign(
         tokenPayload,
         process.env.JWT_SECRET_KEY!,
         {
-          expiresIn: '15m',
+          expiresIn: '1h',
         }
       )
 
       res.json({ token })
     } catch (err) {
-      const error = err as Error
-      console.error(error.message)
-      res.sendStatus(503)
+      console.error(err)
+      res.status(500).json({ message: 'Internal server error during login' })
     }
   }) as RequestHandler,
 
-  insert: ((req, res) => {
+  insert: (async (req, res) => {
+    const {
+      email,
+      password,
+      name,
+      surname,
+      course,
+      role_id,
+      entry_date,
+      ...rest
+    } = req.body as CreateMemberDTO
+
+    if (
+      !email ||
+      !password ||
+      !name ||
+      !surname ||
+      !course ||
+      !role_id ||
+      !entry_date
+    ) {
+      res.status(400).json({ message: 'Missing required fields.' })
+      return
+    }
+
+    if (!isSingleWord(name) || !isSingleWord(surname)) {
+      res
+        .status(400)
+        .json({ message: 'Name and surname must be single words.' })
+      return
+    }
+
     try {
-      const { email, password, name, surname, course } =
-        req.body as CreateMemberDTO
+      const hashedPassword = await bcrypt.hash(password, 10)
 
-      if (!email || !password || !name || !surname || !course) {
-        res.status(400).json({ message: 'Missing required fields.' })
-        return
-      }
-
-      if (!isSingleWord(name)) {
-        res.status(400).json({ error: 'Name must be a single word.' })
-        return
-      }
-
-      if (!isSingleWord(surname)) {
-        res.status(400).json({ error: 'Surname must be a single word.' })
-        return
-      }
-      const hashedPassword = bcrypt.hashSync(password, 8)
-      const result = memberModel.save({ ...req.body, password: hashedPassword })
+      const newMember = await prisma.member.create({
+        data: {
+          email,
+          password: hashedPassword,
+          name,
+          surname,
+          course,
+          entryDate: new Date(entry_date),
+          bio: rest.bio,
+          avatarUrl: rest.avatar_url,
+          exitDate: rest.exit_date ? new Date(rest.exit_date) : null,
+          isActive: rest.is_active ?? true,
+          githubUrl: rest.github_url,
+          instagramUrl: rest.instagram_url,
+          linkedinUrl: rest.linkedin_url,
+          isAdmin: rest.is_admin ?? false,
+          role: {
+            connect: { id: role_id },
+          },
+        },
+      })
 
       res.status(201).json({
         message: 'Member created successfully.',
-        memberId: result.lastInsertRowid,
+        member_url: `${BASE_URL}/api/members/${newMember.id}`,
       })
     } catch (err) {
-      const error = err as Error & { code?: string }
-      console.error(error.message)
-      if (
-        error.code === 'SQLITE_CONSTRAINT_FOREIGNKEY' ||
-        error.message.includes('FOREIGN KEY constraint failed')
-      ) {
-        res.status(400).json({ message: 'Invalid role id provided.' })
-        return
+      if (err instanceof Prisma.PrismaClientKnownRequestError) {
+        if (err.code === 'P2002') {
+          res.status(409).json({ message: `Email '${email}' already exists.` })
+          return
+        }
+        if (err.code === 'P2025') {
+          res
+            .status(400)
+            .json({ message: `Role with id '${role_id}' not found.` })
+          return
+        }
       }
-      if (error.code === 'SQLITE_CONSTRAINT_UNIQUE') {
-        res.status(409).json({ message: 'Email already exists.' })
-        return
-      }
+      console.error(err)
       res.status(500).json({ error: 'Failed to create member.' })
     }
   }) as RequestHandler<{}, {}, CreateMemberDTO>,
 
-  get: ((req, res) => {
-    try {
-      const id = parseInt(req.params.id, 10)
-      if (isNaN(id)) {
-        res.status(400).json({ error: 'Invalid id format.' })
-        return
-      }
+  get: (async (req, res) => {
+    const id = parseInt(req.params.id, 10)
+    if (isNaN(id)) {
+      res.status(400).json({ error: 'Invalid id format.' })
+      return
+    }
 
-      const member = memberModel.find(id)
+    try {
+      const member = await prisma.member.findUnique({
+        where: { id },
+        include: { role: true },
+      })
+
       if (!member) {
         res.status(404).json({ error: 'Member not found.' })
         return
       }
 
-      res.json({
-        ...member,
-        is_active: Boolean(member.is_active),
-        is_admin: Boolean(member.is_admin),
-      })
+      res.json(sanitizeMemberForResponse(member))
     } catch (error) {
-      console.error((error as Error).message)
+      console.error(error)
       res.status(500).json({ error: 'Failed to retrieve member.' })
     }
   }) as RequestHandler<{ id: string }>,
 
-  all: ((_req, res) => {
+  all: (async (_req, res) => {
     try {
-      const members = memberModel.all()
-      res.json(
-        members.map((member) => ({
-          ...member,
-          is_active: Boolean(member.is_active),
-        }))
-      )
+      const members = await prisma.member.findMany({
+        include: {
+          role: true,
+        },
+      })
+      res.json(members.map(sanitizeMemberForResponse))
     } catch (error) {
-      console.error((error as Error).message)
+      console.error(error)
       res.status(500).json({ error: 'Failed to retrieve members.' })
     }
   }) as RequestHandler,
 
-  update: ((req, res) => {
+  update: (async (req, res) => {
+    const id = parseInt(req.params.id, 10)
+    if (isNaN(id)) {
+      res.status(400).json({ error: 'Invalid id format.' })
+      return
+    }
+    const { password, entry_date, exit_date, role_id, ...rest } =
+      req.body as UpdateMemberDTO
+
+    if (
+      Object.keys(rest).length === 0 &&
+      !password &&
+      !entry_date &&
+      !exit_date &&
+      !role_id
+    ) {
+      res.status(400).json({ error: 'No fields to update.' })
+      return
+    }
+
+    if (rest.name && !isSingleWord(rest.name)) {
+      res.status(400).json({ message: 'Name must be a single word.' })
+      return
+    }
+    if (rest.surname && !isSingleWord(rest.surname)) {
+      res.status(400).json({ message: 'Surname must be a single word.' })
+      return
+    }
+
     try {
-      const id = parseInt(req.params.id, 10)
-      if (isNaN(id)) {
-        res.status(400).json({ error: 'Invalid id format.' })
-        return
+      const dataToUpdate: Prisma.MemberUpdateInput = {
+        name: rest.name,
+        surname: rest.surname,
+        course: rest.course,
+        bio: rest.bio,
+        avatarUrl: rest.avatar_url,
+        isActive: rest.is_active,
+        githubUrl: rest.github_url,
+        instagramUrl: rest.instagram_url,
+        linkedinUrl: rest.linkedin_url,
+        isAdmin: rest.is_admin,
       }
 
-      const dataToUpdate = req.body as Partial<MemberData>
-      if (Object.keys(dataToUpdate).length === 0) {
-        res.status(400).json({ message: 'No fields to update provided.' })
-        return
-      }
+      if (password) dataToUpdate.password = await bcrypt.hash(password, 10)
 
-      const existingMember = memberModel.find(id)
-      if (!existingMember) {
+      if (entry_date) dataToUpdate.entryDate = new Date(entry_date)
+
+      if (exit_date) dataToUpdate.exitDate = new Date(exit_date)
+
+      if (role_id) dataToUpdate.role = { connect: { id: role_id } }
+
+      const updatedMember = await prisma.member.update({
+        where: { id },
+        data: dataToUpdate,
+        include: { role: true },
+      })
+
+      res.json({
+        message: 'Member updated successfully.',
+        member: sanitizeMemberForResponse(updatedMember),
+      })
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
         res.status(404).json({ message: 'Member not found.' })
         return
       }
-
-      if (dataToUpdate.password) {
-        dataToUpdate.password = bcrypt.hashSync(dataToUpdate.password, 8)
-      }
-      if (dataToUpdate.name && !isSingleWord(dataToUpdate.name)) {
-        res.status(400).json({ error: 'Name must be a single word.' })
-        return
-      }
-      if (dataToUpdate.surname && !isSingleWord(dataToUpdate.surname)) {
-        res.status(400).json({ error: 'Surname must be a single word.' })
-        return
-      }
-
-      const changes = memberModel.update(id, dataToUpdate)
-      if (changes === 0) {
-        res
-          .status(304)
-          .json({ message: 'Data is the same, no changes were made.' })
-        return
-      }
-
-      res.json({ message: 'Member updated successfully.' })
-    } catch (error) {
-      console.error((error as Error).message)
+      console.error(error)
       res.status(500).json({ error: 'Failed to update member.' })
     }
   }) as RequestHandler<{ id: string }, {}, Partial<CreateMemberDTO>>,
 
-  delete: ((req, res) => {
-    try {
-      const id = parseInt(req.params.id, 10)
-      if (isNaN(id)) {
-        res.status(400).json({ error: 'Invalid id format.' })
-        return
-      }
+  delete: (async (req, res) => {
+    const id = parseInt(req.params.id, 10)
+    if (isNaN(id)) {
+      res.status(400).json({ error: 'Invalid id format.' })
+      return
+    }
 
-      const result = memberModel.delete(id)
-      if (result.changes === 0) {
-        res.status(404).json({ message: 'Member not found.' })
-        return
-      }
+    try {
+      await prisma.$transaction(async (tx) => {
+        await tx.contributor.deleteMany({
+          where: { memberId: id },
+        })
+        await tx.member.delete({
+          where: { id },
+        })
+      })
 
       res.json({ message: 'Member deleted successfully.' })
     } catch (error) {
-      console.error((error as Error).message)
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        res.status(404).json({ message: 'Member not found.' })
+        return
+      }
+      console.error(error)
       res.status(500).json({ error: 'Failed to delete member.' })
     }
   }) as RequestHandler<{ id: string }>,
@@ -203,6 +302,17 @@ const memberController = {
 const isSingleWord = (word: string): boolean => {
   const singleWordRegex = /^[^\s]+$/
   return singleWordRegex.test(word)
+}
+
+const sanitizeMemberForResponse = (member: Member & { role?: Role | null }) => {
+  const { password, role, entryDate, exitDate, ...camelCaseMember } = member
+  const intermediateObject = {
+    ...camelCaseMember,
+    entryDate: formatDate(entryDate),
+    exitDate: exitDate ? formatDate(exitDate) : null,
+    role: role?.name,
+  }
+  return keysToSnakeCase(intermediateObject)
 }
 
 export default memberController

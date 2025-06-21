@@ -11,9 +11,12 @@ import technologiesRoutes from './routes/technologiesRoutes.js'
 import rolesRoutes from './routes/rolesRoutes.js'
 import cvApplications from './routes/cvApplications.js'
 import memoriesRoutes from './routes/memoriesRoutes.js'
+import { PrismaClient } from '@prisma/client'
 
 const app = express()
 const PORT = process.env.PORT || 8080
+
+export const prisma = new PrismaClient()
 
 export const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173'

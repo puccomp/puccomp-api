@@ -9,7 +9,11 @@
     "dev": "nodemon --env-file=.env --watch ./src --ext ts --exec tsx ./src/index.ts",
     "build": "tsc",
     "start": "node --env-file=.env ./dist/index.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "prisma:seed": "tsx ./prisma/seed.ts"
+  },
+  "prisma": {
+    "seed": "tsx ./prisma/seed.ts"
   },
   "keywords": [],
   "author": "",
@@ -17,8 +21,8 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.743.0",
     "@aws-sdk/s3-request-presigner": "^3.743.0",
+    "@prisma/client": "^6.10.1",
     "bcryptjs": "^2.4.3",
-    "better-sqlite3": "^11.7.2",
     "cors": "^2.8.5",
     "express": "^5.0.1",
     "jsonwebtoken": "^9.0.2",
@@ -27,7 +31,6 @@
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
-    "@types/better-sqlite3": "^7.6.13",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.3",
     "@types/jsonwebtoken": "^9.0.10",
@@ -36,6 +39,7 @@
     "@types/nodemailer": "^6.4.17",
     "nodemon": "^3.1.9",
     "prettier": "^3.4.2",
+    "prisma": "^6.10.1",
     "tsx": "^4.20.3",
     "typescript": "^5.8.3"
   }

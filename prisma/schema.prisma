@@ -1,0 +1,126 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Role {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  description String?
+  level       Int
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  members Member[]
+}
+
+model Member {
+  id           Int       @id @default(autoincrement())
+  email        String    @unique
+  password     String
+  name         String
+  surname      String
+  bio          String?
+  course       String
+  avatarUrl    String?   @map("avatar_url")
+  entryDate    DateTime  @map("entry_date") @db.Date
+  exitDate     DateTime? @map("exit_date")  @db.Date
+  isActive     Boolean   @map("is_active")
+  githubUrl    String?   @map("github_url")
+  instagramUrl String?   @map("instagram_url")
+  linkedinUrl  String?   @map("linkedin_url")
+  isAdmin      Boolean   @map("is_admin")
+
+  roleId Int?  @map("role_id")
+  role   Role? @relation(fields: [roleId], references: [id], onDelete: SetNull)
+
+  projects Contributor[]
+}
+
+model Project {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  description String
+  imageKey    String?  @map("image_key")
+  createdAt   DateTime @map("created_at") @db.Date
+  updatedAt   DateTime? @map("updated_at") @db.Date
+
+  contributors Contributor[]
+  technologies ProjectTechnology[]
+}
+
+model Contributor {
+  memberId  Int     @map("member_id")
+  projectId Int     @map("project_id")
+  member    Member  @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@id([memberId, projectId])
+}
+
+model Technology {
+  id      Int            @id @default(autoincrement())
+  name    String         @unique
+  iconUrl String?        @map("icon_url")
+  type    TechnologyType @default(OTHER)
+
+  projects ProjectTechnology[]
+}
+
+model ProjectTechnology {
+  projectId    Int                  @map("project_id")
+  technologyId Int                  @map("technology_id")
+  usageLevel   TechnologyUsageLevel @map("usage_level")
+
+  project    Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  technology Technology @relation(fields: [technologyId], references: [id], onDelete: Cascade)
+
+  @@id([projectId, technologyId])
+}
+
+model CvApplication {
+  cvKey    String  @id @map("cv_key")
+  fullname String
+  phone    String
+  linkedin String?
+  github   String?
+  course   String
+  period   String
+}
+
+model ProjectProposal {
+  id             Int      @id @default(autoincrement())
+  name           String
+  phone          String
+  description    String
+  features       String?
+  visualIdentity String?  @map("visual_identity")
+  date           DateTime @default(now())
+}
+
+model ImageMemory {
+  id          Int     @id @default(autoincrement())
+  key         String  @unique
+  title       String?
+  description String?
+  date        String?
+}
+
+enum TechnologyType {
+  LANGUAGE
+  FRAMEWORK
+  LIBRARY
+  TOOL
+  OTHER
+}
+
+enum TechnologyUsageLevel {
+  PRIMARY
+  SECONDARY
+  SUPPORTIVE
+  OBSOLETE
+}

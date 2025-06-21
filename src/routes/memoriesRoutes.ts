@@ -1,5 +1,4 @@
 import express, { RequestHandler, Router } from 'express'
-import db from '../db/db.js'
 import { memUpload, sanitizeFileName } from '../utils/uploads.js'
 
 // MIDDLEWARES
@@ -8,16 +7,10 @@ import isAdmin from '../middlewares/isAdmin.js'
 import { fileRequiredMiddleware } from '../middlewares/fileMiddleware.js'
 import { getS3URL, uploadObjectToS3, deleteObjectFromS3 } from '../utils/s3.js'
 import { multerErrorHandler } from '../middlewares/errorHandlers.js'
+import { prisma } from '../index.js'
+import { ImageMemory } from '@prisma/client'
 
 interface MemoryDTO {
-  title: string
-  description: string
-  date: string
-}
-
-interface ImageMemory {
-  id: number
-  key: string
   title: string
   description: string
   date: string
@@ -30,37 +23,51 @@ interface GetMemoriesQuery {
 
 const router: Router = express.Router()
 
+// SAVE
 router.post(
   '/',
   isAuth,
   isAdmin,
   memUpload.single('image'),
   fileRequiredMiddleware,
-  ((req, res) => {
+  (async (req, res) => {
     const memoryImage = req.file!
     const { title, description, date } = req.body as MemoryDTO
-    try {
-      const imageKey = `memories/${sanitizeFileName(memoryImage.originalname)}`
+    const imageKey = `memories/${sanitizeFileName(memoryImage.originalname)}`
 
-      if (exists(imageKey)) {
+    try {
+      const existingMemory = await prisma.imageMemory.findUnique({
+        where: { key: imageKey },
+      })
+
+      if (existingMemory) {
         res
           .status(409)
           .json({ message: 'Image with this name already exists.' })
         return
       }
 
-      db.prepare(
-        'INSERT INTO image_memory (key, title, description, date) VALUES (?, ?, ?, ?)'
-      ).run(imageKey, title, description, date)
+      await uploadObjectToS3(memoryImage, imageKey)
 
-      uploadObjectToS3(memoryImage, imageKey)
+      try {
+        const newMemory = await prisma.imageMemory.create({
+          data: { key: imageKey, title, description, date },
+        })
 
-      res.status(201).json({
-        message: 'Memory image uploaded successfully.',
-        image_url: getS3URL(imageKey),
-      })
+        res.status(201).json({
+          message: 'Memory image uploaded successfully.',
+          image_url: getS3URL(newMemory.key),
+        })
+      } catch (dbError) {
+        console.error(
+          'Database insertion failed, attempting to clean up S3...',
+          dbError
+        )
+        await deleteObjectFromS3(imageKey)
+        throw dbError
+      }
     } catch (err) {
-      console.error((err as Error).message)
+      console.error(err)
       res.status(500).json({ message: 'Failed to upload memory image.' })
     }
   }) as RequestHandler
@@ -68,98 +75,80 @@ router.post(
 
 router.use(multerErrorHandler)
 
-router.get('/', ((req, res) => {
+// FIND ALL
+router.get('/', (async (req, res) => {
   try {
     const { sort_by = 'date', order = 'desc' } = req.query as GetMemoriesQuery
 
-    const allowedSortBy = ['date', 'title', 'id']
+    const allowedSortBy: (keyof ImageMemory)[] = ['date', 'title', 'id']
     const allowedOrder = ['asc', 'desc']
 
     if (!allowedSortBy.includes(sort_by)) {
       res.status(400).json({ message: 'Invalid sort by parameter.' })
       return
     }
-
     if (!allowedOrder.includes(order)) {
       res.status(400).json({ message: 'Invalid order parameter.' })
       return
     }
 
-    const images = db
-      .prepare('SELECT * FROM image_memory')
-      .all() as ImageMemory[]
-
-    images.sort((a, b) => {
-      const valA = a[sort_by]
-      const valB = b[sort_by]
-
-      if (
-        valA === undefined ||
-        valB === undefined ||
-        valA === null ||
-        valB === null
-      )
-        return 0
-
-      if (typeof valA === 'string' && typeof valB === 'string') {
-        return order === 'asc'
-          ? valA.localeCompare(valB)
-          : valB.localeCompare(valA)
-      }
-
-      return order === 'asc'
-        ? (valA as any) - (valB as any)
-        : (valB as any) - (valA as any)
+    const memories = await prisma.imageMemory.findMany({
+      orderBy: {
+        [sort_by]: order,
+      },
     })
 
-    res.json(
-      images.map(({ key, ...rest }) => ({
-        ...rest,
-        image_url: getS3URL(key),
-      }))
-    )
+    const response = memories.map((mem) => ({
+      id: mem.id,
+      title: mem.title,
+      description: mem.description,
+      date: mem.date,
+      image_url: getS3URL(mem.key),
+    }))
+
+    res.json(response)
   } catch (err) {
-    console.error((err as Error).message)
+    console.error(err)
     res.status(500).json({ message: 'Failed to fetch images.' })
   }
 }) as RequestHandler)
 
 router.delete('/:id', isAuth, isAdmin, (async (req, res) => {
-  try {
-    const id = parseInt(req.params.id, 10)
-    if (isNaN(id)) {
-      res.status(400).json({ message: 'Invalid ID format.' })
-      return
-    }
+  const id = parseInt(req.params.id, 10)
+  if (isNaN(id)) {
+    res.status(400).json({ message: 'Invalid ID format.' })
+    return
+  }
 
-    const memory = db
-      .prepare('SELECT id, key FROM image_memory WHERE id = ?')
-      .get(id) as Pick<ImageMemory, 'id' | 'key'> | undefined
+  try {
+    const memory = await prisma.imageMemory.findUnique({
+      where: { id },
+    })
 
     if (!memory) {
       res.status(404).json({ message: 'Image not found.' })
       return
     }
 
-    await deleteObjectFromS3(memory.key)
+    await prisma.imageMemory.delete({ where: { id } })
 
-    db.prepare('DELETE FROM image_memory WHERE id = ?').run(id)
+    try {
+      await deleteObjectFromS3(memory.key)
+    } catch (s3Error) {
+      console.error(
+        `Failed to delete S3 object ${memory.key}, but DB record was removed.`,
+        s3Error
+      )
+    }
 
     res.status(200).json({
-      key: memory.id,
+      id: memory.id,
       message: 'Image deleted successfully.',
     })
   } catch (err) {
-    console.error((err as Error).message)
+    console.error(err)
     res.status(500).json({ message: 'Failed to delete memory image.' })
   }
 }) as RequestHandler<{ id: string }>)
-
-const exists = (imageKey: string): boolean => {
-  const result = db
-    .prepare('SELECT 1 FROM image_memory WHERE key = ?')
-    .get(imageKey)
-  return !!result
-}
 
 export default router

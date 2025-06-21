@@ -1,11 +1,12 @@
 import express, { Request, Response, NextFunction, Router } from 'express'
+import { Project } from '@prisma/client'
 import projectsController from '../controllers/projectController.js'
-import projectModel, { Project } from '../models/projectModel.js'
 import { memUpload } from '../utils/uploads.js'
 
 // MIDDLEWARES
 import isAuth from '../middlewares/isAuth.js'
 import { multerErrorHandler } from '../middlewares/errorHandlers.js'
+import { prisma } from '../index.js'
 
 declare global {
   namespace Express {
@@ -15,19 +16,21 @@ declare global {
   }
 }
 
-const checkProjectExists = (
+const findProjectByName = async (
   req: Request<{ project_name: string }>,
   res: Response,
   next: NextFunction
-): void => {
+): Promise<void> => {
   const { project_name } = req.params
   try {
-    const project = projectModel.find(project_name)
+    const project = await prisma.project.findUnique({
+      where: { name: project_name },
+    })
     if (!project) {
       res.status(404).json({ message: 'Project not found.' })
       return
     }
-    req.project = project as Project
+    req.project = project
     next()
   } catch (error) {
     console.error(error)
@@ -42,7 +45,7 @@ router.post('/', isAuth, memUpload.single('image'), projectsController.insert)
 router.put(
   '/:project_name',
   isAuth,
-  checkProjectExists,
+  findProjectByName,
   memUpload.single('image'),
   projectsController.update
 )
@@ -51,52 +54,52 @@ router.use(multerErrorHandler)
 
 router.get('/', projectsController.all)
 
-router.get('/:project_name', checkProjectExists, projectsController.get)
+router.get('/:project_name', findProjectByName, projectsController.get)
 
 router.delete(
   '/:project_name',
   isAuth,
-  checkProjectExists,
+  findProjectByName,
   projectsController.delete
 )
 
 router.post(
   '/:project_name/contributors',
   isAuth,
-  checkProjectExists,
+  findProjectByName,
   projectsController.addContributor
 )
 
 router.get(
   '/:project_name/contributors',
-  checkProjectExists,
+  findProjectByName,
   projectsController.allContributors
 )
 
 router.delete(
   '/:project_name/contributors/:member_id',
   isAuth,
-  checkProjectExists,
+  findProjectByName,
   projectsController.removeContributor
 )
 
 router.post(
   '/:project_name/technologies',
   isAuth,
-  checkProjectExists,
+  findProjectByName,
   projectsController.addTech
 )
 
 router.get(
   '/:project_name/technologies',
-  checkProjectExists,
+  findProjectByName,
   projectsController.allTechs
 )
 
 router.delete(
   '/:project_name/technologies/:technology_id',
   isAuth,
-  checkProjectExists,
+  findProjectByName,
   projectsController.removeTech
 )
 

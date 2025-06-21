@@ -1,15 +1,7 @@
 import express, { RequestHandler, Router } from 'express'
-import db from '../db/db.js'
 import isAuth from '../middlewares/isAuth.js'
-import { TechnologyType } from '../utils/enums.js'
-import technologyModel from '../models/technologyModel.js'
-
-interface Technology {
-  id: number
-  name: string
-  icon_url: string | null
-  type: TechnologyType
-}
+import { BASE_URL, prisma } from '../index.js'
+import { Prisma, Technology, TechnologyType } from '@prisma/client'
 
 interface CreateTechnologyDTO {
   name: string
@@ -20,55 +12,72 @@ interface CreateTechnologyDTO {
 type UpdateTechnologyDTO = Partial<CreateTechnologyDTO>
 
 const router: Router = express.Router()
+
 const validTypes = Object.values(TechnologyType)
 
 // SAVE
-router.post('/', isAuth, ((req, res) => {
+router.post('/', isAuth, (async (req, res) => {
   try {
-    const technology = req.body as CreateTechnologyDTO
+    const { name, icon_url, type } = req.body as CreateTechnologyDTO
 
-    if (!technology.name) {
+    if (!name) {
       res.status(400).json({ message: 'Technology name is required.' })
       return
     }
 
-    if (!technology.type || !validTypes.includes(technology.type)) {
+    if (!type) {
+      res.status(400).json({ message: 'Parameter "type" is required.' })
+      return
+    }
+
+    const normalizedType = type.toUpperCase().trim() as TechnologyType
+
+    if (!validTypes.includes(normalizedType)) {
       res.status(400).json({
         message: `Invalid type. Valid types are: ${validTypes.join(', ')}`,
       })
       return
     }
 
-    const id = technologyModel.save(technology)
+    const newTechnology = await prisma.technology.create({
+      data: {
+        name,
+        iconUrl: icon_url,
+        type: normalizedType,
+      },
+    })
     res.status(201).json({
       message: 'Technology created successfully.',
-      technology_id: id,
+      technology_url: `${BASE_URL}/api/technologies/${newTechnology.id}`,
     })
   } catch (err) {
-    const error = err as Error & { code?: string }
-    if (error.code === 'SQLITE_CONSTRAINT_UNIQUE')
-      return res
-        .status(409)
-        .json({ message: 'Technology name already exists.' })
-
-    console.error(error.message)
-    return res.status(500).json({ message: 'Failed to create technology.' })
+    if (
+      err instanceof Prisma.PrismaClientKnownRequestError &&
+      err.code === 'P2002'
+    ) {
+      res.status(409).json({ message: 'Technology name already exists.' })
+      return
+    }
+    console.error(err)
+    res.status(500).json({ message: 'Failed to create technology.' })
   }
 }) as RequestHandler)
 
 // FIND ALL
-router.get('/', ((req, res) => {
+router.get('/', (async (_req, res) => {
   try {
-    const technologies = technologyModel.all()
+    const technologies: Technology[] = await prisma.technology.findMany({
+      orderBy: { name: 'asc' },
+    })
     res.json(technologies)
   } catch (err) {
-    console.error((err as Error).message)
+    console.error(err)
     res.status(500).json({ message: 'Failed to fetch technologies.' })
   }
 }) as RequestHandler)
 
 // UPDATE
-router.put('/:id', isAuth, ((req, res) => {
+router.put('/:id', isAuth, (async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10)
     if (isNaN(id)) {
@@ -78,34 +87,52 @@ router.put('/:id', isAuth, ((req, res) => {
 
     const { name, icon_url, type } = req.body as UpdateTechnologyDTO
 
-    if (type && !validTypes.includes(type)) {
-      res.status(400).json({
-        message: `Invalid type. Valid types are: ${validTypes.join(', ')}`,
-      })
-      return
+    let normalizedType: TechnologyType | undefined = undefined
+
+    if (type) {
+      normalizedType = type.toUpperCase() as TechnologyType
+
+      if (!validTypes.includes(normalizedType)) {
+        res.status(400).json({
+          message: `Invalid type '${type}'. Valid types are: ${validTypes.join(', ')}`,
+        })
+        return
+      }
     }
 
-    if (!technologyModel.exists(id)) {
-      res.status(404).json({ message: 'Technology not found.' })
-      return
-    }
+    const updatedTechnology = await prisma.technology.update({
+      where: { id },
+      data: {
+        name,
+        iconUrl: icon_url,
+        type: normalizedType,
+      },
+    })
 
-    technologyModel.update(id, { name, icon_url, type })
-
-    res.json({ message: 'Technology updated successfully.' })
+    res.json({
+      message: 'Technology updated successfully.',
+      technology_url: `${BASE_URL}/api/technologies/${updatedTechnology.id}`,
+    })
+    return
   } catch (err) {
-    const error = err as Error & { code?: string }
-    if (error.code === 'SQLITE_CONSTRAINT_UNIQUE') {
-      res.status(409).json({ message: 'Technology name already exists.' })
-      return
+    if (err instanceof Prisma.PrismaClientKnownRequestError) {
+      if (err.code === 'P2002') {
+        res.status(409).json({ message: 'Technology name already exists.' })
+        return
+      }
+      if (err.code === 'P2025') {
+        res.status(404).json({ message: 'Technology not found.' })
+        return
+      }
     }
-    console.error(error.message)
+    console.error(err)
     res.status(500).json({ message: 'Failed to update technology.' })
+    return
   }
 }) as RequestHandler<{ id: string }, {}, UpdateTechnologyDTO>)
 
 // DELETE
-router.delete('/:id', isAuth, ((req, res) => {
+router.delete('/:id', isAuth, (async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10)
     if (isNaN(id)) {
@@ -113,16 +140,27 @@ router.delete('/:id', isAuth, ((req, res) => {
       return
     }
 
-    if (!technologyModel.exists(id)) {
+    const techWithProjects = await prisma.technology.findUnique({
+      where: { id },
+      include: { _count: { select: { projects: true } } },
+    })
+
+    if (!techWithProjects) {
       res.status(404).json({ message: 'Technology not found.' })
       return
     }
 
-    technologyModel.delete(id)
+    if (techWithProjects._count.projects > 0) {
+      res.status(400).json({
+        message: `Cannot delete technology. It is being used by ${techWithProjects._count.projects} project(s).`,
+      })
+      return
+    }
 
+    await prisma.technology.delete({ where: { id } })
     res.json({ message: 'Technology deleted successfully.' })
   } catch (err) {
-    console.error((err as Error).message)
+    console.error(err)
     res.status(500).json({ message: 'Failed to delete technology.' })
   }
 }) as RequestHandler<{ id: string }>)

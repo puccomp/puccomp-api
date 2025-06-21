@@ -1,18 +1,11 @@
 import express, { RequestHandler, Router } from 'express'
-import db from '../db/db.js'
+import { BASE_URL, prisma } from '../index.js'
+import { Prisma, Role } from '@prisma/client'
 
 // MIDDLEWARES
 import isAuth from '../middlewares/isAuth.js'
 import isAdmin from '../middlewares/isAdmin.js'
-
-interface Role {
-  id: number
-  name: string
-  description: string | null
-  level: number
-  created_at: string
-  updated_at: string
-}
+import { formatDate } from '../utils/formats.js'
 
 interface CreateRoleDTO {
   name: string
@@ -25,48 +18,51 @@ type UpdateRoleDTO = Partial<CreateRoleDTO>
 const router: Router = express.Router()
 
 // SAVE ROLE
-router.post('/', isAuth, isAdmin, ((req, res) => {
-  const { name, description, level } = req.body as CreateRoleDTO
-
-  if (!name || level === undefined) {
-    res.status(400).json({ message: 'Role name and level are required.' })
-    return
-  }
-  if (level < 0) {
-    res.status(400).json({ message: 'Role level must be 0 or greater.' })
-    return
-  }
-
+router.post('/', isAuth, isAdmin, (async (req, res) => {
   try {
-    const insertRoleQuery = db.prepare(`
-      INSERT INTO role (name, description, level, created_at, updated_at)
-      VALUES (?, ?, ?, CURRENT_DATE, CURRENT_DATE)
-    `)
-    const result = insertRoleQuery.run(name, description || null, level)
+    const { name, description, level } = req.body as CreateRoleDTO
 
-    return res.status(201).json({
-      message: 'Role created successfully.',
-      role_id: result.lastInsertRowid,
-    })
-  } catch (err) {
-    const error = err as Error & { code?: string }
-    if (error.code === 'SQLITE_CONSTRAINT_UNIQUE') {
-      res.status(409).json({ message: 'Role name already exists.' })
+    if (!name || level === undefined) {
+      res.status(400).json({ message: 'Role name and level are required.' })
+      return
+    }
+    if (level < 0) {
+      res.status(400).json({ message: 'Role level must be 0 or greater.' })
       return
     }
 
-    console.error(error.message)
+    const newRole = await prisma.role.create({
+      data: { name, description, level },
+    })
+
+    res.status(201).json({
+      message: 'Role created successfully.',
+      role_url: `${BASE_URL}/api/roles/${newRole.id}`,
+    })
+  } catch (err) {
+    if (
+      err instanceof Prisma.PrismaClientKnownRequestError &&
+      err.code === 'P2002'
+    ) {
+      res.status(409).json({ message: 'Role name already exists.' })
+      return
+    }
+    console.error(err)
     res.status(500).json({ message: 'Failed to create role.' })
   }
 }) as RequestHandler)
 
 // FIND ALL ROLES
-router.get('/', ((req, res) => {
+router.get('/', (async (_req, res) => {
   try {
-    const getRolesQuery = db.prepare('SELECT * FROM role')
-    const roles = getRolesQuery.all()
-
-    res.json(roles)
+    const roles: Role[] = await prisma.role.findMany()
+    res.json(
+      roles.map((role) => ({
+        ...role,
+        createdAt: formatDate(role.createdAt),
+        updatedAt: formatDate(role.updatedAt),
+      }))
+    )
   } catch (err) {
     console.error((err as Error).message)
     res.status(500).json({ message: 'Failed to fetch roles.' })
@@ -74,7 +70,7 @@ router.get('/', ((req, res) => {
 }) as RequestHandler)
 
 // FIND ROLE BY ID
-router.get('/:id', ((req, res) => {
+router.get('/:id', (async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10)
     if (isNaN(id)) {
@@ -82,22 +78,27 @@ router.get('/:id', ((req, res) => {
       return
     }
 
-    const getRoleQuery = db.prepare('SELECT * FROM role WHERE id = ?')
-    const role = getRoleQuery.get(id) as Role | undefined
+    const role = await prisma.role.findUnique({
+      where: { id },
+    })
 
     if (!role) {
       res.status(404).json({ message: 'Role not found.' })
       return
     }
-    res.json(role)
+    res.json({
+      ...role,
+      createdAt: formatDate(role.createdAt),
+      updatedAt: formatDate(role.updatedAt),
+    })
   } catch (err) {
-    console.error((err as Error).message)
+    console.error(err)
     res.status(500).json({ message: 'Failed to fetch role.' })
   }
 }) as RequestHandler<{ id: string }>)
 
 // UPDATE
-router.put('/:id', isAuth, isAdmin, ((req, res) => {
+router.put('/:id', isAuth, isAdmin, (async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10)
     if (isNaN(id)) {
@@ -107,67 +108,38 @@ router.put('/:id', isAuth, isAdmin, ((req, res) => {
 
     const { name, description, level } = req.body as UpdateRoleDTO
 
-    const role = db.prepare('SELECT id FROM role WHERE id = ?').get(id) as
-      | { id: number }
-      | undefined
-    if (!role) {
-      res.status(404).json({ message: 'Role not found.' })
-      return
-    }
-
     if (level !== undefined && level < 0) {
       res.status(400).json({ message: 'Role level must be 0 or greater.' })
       return
     }
 
-    const fieldsToUpdate: string[] = []
-    const params: (string | number)[] = []
+    const updatedRole = await prisma.role.update({
+      where: { id },
+      data: { name, description, level },
+    })
 
-    if (name !== undefined) {
-      fieldsToUpdate.push('name = ?')
-      params.push(name)
-    }
-    if (description !== undefined) {
-      fieldsToUpdate.push('description = ?')
-      params.push(description)
-    }
-    if (level !== undefined) {
-      fieldsToUpdate.push('level = ?')
-      params.push(level)
-    }
-
-    if (fieldsToUpdate.length === 0) {
-      res.status(400).json({ message: 'No fields to update were provided.' })
-      return
-    }
-
-    fieldsToUpdate.push('updated_at = CURRENT_TIMESTAMP')
-    params.push(id)
-
-    const updateQuery = db.prepare(
-      `UPDATE role SET ${fieldsToUpdate.join(', ')} WHERE id = ?`
-    )
-    const info = updateQuery.run(params)
-
-    if (info.changes === 0) {
-      res.status(304).json({ message: 'No changes were made to the role.' })
-      return
-    }
-
-    res.json({ message: 'Role updated successfully.' })
+    res.json({
+      message: 'Role updated successfully.',
+      role_url: `${BASE_URL}/api/roles/${updatedRole.id}`,
+    })
   } catch (err) {
-    const error = err as Error & { code?: string }
-    if (error.code === 'SQLITE_CONSTRAINT_UNIQUE') {
-      res.status(409).json({ message: 'Role name already exists.' })
-      return
+    if (err instanceof Prisma.PrismaClientKnownRequestError) {
+      if (err.code === 'P2002') {
+        res.status(409).json({ message: 'Role name already exists.' })
+        return
+      }
+      if (err.code === 'P2025') {
+        res.status(404).json({ message: 'Role not found.' })
+        return
+      }
     }
-    console.error(error.message)
+    console.error(err)
     res.status(500).json({ message: 'Failed to update role.' })
   }
 }) as RequestHandler<{ id: string }, {}, UpdateRoleDTO>)
 
 // DELETE
-router.delete('/:id', isAuth, isAdmin, ((req, res) => {
+router.delete('/:id', isAuth, isAdmin, (async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10)
     if (isNaN(id)) {
@@ -175,31 +147,37 @@ router.delete('/:id', isAuth, isAdmin, ((req, res) => {
       return
     }
 
-    const role = db.prepare('SELECT id FROM role WHERE id = ?').get(id) as
-      | { id: number }
-      | undefined
-    if (!role) {
+    const roleWithMemberCount = await prisma.role.findUnique({
+      where: { id },
+      include: {
+        _count: {
+          select: { members: true },
+        },
+      },
+    })
+
+    if (!roleWithMemberCount) {
       res.status(404).json({ message: 'Role not found.' })
       return
     }
 
-    const { count } = db
-      .prepare('SELECT COUNT(*) AS count FROM member WHERE role_id = ?')
-      .get(id) as { count: number }
-    if (count > 0) {
+    if (roleWithMemberCount._count.members > 0) {
       res.status(400).json({
         message: 'Cannot delete role. It is associated with existing members.',
       })
       return
     }
 
-    const deleteRoleQuery = db.prepare('DELETE FROM role WHERE id = ?')
-    deleteRoleQuery.run(id)
+    await prisma.role.delete({
+      where: { id },
+    })
 
     res.json({ message: 'Role deleted successfully.' })
+    return
   } catch (err) {
-    console.error((err as Error).message)
+    console.error(err)
     res.status(500).json({ message: 'Failed to delete role.' })
+    return
   }
 }) as RequestHandler<{ id: string }>)
 
