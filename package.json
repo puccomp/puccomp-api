@@ -1,12 +1,12 @@
 {
-  "name": "comp-api",
+  "name": "puccomp-api",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
   "type": "module",
   "scripts": {
     "format": "prettier --write .",
-    "dev": "nodemon --env-file=.env --watch ./src --ext ts --exec tsx ./src/index.ts",
+    "dev": "nodemon --watch ./src --ext ts --exec tsx ./src/index.ts",
     "build": "tsc",
     "start": "node --env-file=.env ./dist/index.js",
     "test": "echo \"Error: no test specified\" && exit 1",
