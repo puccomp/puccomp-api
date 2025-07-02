@@ -6,7 +6,7 @@ import { memUpload } from '../utils/uploads.js'
 // MIDDLEWARES
 import isAuth from '../middlewares/isAuth.js'
 import { multerErrorHandler } from '../middlewares/errorHandlers.js'
-import { prisma } from '../index.js'
+import prisma from '../utils/prisma.js'
 
 declare global {
   namespace Express {

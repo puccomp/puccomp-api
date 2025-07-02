@@ -1,11 +1,12 @@
 import express, { RequestHandler, Router } from 'express'
-import { BASE_URL, prisma } from '../index.js'
+import { BASE_URL } from '../index.js'
 import { Prisma, Role } from '@prisma/client'
+import { formatDate } from '../utils/formats.js'
+import prisma from '../utils/prisma.js'
 
 // MIDDLEWARES
 import isAuth from '../middlewares/isAuth.js'
 import isAdmin from '../middlewares/isAdmin.js'
-import { formatDate } from '../utils/formats.js'
 
 interface CreateRoleDTO {
   name: string

@@ -1,14 +1,14 @@
 import express, { RequestHandler, Router } from 'express'
 import { memUpload, sanitizeFileName } from '../utils/uploads.js'
+import { getS3URL, uploadObjectToS3, deleteObjectFromS3 } from '../utils/s3.js'
+import { ImageMemory } from '@prisma/client'
+import prisma from '../utils/prisma.js'
 
 // MIDDLEWARES
 import isAuth from '../middlewares/isAuth.js'
 import isAdmin from '../middlewares/isAdmin.js'
 import { fileRequiredMiddleware } from '../middlewares/fileMiddleware.js'
-import { getS3URL, uploadObjectToS3, deleteObjectFromS3 } from '../utils/s3.js'
 import { multerErrorHandler } from '../middlewares/errorHandlers.js'
-import { prisma } from '../index.js'
-import { ImageMemory } from '@prisma/client'
 
 interface MemoryDTO {
   title: string

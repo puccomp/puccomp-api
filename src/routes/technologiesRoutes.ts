@@ -1,7 +1,8 @@
 import express, { RequestHandler, Router } from 'express'
 import isAuth from '../middlewares/isAuth.js'
-import { BASE_URL, prisma } from '../index.js'
+import { BASE_URL, } from '../index.js'
 import { Prisma, Technology, TechnologyType } from '@prisma/client'
+import prisma from '../utils/prisma.js'
 
 interface CreateTechnologyDTO {
   name: string

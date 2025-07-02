@@ -11,12 +11,9 @@ import technologiesRoutes from './routes/technologiesRoutes.js'
 import rolesRoutes from './routes/rolesRoutes.js'
 import cvApplications from './routes/cvApplications.js'
 import memoriesRoutes from './routes/memoriesRoutes.js'
-import { PrismaClient } from '@prisma/client'
 
 const app = express()
 const PORT = process.env.PORT || 8080
-
-export const prisma = new PrismaClient()
 
 export const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173'
@@ -46,4 +43,8 @@ app.use('/api/roles', rolesRoutes)
 app.use('/api/cv-applications', cvApplications)
 app.use('/api/memories', memoriesRoutes)
 
-app.listen(PORT, () => console.log(`API running on http://localhost:${PORT}`))
+if (process.env.NODE_ENV !== 'production')
+  app.listen(PORT, () => console.log(`API running on http://localhost:${PORT}`))
+
+// Export as serveless function (deployable to Vercel, Netlify, etc.)
+export default app

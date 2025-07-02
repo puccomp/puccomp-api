@@ -13,7 +13,7 @@ import isAuth from '../middlewares/isAuth.js'
 import isAdmin from '../middlewares/isAdmin.js'
 import { fileRequiredMiddleware } from '../middlewares/fileMiddleware.js'
 import { multerErrorHandler } from '../middlewares/errorHandlers.js'
-import { prisma } from '../index.js'
+import prisma from '../utils/prisma.js'
 
 const router: Router = express.Router()
 

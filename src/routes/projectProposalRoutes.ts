@@ -1,7 +1,7 @@
 import express, { Router } from 'express'
-import { prisma } from '../index.js'
 import isAuth from '../middlewares/isAuth.js'
 import { sendEmail } from '../utils/email.js'
+import prisma from '../utils/prisma.js'
 
 const router: Router = express.Router()
 
