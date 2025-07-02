@@ -16,6 +16,8 @@ model Role {
   updatedAt   DateTime @updatedAt @map("updated_at")
 
   members Member[]
+
+  @@map("roles")
 }
 
 model Member {
@@ -39,6 +41,8 @@ model Member {
   role   Role? @relation(fields: [roleId], references: [id], onDelete: SetNull)
 
   projects Contributor[]
+
+  @@map("members")
 }
 
 model Project {
@@ -51,6 +55,8 @@ model Project {
 
   contributors Contributor[]
   technologies ProjectTechnology[]
+
+  @@map("projects")
 }
 
 model Contributor {
@@ -60,6 +66,7 @@ model Contributor {
   project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   @@id([memberId, projectId])
+  @@map("contributors")
 }
 
 model Technology {
@@ -69,6 +76,8 @@ model Technology {
   type    TechnologyType @default(OTHER)
 
   projects ProjectTechnology[]
+
+  @@map("technologies")
 }
 
 model ProjectTechnology {
@@ -80,6 +89,7 @@ model ProjectTechnology {
   technology Technology @relation(fields: [technologyId], references: [id], onDelete: Cascade)
 
   @@id([projectId, technologyId])
+  @@map("project_technologies")
 }
 
 model CvApplication {
@@ -90,6 +100,8 @@ model CvApplication {
   github   String?
   course   String
   period   String
+
+  @@map("cv_applications")
 }
 
 model ProjectProposal {
@@ -100,6 +112,8 @@ model ProjectProposal {
   features       String?
   visualIdentity String?  @map("visual_identity")
   date           DateTime @default(now())
+
+  @@map("project_proposals")
 }
 
 model ImageMemory {
@@ -108,6 +122,8 @@ model ImageMemory {
   title       String?
   description String?
   date        String?
+
+  @@map("image_memories")
 }
 
 enum TechnologyType {
