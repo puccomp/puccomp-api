@@ -3,7 +3,7 @@ import jwt from 'jsonwebtoken'
 import bcrypt from 'bcryptjs'
 import { TokenPayload } from '../middlewares/isAuth.js'
 import { Member, Prisma, Role } from '@prisma/client'
-import { BASE_URL, } from '../index.js'
+import { BASE_URL } from '../index.js'
 import { formatDate, keysToSnakeCase } from '../utils/formats.js'
 import prisma from '../utils/prisma.js'
 

@@ -19,12 +19,12 @@ services:
     container_name: puccomp-db
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: 123 
-      POSTGRES_DB: puccomp 
+      POSTGRES_PASSWORD: 123
+      POSTGRES_DB: puccomp
     ports:
       - '5432:5432'
     volumes:
-      - pgdata:/var/lib/postgresql/data # docker handles 
+      - pgdata:/var/lib/postgresql/data # docker handles
 
 volumes:
   pgdata: # named volume

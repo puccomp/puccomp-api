@@ -1,5 +1,5 @@
 import { RequestHandler } from 'express'
-import { BASE_URL, } from '../index.js'
+import { BASE_URL } from '../index.js'
 import { deleteObjectFromS3, getS3URL, uploadObjectToS3 } from '../utils/s3.js'
 import { Prisma, Project, TechnologyUsageLevel } from '@prisma/client'
 import prisma from '../utils/prisma.js'

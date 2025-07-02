@@ -9,7 +9,7 @@ Para desenvolver a aplicação localmente, utilizamos Docker Compose para simpli
 ### Executando o ambiente de desenvolvimento
 
 ```bash
-git clone 'https://github.com/puccomp/puccomp-api' 
+git clone 'https://github.com/puccomp/puccomp-api'
 
 cd puccomp-api
 
@@ -35,13 +35,13 @@ docker-compose exec app npm run prisma:seed
 docker-compose logs app -f # -f (ou --follow) o terminal fica "conectado" ao fluxo de logs
 
 # executar comandos no container da aplicação
-docker-compose exec app npm run dev 
+docker-compose exec app npm run dev
 
 # executar migrações do Prisma
 docker-compose exec app npx prisma migrate dev
 
 # parar os serviços
-docker-compose down 
+docker-compose down
 
 # parar e remover volumes (apaga dados do banco)
 docker-compose down -v
