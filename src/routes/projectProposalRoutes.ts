@@ -1,9 +1,9 @@
-import express from 'express'
-import db from '../db/db.js'
+import express, { Router } from 'express'
 import isAuth from '../middlewares/isAuth.js'
 import { sendEmail } from '../utils/email.js'
+import prisma from '../utils/prisma.js'
 
-const router = express.Router()
+const router: Router = express.Router()
 
 // SUBMIT PROJECT PROPOSAL
 router.post('/', async (req, res) => {
@@ -11,20 +11,15 @@ router.post('/', async (req, res) => {
     const { fullName, phone, projectDescription, appFeatures, visualIdentity } =
       req.body
 
-    const submissionDate = new Date().toISOString()
-    const stmt = db.prepare(`
-        INSERT INTO project_proposal
-        (name, phone, description, features, visual_identity, date)
-        VALUES (?, ?, ?, ?, ?, ?)
-      `)
-    stmt.run(
-      fullName,
-      phone,
-      projectDescription,
-      appFeatures,
-      visualIdentity,
-      submissionDate
-    )
+    const newProposal = await prisma.projectProposal.create({
+      data: {
+        name: fullName,
+        phone,
+        description: projectDescription,
+        features: appFeatures,
+        visualIdentity,
+      },
+    })
 
     res.status(200).json({ message: 'Data saved successfully' })
 
@@ -35,13 +30,13 @@ router.post('/', async (req, res) => {
         Descrição: ${projectDescription}
         Features: ${appFeatures}
         Identidade Visual: ${visualIdentity}
-        Data de envio: ${submissionDate}`
+        Data de envio: ${newProposal.date.toISOString()}`
 
     try {
-      await sendEmail(process.env.TARGET_EMAIL, subject, text)
+      await sendEmail(process.env.TARGET_EMAIL!, subject, text)
       console.log(`Email "${subject}" sent successfully.`)
     } catch (emailError) {
-      console.error('Failed to send email:', emailError.message)
+      console.error('Failed to send email:', (emailError as Error).message)
     }
   } catch (error) {
     res.status(500).json({ message: 'Error saving data' })
@@ -49,10 +44,9 @@ router.post('/', async (req, res) => {
 })
 
 // FIND ALL SUBMITS
-router.get('/', isAuth, (req, res) => {
+router.get('/', isAuth, async (_req, res) => {
   try {
-    const stmt = db.prepare('SELECT * FROM project_proposal')
-    const proposals = stmt.all()
+    const proposals = await prisma.projectProposal.findMany()
     res.status(200).json(proposals)
   } catch {
     res.status(500).json({ message: 'Error fetching data' })
@@ -60,13 +54,16 @@ router.get('/', isAuth, (req, res) => {
 })
 
 // FIND SUBMITS BY ID
-router.get('/:id', isAuth, (req, res) => {
+router.get('/:id', isAuth, async (req, res) => {
   try {
     const { id } = req.params
-    const stmt = db.prepare('SELECT * FROM project_proposal WHERE id = ?')
-    const proposal = stmt.get(id)
-    if (!proposal) return res.status(404).json({ message: 'Not found' })
-
+    const proposal = await prisma.projectProposal.findUnique({
+      where: { id: Number(id) },
+    })
+    if (!proposal) {
+      res.status(404).json({ message: 'Not found' })
+      return
+    }
     res.status(200).json(proposal)
   } catch {
     res.status(500).json({ message: 'Error fetching data' })

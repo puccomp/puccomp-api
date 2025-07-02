@@ -1,11 +1,11 @@
-import express from 'express'
+import express, { Router } from 'express'
 import memberController from '../controllers/memberController.js'
 
 // MIDDLEWARES
 import isAuth from '../middlewares/isAuth.js'
 import isAdmin from '../middlewares/isAdmin.js'
 
-const router = express.Router()
+const router: Router = express.Router()
 
 router.post('/login', memberController.login)
 

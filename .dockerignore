@@ -3,3 +3,8 @@ npm-debug.log
 .env
 uploads
 data
+dist
+.git
+.gitignore
+Dockerfile
+docker-compose.yml

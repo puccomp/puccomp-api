@@ -1,38 +1,48 @@
-# COMP API
+# PUC COMP REST API
 
-**COMP** is a junior enterprise at [PUC-MG](https://www.pucminas.br/destaques/Paginas/default.aspx), specializing in on-demand software development, essentially operating as a _software house_. The organization comprises **Members**, who are students enrolled in programs under ICEI (Institute of Exact Sciences and Informatics) and actively contribute to COMP.
+**PUC COMP** é uma empresa júnior da [PUC-MG](https://www.pucminas.br/destaques/Paginas/default.aspx), especializada em desenvolvimento de software sob demanda, operando essencialmente como uma _software house_. A organização é composta por **Membros**, que são estudantes matriculados em cursos do ICEI (Instituto de Ciências Exatas e Informática) e contribuem ativamente para a empresa. Cada Membro possui um **Cargo** específico, definindo sua função designada dentro da empresa. Os Membros colaboram em **Projetos**, que são soluções personalizadas desenvolvidas pela empresa para resolver problemas específicos enfrentados por seus clientes. Para garantir inovação e excelência em suas soluções, a COMP utiliza uma variedade de **Tecnologias** ao longo de seu processo de desenvolvimento de projetos, sempre buscando ultrapassar limites e entregar produtos de alta qualidade.
 
-Each Member holds a specific **Role**, defining their designated function within the company. Members collaborate on **Projects**, which are tailored solutions developed by the company to address specific problems faced by its clients.
+## Desenvolvimento
 
-To ensure innovation and excellence in its solutions, COMP leverages a variety of **Technologies** throughout its project development process, always striving to push boundaries and deliver top-quality products.
+Para desenvolver a aplicação localmente, utilizamos Docker Compose para simplificar o ambiente de desenvolvimento e garantir consistência entre diferentes máquinas.
 
-## Authentication and Authorization
+### Executando o ambiente de desenvolvimento
 
-Members are registered by an administrator (`is_admin: true`), who sets up their credentials. Access to resources is controlled based on permission levels, which determine who can interact with them. Permissions can be categorized as:
+```bash
+git clone 'https://github.com/puccomp/puccomp-api' 
 
-- **Public**: Accessible by anyone without authentication.
-- **Members and Admins**: Restricted to authenticated members, including administrators.
-- **Admins Only**: Limited to administrators with elevated privileges.
+cd puccomp-api
 
-### Authentication: Login Endpoint
+cp .env.example .env # adicione variáveis de ambiente
 
-**Endpoint**: `POST /api/members/login`  
-**Description**:  
-Authenticates a member using their email and password, returning a JWT token valid for 15 minutes.
+# inicie os serviços/containers
+docker-compose up -d  # -d (ou --detach) recuperar o controle do terminal após execeutar o comando
 
-**Request Body**:
+# crie as tabelas no postgresql
+docker-compose exec app npx prisma migrate dev
 
-```json
-{
-  "email": "example@example.com",
-  "password": "password123"
-}
+# popular o banco inicialmente
+docker-compose exec app npm run prisma:seed
 ```
 
-**Token Claims**:
+- Hot reload habilitado através de bind mounts (`./src` e `./prisma`)
+- Dados persistidos em volume nomeado (`pgdata`)
 
-- `id`: Member's unique identifier.
-- `is_active`: Indicates if the member is active.
-- `is_admin`: Indicates if the member has admin privileges.
+### Comandos úteis
 
----
+```bash
+# vizualizar logs
+docker-compose logs app -f # -f (ou --follow) o terminal fica "conectado" ao fluxo de logs
+
+# executar comandos no container da aplicação
+docker-compose exec app npm run dev 
+
+# executar migrações do Prisma
+docker-compose exec app npx prisma migrate dev
+
+# parar os serviços
+docker-compose down 
+
+# parar e remover volumes (apaga dados do banco)
+docker-compose down -v
+```

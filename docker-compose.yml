@@ -3,10 +3,28 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    container_name: puccomp-api
     ports:
       - '8080:8080'
-    volumes:
-      - ./uploads:/app/uploads
-      - ./data:/app/data
+    volumes: # bind mounts
+      - ./src:/app/src # mount source code to reflect changes immediately / inside the container
+      - ./prisma:/app/prisma # mount prisma schema to reflect changes immediately / inside the container
     env_file:
       - .env
+    depends_on:
+      - db
+
+  db:
+    image: postgres:16-alpine
+    container_name: puccomp-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 123 
+      POSTGRES_DB: puccomp 
+    ports:
+      - '5432:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data # docker handles 
+
+volumes:
+  pgdata: # named volume

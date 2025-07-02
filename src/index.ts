@@ -26,13 +26,13 @@ app.use(
   cors({
     origin: FRONTEND_URL,
     methods: ['GET', 'POST'],
-    credentials: true,
+    credentials: false,
   })
 )
 app.use(express.static(path.join(__dirname, '../public')))
 
 // ROUTES
-app.get('/', (req, res) =>
+app.get('/', (_req, res) =>
   res.sendFile(path.join(__dirname, 'public', 'index.html'))
 )
 app.use('/api/members', membersRoutes)
@@ -43,4 +43,8 @@ app.use('/api/roles', rolesRoutes)
 app.use('/api/cv-applications', cvApplications)
 app.use('/api/memories', memoriesRoutes)
 
-app.listen(PORT, () => console.log(`API running on http://localhost:${PORT}`))
+if (process.env.NODE_ENV !== 'production')
+  app.listen(PORT, () => console.log(`API running on http://localhost:${PORT}`))
+
+// Export as serveless function (deployable to Vercel, Netlify, etc.)
+export default app
