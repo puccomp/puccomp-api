@@ -4,9 +4,9 @@ WORKDIR /app
 
 COPY package*.json .
 
-RUN npm install
-
 COPY prisma ./prisma/
+
+RUN npm install
 
 # read schema.prisma, generate ts code based on models and generate prisma client
 RUN npx prisma generate

@@ -65,6 +65,8 @@ router.post('/', memUpload.single('resume'), fileRequiredMiddleware, (async (
       await deleteObjectFromS3(cvKey)
       throw dbError
     }
+    res.status(200).send({ message: 'CV uploaded successfully' })
+
     try {
       const subject = `CV - Enviada por ${fullName}`
       const text = `
@@ -83,12 +85,8 @@ router.post('/', memUpload.single('resume'), fileRequiredMiddleware, (async (
       ])
       console.log(`Email "${subject}" sent successfully.`)
     } catch (emailError) {
-      console.error(
-        'CV was saved, but failed to send notification email:',
-        emailError
-      )
+      console.error('CV was saved, but failed to send notification email:', emailError)
     }
-    res.status(200).send({ message: 'CV uploaded successfully' })
   } catch (err) {
     console.error('Error during CV submission process:', err)
     res.status(500).send({ message: 'Error uploading CV' })
