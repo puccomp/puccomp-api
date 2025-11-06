@@ -3,12 +3,13 @@ import { BASE_URL } from '../index.js'
 import { deleteObjectFromS3, getS3URL, uploadObjectToS3 } from '../utils/s3.js'
 import { Prisma, Project, TechnologyUsageLevel } from '@prisma/client'
 import prisma from '../utils/prisma.js'
+import { formatDate } from '../utils/formats.js'
 
 type CreateProjectDTO = {
   name: string
   description: string
-  created_at: string // yyyy-mm-dd
-  updated_at: string // yyyy-mm-dd
+  created_at: string // YYYY-MM-dd
+  updated_at: string // YYYY-MM-dd
 }
 type UpdateProjectDTO = Partial<CreateProjectDTO>
 
@@ -71,9 +72,11 @@ const projectsController = {
 
   get: (async (req, res) => {
     try {
-      const { imageKey, ...rest } = req.project!
+      const { imageKey, createdAt, updatedAt, ...rest } = req.project!
       res.json({
         ...rest,
+        createdAt: formatDate(createdAt),
+        updatedAt: formatDate(updatedAt),
         contributors_url: `${BASE_URL}/api/projects/${req.project!.name}/contributors`,
         technologies_url: `${BASE_URL}/api/projects/${req.project!.name}/technologies`,
         image_url: imageKey ? getS3URL(imageKey) : null,
@@ -89,9 +92,11 @@ const projectsController = {
       const projects = await prisma.project.findMany()
       res.json(
         projects.map((project: Project) => {
-          const { imageKey, ...rest } = project
+          const { imageKey, createdAt, updatedAt, ...rest } = project
           return {
             ...rest,
+            createdAt: formatDate(createdAt),
+            updatedAt: formatDate(updatedAt),
             contributors_url: `${BASE_URL}/api/projects/${project.name}/contributors`,
             technologies_url: `${BASE_URL}/api/projects/${project.name}/technologies`,
             image_url: imageKey ? getS3URL(imageKey) : null,
