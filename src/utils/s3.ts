@@ -6,13 +6,20 @@ import {
 } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 
-const s3Client = new S3Client({
-  region: process.env.AWS_REGION!,
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
-  },
-})
+let _s3Client: S3Client | null = null
+
+function getS3Client(): S3Client {
+  if (!_s3Client) {
+    _s3Client = new S3Client({
+      region: process.env.AWS_REGION!,
+      credentials: {
+        accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
+        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+      },
+    })
+  }
+  return _s3Client
+}
 
 export interface UploadedFile {
   buffer: Buffer
@@ -32,7 +39,7 @@ export async function uploadObjectToS3(
   }
 
   const command = new PutObjectCommand(params)
-  await s3Client.send(command)
+  await getS3Client().send(command)
   return { Key: fileKey }
 }
 
@@ -42,7 +49,7 @@ export async function deleteObjectFromS3(fileKey: string): Promise<void> {
     Key: fileKey,
   }
   const command = new DeleteObjectCommand(params)
-  await s3Client.send(command)
+  await getS3Client().send(command)
 }
 
 export function getS3URL(fileKey: string): string {
@@ -58,5 +65,5 @@ export async function getSignedS3URL(
     Key: fileKey,
   }
   const command = new GetObjectCommand(params)
-  return await getSignedUrl(s3Client, command, { expiresIn: expiresInSeconds })
+  return await getSignedUrl(getS3Client(), command, { expiresIn: expiresInSeconds })
 }

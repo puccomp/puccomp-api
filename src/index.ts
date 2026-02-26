@@ -2,6 +2,8 @@ import express, { json } from 'express'
 import cors from 'cors'
 import path, { dirname } from 'path'
 import { fileURLToPath } from 'url'
+import swaggerUi from 'swagger-ui-express'
+import { swaggerSpec } from './swagger.js'
 
 // ROUTES
 import membersRoutes from './routes/membersRoutes.js'
@@ -30,6 +32,7 @@ app.use(
   })
 )
 app.use(express.static(path.join(__dirname, '../public')))
+app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec))
 
 // ROUTES
 app.get('/', (_req, res) =>
