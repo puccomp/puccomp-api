@@ -4,6 +4,11 @@ const storage = multer.memoryStorage()
 
 const memUpload = multer({ storage })
 
+function createUpload(maxSizeMB?: number) {
+  const limits = maxSizeMB ? { fileSize: maxSizeMB * 1024 * 1024 } : undefined
+  return multer({ storage, limits })
+}
+
 function sanitizeFileName(filename: string): string {
   return filename
     .normalize('NFD')
@@ -13,4 +18,4 @@ function sanitizeFileName(filename: string): string {
     .toLowerCase()
 }
 
-export { memUpload, sanitizeFileName }
+export { memUpload, createUpload, sanitizeFileName }

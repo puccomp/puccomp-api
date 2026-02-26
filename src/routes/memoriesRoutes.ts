@@ -7,7 +7,7 @@ import prisma from '../utils/prisma.js'
 // MIDDLEWARES
 import isAuth from '../middlewares/isAuth.js'
 import isAdmin from '../middlewares/isAdmin.js'
-import { fileRequiredMiddleware } from '../middlewares/fileMiddleware.js'
+import { fileRequiredMiddleware } from '../middlewares/fileMiddlewares.js'
 import { multerErrorHandler } from '../middlewares/errorHandlers.js'
 
 interface MemoryDTO {
