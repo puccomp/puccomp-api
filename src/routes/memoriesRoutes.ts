@@ -1,8 +1,16 @@
 import express, { RequestHandler, Router } from 'express'
+import sharp from 'sharp'
 import { memUpload, sanitizeFileName } from '../utils/uploads.js'
 import { getS3URL, uploadObjectToS3, deleteObjectFromS3 } from '../utils/s3.js'
 import { ImageMemory } from '@prisma/client'
 import prisma from '../utils/prisma.js'
+
+async function processMemoryImage(buffer: Buffer): Promise<Buffer> {
+  return sharp(buffer)
+    .resize(1200, 675, { fit: 'cover', position: 'centre' })
+    .webp({ quality: 82 })
+    .toBuffer()
+}
 
 // MIDDLEWARES
 import isAuth from '../middlewares/isAuth.js'
@@ -33,7 +41,11 @@ router.post(
   (async (req, res) => {
     const memoryImage = req.file!
     const { title, description, date } = req.body as MemoryDTO
-    const imageKey = `memories/${sanitizeFileName(memoryImage.originalname)}`
+    const baseName = sanitizeFileName(memoryImage.originalname).replace(
+      /\.[^.]+$/,
+      ''
+    )
+    const imageKey = `memories/${baseName}.webp`
 
     try {
       const existingMemory = await prisma.imageMemory.findUnique({
@@ -47,7 +59,11 @@ router.post(
         return
       }
 
-      await uploadObjectToS3(memoryImage, imageKey)
+      const processedBuffer = await processMemoryImage(memoryImage.buffer)
+      await uploadObjectToS3(
+        { buffer: processedBuffer, mimetype: 'image/webp', originalname: `${baseName}.webp` },
+        imageKey
+      )
 
       try {
         const newMemory = await prisma.imageMemory.create({

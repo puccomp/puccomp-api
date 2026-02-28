@@ -273,7 +273,7 @@ const options: swaggerJsdoc.Options = {
             500: { description: 'Server error', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
           },
         },
-        put: {
+        patch: {
           tags: ['Members'],
           summary: 'Update a member (admin only, partial update)',
           security: [{ bearerAuth: [] }],
@@ -427,7 +427,7 @@ const options: swaggerJsdoc.Options = {
             500: { description: 'Server error', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
           },
         },
-        put: {
+        patch: {
           tags: ['Projects'],
           summary: 'Update a project (auth required)',
           security: [{ bearerAuth: [] }],
@@ -752,7 +752,7 @@ const options: swaggerJsdoc.Options = {
             500: { description: 'Server error', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
           },
         },
-        put: {
+        patch: {
           tags: ['Roles'],
           summary: 'Update a role (admin only)',
           security: [{ bearerAuth: [] }],
@@ -881,7 +881,7 @@ const options: swaggerJsdoc.Options = {
         },
       },
       '/technologies/{id}': {
-        put: {
+        patch: {
           tags: ['Technologies'],
           summary: 'Update a technology (auth required)',
           security: [{ bearerAuth: [] }],

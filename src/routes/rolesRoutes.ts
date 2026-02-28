@@ -99,7 +99,7 @@ router.get('/:id', (async (req, res) => {
 }) as RequestHandler<{ id: string }>)
 
 // UPDATE
-router.put('/:id', isAuth, isAdmin, (async (req, res) => {
+router.patch('/:id', isAuth, isAdmin, (async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10)
     if (isNaN(id)) {

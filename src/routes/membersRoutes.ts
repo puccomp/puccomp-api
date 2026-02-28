@@ -15,7 +15,7 @@ router.get('/', memberController.all)
 
 router.get('/:id', memberController.get)
 
-router.put('/:id', isAuth, isAdmin, memberController.update)
+router.patch('/:id', isAuth, isAdmin, memberController.update)
 
 router.delete('/:id', isAuth, isAdmin, memberController.delete)
 

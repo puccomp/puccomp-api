@@ -78,7 +78,7 @@ router.get('/', (async (_req, res) => {
 }) as RequestHandler)
 
 // UPDATE
-router.put('/:id', isAuth, (async (req, res) => {
+router.patch('/:id', isAuth, (async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10)
     if (isNaN(id)) {

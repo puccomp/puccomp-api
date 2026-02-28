@@ -88,6 +88,8 @@ const memberController = {
       ...rest
     } = req.body as CreateMemberDTO
 
+    console.log('Tentando cadastrar membro. Dados recebidos:', req.body)
+
     if (
       !email ||
       !password ||
