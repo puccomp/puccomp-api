@@ -6,6 +6,7 @@ import swaggerUi from 'swagger-ui-express'
 import { swaggerSpec } from './swagger.js'
 
 // ROUTES
+import authRoutes from './routes/authRoutes.js'
 import membersRoutes from './routes/membersRoutes.js'
 import projectProposalRoutes from './routes/projectProposalRoutes.js'
 import projectsRoutes from './routes/projectsRoutes.js'
@@ -18,7 +19,9 @@ const app = express()
 const PORT = process.env.PORT || 8080
 
 export const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`
-const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173'
+const FRONTEND_URLS = (process.env.FRONTEND_URLS || 'http://localhost:5173')
+  .split(',')
+  .map((u) => u.trim())
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -26,7 +29,7 @@ const __dirname = dirname(__filename)
 app.use(json())
 app.use(
   cors({
-    origin: FRONTEND_URL,
+    origin: FRONTEND_URLS,
     methods: ['GET', 'POST'],
     credentials: false,
   })
@@ -38,6 +41,7 @@ app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec))
 app.get('/', (_req, res) =>
   res.sendFile(path.join(__dirname, 'public', 'index.html'))
 )
+app.use('/api/auth', authRoutes)
 app.use('/api/members', membersRoutes)
 app.use('/api/project-proposals', projectProposalRoutes)
 app.use('/api/projects', projectsRoutes)

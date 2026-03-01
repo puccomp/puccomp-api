@@ -120,6 +120,7 @@ router.get('/', isAuth, isAdmin, (async (_req, res) => {
           github: app.github,
           course: app.course,
           period: app.period,
+          submitted_at: app.submittedAt.toISOString(),
           resume_url: signedUrl,
         }
       })

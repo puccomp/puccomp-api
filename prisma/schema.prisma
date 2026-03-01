@@ -21,21 +21,23 @@ model Role {
 }
 
 model Member {
-  id           Int       @id @default(autoincrement())
-  email        String    @unique
-  password     String
-  name         String
-  surname      String
-  bio          String?
-  course       String
-  avatarUrl    String?   @map("avatar_url")
-  entryDate    DateTime  @map("entry_date") @db.Date
-  exitDate     DateTime? @map("exit_date")  @db.Date
-  isActive     Boolean   @map("is_active")
-  githubUrl    String?   @map("github_url")
-  instagramUrl String?   @map("instagram_url")
-  linkedinUrl  String?   @map("linkedin_url")
-  isAdmin      Boolean   @map("is_admin")
+  id                   Int           @id @default(autoincrement())
+  email                String        @unique
+  password             String?
+  name                 String
+  surname              String
+  bio                  String?
+  course               String
+  avatarUrl            String?       @map("avatar_url")
+  entryDate            DateTime      @map("entry_date") @db.Date
+  exitDate             DateTime?     @map("exit_date") @db.Date
+  status               MemberStatus  @default(PENDING)
+  githubUrl            String?       @map("github_url")
+  instagramUrl         String?       @map("instagram_url")
+  linkedinUrl          String?       @map("linkedin_url")
+  isAdmin              Boolean       @map("is_admin")
+  inviteToken          String?       @unique @map("invite_token")
+  inviteTokenExpiresAt DateTime?     @map("invite_token_expires_at")
 
   roleId Int?  @map("role_id")
   role   Role? @relation(fields: [roleId], references: [id], onDelete: SetNull)
@@ -93,13 +95,14 @@ model ProjectTechnology {
 }
 
 model CvApplication {
-  cvKey    String  @id @map("cv_key")
-  fullname String
-  phone    String
-  linkedin String?
-  github   String?
-  course   String
-  period   String
+  cvKey       String   @id @map("cv_key")
+  fullname    String
+  phone       String
+  linkedin    String?
+  github      String?
+  course      String
+  period      String
+  submittedAt DateTime @default(now()) @map("submitted_at")
 
   @@map("cv_applications")
 }
@@ -124,6 +127,12 @@ model ImageMemory {
   date        String?
 
   @@map("image_memories")
+}
+
+enum MemberStatus {
+  PENDING
+  ACTIVE
+  INACTIVE
 }
 
 enum TechnologyType {

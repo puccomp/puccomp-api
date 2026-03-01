@@ -220,7 +220,7 @@ const projectsController = {
               name: true,
               surname: true,
               avatarUrl: true,
-              isActive: true,
+              status: true,
               githubUrl: true,
             },
           },
@@ -234,7 +234,7 @@ const projectsController = {
           avatar_url: contributor.member.avatarUrl,
           github_url: contributor.member.githubUrl,
           member_url: `${BASE_URL}/api/members/${contributor.member.id}`,
-          is_active: Boolean(contributor.member.isActive),
+          is_active: contributor.member.status === 'ACTIVE',
         }))
       )
     } catch (err) {

@@ -7,8 +7,6 @@ import isAdmin from '../middlewares/isAdmin.js'
 
 const router: Router = express.Router()
 
-router.post('/login', memberController.login)
-
 router.post('/', isAuth, isAdmin, memberController.insert)
 
 router.get('/', memberController.all)
