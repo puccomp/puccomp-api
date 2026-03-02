@@ -50,17 +50,37 @@ model Member {
 }
 
 model Project {
-  id          Int      @id @default(autoincrement())
-  name        String   @unique
+  id          Int           @id @default(autoincrement())
+  name        String        @unique
+  slug        String        @unique
   description String
-  imageKey    String?  @map("image_key")
-  createdAt   DateTime @map("created_at") @db.Date
-  updatedAt   DateTime? @map("updated_at") @db.Date
+  status      ProjectStatus @default(PLANNING)
+  isFeatured  Boolean       @default(false) @map("is_featured")
+  priority    Int           @default(0)
+  startDate   DateTime?     @map("start_date") @db.Date
+  endDate     DateTime?     @map("end_date") @db.Date
+  isInternal  Boolean       @default(false) @map("is_internal")
+  createdAt   DateTime      @map("created_at") @db.Date
+  updatedAt   DateTime?     @map("updated_at") @db.Date
 
   contributors Contributor[]
   technologies ProjectTechnology[]
+  assets       ProjectAsset[]
 
   @@map("projects")
+}
+
+model ProjectAsset {
+  id        Int       @id @default(autoincrement())
+  projectId Int       @map("project_id")
+  type      AssetType @default(IMAGE)
+  key       String    @unique
+  caption   String?
+  order     Int       @default(0)
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@map("project_assets")
 }
 
 model Contributor {
@@ -135,6 +155,19 @@ enum MemberStatus {
   PENDING
   ACTIVE
   INACTIVE
+}
+
+enum ProjectStatus {
+  PLANNING
+  IN_PROGRESS
+  DONE
+  PAUSED
+}
+
+enum AssetType {
+  IMAGE
+  VIDEO
+  DOCUMENT
 }
 
 enum TechnologyType {

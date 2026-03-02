@@ -2,8 +2,6 @@ import express, { Request, Response, NextFunction, Router } from 'express'
 import { Project } from '@prisma/client'
 import projectsController from '../controllers/projectController.js'
 import { memUpload } from '../utils/uploads.js'
-
-// MIDDLEWARES
 import isAuth from '../middlewares/isAuth.js'
 import { multerErrorHandler } from '../middlewares/errorHandlers.js'
 import prisma from '../utils/prisma.js'
@@ -16,16 +14,14 @@ declare global {
   }
 }
 
-const findProjectByName = async (
-  req: Request<{ project_name: string }>,
+const findProjectBySlug = async (
+  req: Request<{ slug: string }>,
   res: Response,
   next: NextFunction
 ): Promise<void> => {
-  const { project_name } = req.params
+  const { slug } = req.params
   try {
-    const project = await prisma.project.findUnique({
-      where: { name: project_name },
-    })
+    const project = await prisma.project.findUnique({ where: { slug } })
     if (!project) {
       res.status(404).json({ message: 'Projeto não encontrado.' })
       return
@@ -40,67 +36,87 @@ const findProjectByName = async (
 
 const router: Router = express.Router()
 
-router.post('/', isAuth, memUpload.single('image'), projectsController.insert)
+router.post('/', isAuth, projectsController.insert)
 
-router.patch(
-  '/:project_name',
-  isAuth,
-  findProjectByName,
-  memUpload.single('image'),
-  projectsController.update
-)
+router.patch('/:slug', isAuth, findProjectBySlug, projectsController.update)
 
 router.use(multerErrorHandler)
 
 router.get('/', projectsController.all)
 
-router.get('/:project_name', findProjectByName, projectsController.get)
+router.get('/:slug', findProjectBySlug, projectsController.get)
 
-router.delete(
-  '/:project_name',
-  isAuth,
-  findProjectByName,
-  projectsController.delete
-)
+router.delete('/:slug', isAuth, findProjectBySlug, projectsController.delete)
 
+// Contributors
 router.post(
-  '/:project_name/contributors',
+  '/:slug/contributors',
   isAuth,
-  findProjectByName,
+  findProjectBySlug,
   projectsController.addContributor
 )
 
 router.get(
-  '/:project_name/contributors',
-  findProjectByName,
+  '/:slug/contributors',
+  findProjectBySlug,
   projectsController.allContributors
 )
 
 router.delete(
-  '/:project_name/contributors/:member_id',
+  '/:slug/contributors/:member_id',
   isAuth,
-  findProjectByName,
+  findProjectBySlug,
   projectsController.removeContributor
 )
 
+// Technologies
 router.post(
-  '/:project_name/technologies',
+  '/:slug/technologies',
   isAuth,
-  findProjectByName,
+  findProjectBySlug,
   projectsController.addTech
 )
 
 router.get(
-  '/:project_name/technologies',
-  findProjectByName,
+  '/:slug/technologies',
+  findProjectBySlug,
   projectsController.allTechs
 )
 
 router.delete(
-  '/:project_name/technologies/:technology_id',
+  '/:slug/technologies/:technology_id',
   isAuth,
-  findProjectByName,
+  findProjectBySlug,
   projectsController.removeTech
+)
+
+// Assets
+router.post(
+  '/:slug/assets',
+  isAuth,
+  findProjectBySlug,
+  memUpload.single('file'),
+  projectsController.addAsset
+)
+
+router.get(
+  '/:slug/assets',
+  findProjectBySlug,
+  projectsController.allAssets
+)
+
+router.patch(
+  '/:slug/assets/:asset_id',
+  isAuth,
+  findProjectBySlug,
+  projectsController.updateAsset
+)
+
+router.delete(
+  '/:slug/assets/:asset_id',
+  isAuth,
+  findProjectBySlug,
+  projectsController.deleteAsset
 )
 
 export default router

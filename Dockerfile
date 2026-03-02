@@ -1,22 +1,15 @@
-# STEP 1: install deps + generate prisma client
-FROM node:24-alpine AS d
-WORKDIR /app
-
-COPY package.json package-lock.json ./
-COPY prisma ./prisma/
-
-RUN npm cache clean --force && npm ci
-
-RUN npx prisma generate
-
-# STEP 2: dev image
 FROM node:24-alpine
 WORKDIR /app
 
-COPY --from=d /app/node_modules ./node_modules
-COPY --from=d /app/prisma ./prisma
+# Copy manifests first — this layer is cached until deps change
+COPY package.json package-lock.json ./
+COPY prisma ./prisma/
 
-COPY . .
+# Install all deps (including devDependencies) and generate Prisma client
+RUN npm ci && npx prisma generate
+
+# Source code is provided via bind mounts (see docker-compose.yml)
+# node_modules is preserved via an anonymous volume
 
 EXPOSE 8080
 CMD ["npm", "run", "dev"]

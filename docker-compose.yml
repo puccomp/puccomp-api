@@ -1,26 +1,21 @@
 services:
   app:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    build: .
     container_name: puccomp-api
     ports:
       - '8080:8080'
-    volumes: # bind mounts
-      - ./src:/app/src # mount source code to reflect changes immediately / inside the container
-      - ./prisma:/app/prisma # mount prisma schema to reflect changes immediately / inside the container
+    volumes:
+      - .:/app                # entire project — all files reflect host changes immediately
+      - /app/node_modules     # anonymous volume preserves container's node_modules
     env_file:
       - .env
     depends_on:
-      - db
-      - mailhog
-
-  mailhog:
-    image: mailhog/mailhog:latest
-    container_name: puccomp-mailhog
-    ports:
-      - '1025:1025' # SMTP
-      - '8025:8025' # Web UI
+      db:
+        condition: service_healthy
+      localstack:
+        condition: service_healthy
+      mailhog:
+        condition: service_started
 
   db:
     image: postgres:17-alpine
@@ -32,7 +27,37 @@ services:
     ports:
       - '5432:5432'
     volumes:
-      - pgdata:/var/lib/postgresql/data # docker handles
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  localstack:
+    image: localstack/localstack:latest
+    container_name: puccomp-localstack
+    ports:
+      - '4566:4566'
+    environment:
+      - SERVICES=s3
+      - AWS_DEFAULT_REGION=us-east-1
+    volumes:
+      - ./localstack-init:/etc/localstack/init/ready.d
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:4566/_localstack/health']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: puccomp-mailhog
+    ports:
+      - '1025:1025' # SMTP
+      - '8025:8025' # Web UI
 
 volumes:
-  pgdata: # named volume
+  pgdata:
