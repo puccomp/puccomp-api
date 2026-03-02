@@ -42,7 +42,7 @@ const router: Router = express.Router()
 
 router.post('/', isAuth, memUpload.single('image'), projectsController.insert)
 
-router.put(
+router.patch(
   '/:project_name',
   isAuth,
   findProjectByName,

@@ -16,13 +16,13 @@ cd puccomp-api
 cp .env.example .env # adicione variáveis de ambiente
 
 # inicie os serviços/containers
-docker-compose up -d  # -d (ou --detach) recuperar o controle do terminal após execeutar o comando
+docker compose up -d  # -d (ou --detach) recuperar o controle do terminal após execeutar o comando
 
 # crie as tabelas no postgresql
-docker-compose exec app npx prisma migrate dev
+docker compose exec app npx prisma migrate dev
 
 # popular o banco inicialmente
-docker-compose exec app npm run prisma:seed
+docker compose exec app npm run prisma:seed
 ```
 
 - Hot reload habilitado através de bind mounts (`./src` e `./prisma`)
@@ -32,17 +32,17 @@ docker-compose exec app npm run prisma:seed
 
 ```bash
 # vizualizar logs
-docker-compose logs app -f # -f (ou --follow) o terminal fica "conectado" ao fluxo de logs
+docker compose logs app -f # -f (ou --follow) o terminal fica "conectado" ao fluxo de logs
 
 # executar comandos no container da aplicação
-docker-compose exec app npm run dev
+docker compose exec app npm run dev 
 
 # executar migrações do Prisma
-docker-compose exec app npx prisma migrate dev
+docker compose exec app npx prisma migrate dev
 
 # parar os serviços
-docker-compose down
+docker compose down 
 
 # parar e remover volumes (apaga dados do banco)
-docker-compose down -v
+docker compose down -v
 ```

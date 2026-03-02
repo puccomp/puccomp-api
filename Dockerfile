@@ -1,18 +1,16 @@
-# SETP 1: install dependencies and generate prisma client
-FROM node:22-alpine AS d
+# STEP 1: install deps + generate prisma client
+FROM node:24-alpine AS d
 WORKDIR /app
 
-COPY package*.json .
-
+COPY package.json package-lock.json ./
 COPY prisma ./prisma/
 
-RUN npm install
+RUN npm cache clean --force && npm ci
 
-# read schema.prisma, generate ts code based on models and generate prisma client
 RUN npx prisma generate
 
-# STEP 2: generate dev image
-FROM node:22-alpine
+# STEP 2: dev image
+FROM node:24-alpine
 WORKDIR /app
 
 COPY --from=d /app/node_modules ./node_modules
@@ -21,6 +19,4 @@ COPY --from=d /app/prisma ./prisma
 COPY . .
 
 EXPOSE 8080
-
-# run with nodemon/hot-reload
-CMD [ "npm", "run", "dev" ]
+CMD ["npm", "run", "dev"]

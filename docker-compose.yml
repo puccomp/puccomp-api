@@ -13,9 +13,17 @@ services:
       - .env
     depends_on:
       - db
+      - mailhog
+
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: puccomp-mailhog
+    ports:
+      - '1025:1025' # SMTP
+      - '8025:8025' # Web UI
 
   db:
-    image: postgres:16-alpine
+    image: postgres:17-alpine
     container_name: puccomp-db
     environment:
       POSTGRES_USER: postgres

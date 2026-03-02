@@ -36,3 +36,4 @@ build/
 
 storage
 /src/generated/prisma
+dump*.sql

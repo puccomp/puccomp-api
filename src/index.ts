@@ -6,6 +6,7 @@ import swaggerUi from 'swagger-ui-express'
 import { swaggerSpec } from './swagger.js'
 
 // ROUTES
+import authRoutes from './routes/authRoutes.js'
 import membersRoutes from './routes/membersRoutes.js'
 import projectProposalRoutes from './routes/projectProposalRoutes.js'
 import projectsRoutes from './routes/projectsRoutes.js'
@@ -18,6 +19,9 @@ const app = express()
 const PORT = process.env.PORT || 8080
 
 export const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`
+const FRONTEND_URLS = (process.env.FRONTEND_URLS || 'http://localhost:5173')
+  .split(',')
+  .map((u) => u.trim())
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -29,8 +33,8 @@ const allowedOrigins = process.env.FRONTEND_URLS
 app.use(json())
 app.use(
   cors({
-    origin: allowedOrigins,
-    methods: ['GET', 'POST'],
+    origin: FRONTEND_URLS,
+    methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
     credentials: false,
   })
 )
@@ -41,6 +45,7 @@ app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec))
 app.get('/', (_req, res) =>
   res.sendFile(path.join(__dirname, 'public', 'index.html'))
 )
+app.use('/api/auth', authRoutes)
 app.use('/api/members', membersRoutes)
 app.use('/api/project-proposals', projectProposalRoutes)
 app.use('/api/projects', projectsRoutes)
@@ -49,4 +54,8 @@ app.use('/api/roles', rolesRoutes)
 app.use('/api/cv-applications', cvApplications)
 app.use('/api/memories', memoriesRoutes)
 
-app.listen(PORT, () => console.log(`API running on port ${PORT}`))
+if (process.env.NODE_ENV !== 'production')
+  app.listen(PORT, () => console.log(`API running on http://localhost:${PORT}`))
+
+// Export as serveless function (deployable to Vercel, Netlify, etc.)
+export default app

@@ -1,25 +1,28 @@
 import express, { RequestHandler, Router } from 'express'
+import sharp from 'sharp'
 import { memUpload, sanitizeFileName } from '../utils/uploads.js'
 import { getS3URL, uploadObjectToS3, deleteObjectFromS3 } from '../utils/s3.js'
-import { ImageMemory } from '@prisma/client'
 import prisma from '../utils/prisma.js'
+import { Prisma } from '@prisma/client'
+import { validate, IdParamSchema } from '../utils/validate.js'
+import {
+  MemoryQuerySchema,
+  CreateMemorySchema,
+  UpdateMemorySchema,
+} from '../schemas/memorySchemas.js'
+
+async function processMemoryImage(buffer: Buffer): Promise<Buffer> {
+  return sharp(buffer)
+    .resize(1200, 675, { fit: 'cover', position: 'centre' })
+    .webp({ quality: 82 })
+    .toBuffer()
+}
 
 // MIDDLEWARES
 import isAuth from '../middlewares/isAuth.js'
 import isAdmin from '../middlewares/isAdmin.js'
 import { fileRequiredMiddleware } from '../middlewares/fileMiddlewares.js'
 import { multerErrorHandler } from '../middlewares/errorHandlers.js'
-
-interface MemoryDTO {
-  title: string
-  description: string
-  date: string
-}
-
-interface GetMemoriesQuery {
-  sort_by?: 'date' | 'title' | 'id'
-  order?: 'asc' | 'desc'
-}
 
 const router: Router = express.Router()
 
@@ -31,23 +34,26 @@ router.post(
   memUpload.single('image'),
   fileRequiredMiddleware,
   (async (req, res) => {
+    const body = validate(CreateMemorySchema, req.body, res)
+    if (!body) return
     const memoryImage = req.file!
-    const { title, description, date } = req.body as MemoryDTO
-    const imageKey = `memories/${sanitizeFileName(memoryImage.originalname)}`
+    const { title, description, date } = body
+    const baseName = sanitizeFileName(memoryImage.originalname).replace(
+      /\.[^.]+$/,
+      ''
+    )
+    const imageKey = `memories/${Date.now()}_${baseName}.webp`
 
     try {
-      const existingMemory = await prisma.imageMemory.findUnique({
-        where: { key: imageKey },
-      })
-
-      if (existingMemory) {
-        res
-          .status(409)
-          .json({ message: 'Image with this name already exists.' })
-        return
-      }
-
-      await uploadObjectToS3(memoryImage, imageKey)
+      const processedBuffer = await processMemoryImage(memoryImage.buffer)
+      await uploadObjectToS3(
+        {
+          buffer: processedBuffer,
+          mimetype: 'image/webp',
+          originalname: `${baseName}.webp`,
+        },
+        imageKey
+      )
 
       try {
         const newMemory = await prisma.imageMemory.create({
@@ -77,60 +83,79 @@ router.use(multerErrorHandler)
 
 // FIND ALL
 router.get('/', (async (req, res) => {
+  const query = validate(MemoryQuerySchema, req.query, res)
+  if (!query) return
+  const { sort_by, order, page, limit } = query
+  const skip = (page - 1) * limit
+
   try {
-    const { sort_by = 'date', order = 'desc' } = req.query as GetMemoriesQuery
+    const [memories, total] = await Promise.all([
+      prisma.imageMemory.findMany({
+        orderBy: { [sort_by]: order },
+        take: limit,
+        skip,
+      }),
+      prisma.imageMemory.count(),
+    ])
 
-    const allowedSortBy: (keyof ImageMemory)[] = ['date', 'title', 'id']
-    const allowedOrder = ['asc', 'desc']
-
-    if (!allowedSortBy.includes(sort_by)) {
-      res.status(400).json({ message: 'Invalid sort by parameter.' })
-      return
-    }
-    if (!allowedOrder.includes(order)) {
-      res.status(400).json({ message: 'Invalid order parameter.' })
-      return
-    }
-
-    const memories = await prisma.imageMemory.findMany({
-      orderBy: {
-        [sort_by]: order,
+    res.json({
+      data: memories.map((mem) => ({
+        id: mem.id,
+        title: mem.title,
+        description: mem.description,
+        date: mem.date,
+        image_url: getS3URL(mem.key),
+      })),
+      pagination: {
+        total,
+        page,
+        limit,
+        total_pages: Math.ceil(total / limit),
       },
     })
-
-    const response = memories.map((mem) => ({
-      id: mem.id,
-      title: mem.title,
-      description: mem.description,
-      date: mem.date,
-      image_url: getS3URL(mem.key),
-    }))
-
-    res.json(response)
   } catch (err) {
     console.error(err)
     res.status(500).json({ message: 'Failed to fetch images.' })
   }
 }) as RequestHandler)
 
-router.delete('/:id', isAuth, isAdmin, (async (req, res) => {
-  const id = parseInt(req.params.id, 10)
-  if (isNaN(id)) {
-    res.status(400).json({ message: 'Invalid ID format.' })
-    return
-  }
+router.patch('/:id', isAuth, isAdmin, (async (req, res) => {
+  const params = validate(IdParamSchema, req.params, res)
+  if (!params) return
+  const body = validate(UpdateMemorySchema, req.body, res)
+  if (!body) return
 
   try {
-    const memory = await prisma.imageMemory.findUnique({
-      where: { id },
+    const updated = await prisma.imageMemory.update({
+      where: { id: params.id },
+      data: body,
     })
 
-    if (!memory) {
+    res.json({
+      message: 'Memory updated successfully.',
+      id: updated.id,
+    })
+  } catch (err) {
+    if (
+      err instanceof Prisma.PrismaClientKnownRequestError &&
+      err.code === 'P2025'
+    ) {
       res.status(404).json({ message: 'Image not found.' })
       return
     }
+    console.error(err)
+    res.status(500).json({ message: 'Failed to update memory.' })
+  }
+}) as RequestHandler<{ id: string }>)
 
-    await prisma.imageMemory.delete({ where: { id } })
+router.delete('/:id', isAuth, isAdmin, (async (req, res) => {
+  const params = validate(IdParamSchema, req.params, res)
+  if (!params) return
+
+  try {
+    const memory = await prisma.imageMemory.delete({
+      where: { id: params.id },
+    })
 
     try {
       await deleteObjectFromS3(memory.key)
@@ -141,11 +166,15 @@ router.delete('/:id', isAuth, isAdmin, (async (req, res) => {
       )
     }
 
-    res.status(200).json({
-      id: memory.id,
-      message: 'Image deleted successfully.',
-    })
+    res.json({ id: memory.id, message: 'Image deleted successfully.' })
   } catch (err) {
+    if (
+      err instanceof Prisma.PrismaClientKnownRequestError &&
+      err.code === 'P2025'
+    ) {
+      res.status(404).json({ message: 'Image not found.' })
+      return
+    }
     console.error(err)
     res.status(500).json({ message: 'Failed to delete memory image.' })
   }

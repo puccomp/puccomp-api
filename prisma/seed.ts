@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client'
+import { MemberStatus, PrismaClient } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 
 const prisma = new PrismaClient()
@@ -34,7 +34,7 @@ async function main() {
         password: hashedPassword,
         course: process.env.DEFAULT_ADMIN_COURSE!,
         entryDate: new Date(process.env.DEFAULT_ADMIN_ENTRY_DATE!),
-        isActive: true,
+        status: MemberStatus.ACTIVE,
         isAdmin: true,
         roleId: adminRole.id,
       },

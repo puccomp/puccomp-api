@@ -1,51 +1,26 @@
 import express, { RequestHandler, Router } from 'express'
 import isAuth from '../middlewares/isAuth.js'
+import isAdmin from '../middlewares/isAdmin.js'
 import { BASE_URL } from '../index.js'
-import { Prisma, Technology, TechnologyType } from '@prisma/client'
+import { Prisma, Technology } from '@prisma/client'
 import prisma from '../utils/prisma.js'
-
-interface CreateTechnologyDTO {
-  name: string
-  icon_url?: string
-  type: TechnologyType
-}
-
-type UpdateTechnologyDTO = Partial<CreateTechnologyDTO>
+import { validate, IdParamSchema } from '../utils/validate.js'
+import {
+  CreateTechnologySchema,
+  UpdateTechnologySchema,
+} from '../schemas/technologySchemas.js'
 
 const router: Router = express.Router()
 
-const validTypes = Object.values(TechnologyType)
-
 // SAVE
-router.post('/', isAuth, (async (req, res) => {
+router.post('/', isAuth, isAdmin, (async (req, res) => {
+  const body = validate(CreateTechnologySchema, req.body, res)
+  if (!body) return
+  const { name, icon_url, type } = body
+
   try {
-    const { name, icon_url, type } = req.body as CreateTechnologyDTO
-
-    if (!name) {
-      res.status(400).json({ message: 'Technology name is required.' })
-      return
-    }
-
-    if (!type) {
-      res.status(400).json({ message: 'Parameter "type" is required.' })
-      return
-    }
-
-    const normalizedType = type.toUpperCase().trim() as TechnologyType
-
-    if (!validTypes.includes(normalizedType)) {
-      res.status(400).json({
-        message: `Invalid type. Valid types are: ${validTypes.join(', ')}`,
-      })
-      return
-    }
-
     const newTechnology = await prisma.technology.create({
-      data: {
-        name,
-        iconUrl: icon_url,
-        type: normalizedType,
-      },
+      data: { name, iconUrl: icon_url, type },
     })
     res.status(201).json({
       message: 'Technology created successfully.',
@@ -78,43 +53,24 @@ router.get('/', (async (_req, res) => {
 }) as RequestHandler)
 
 // UPDATE
-router.put('/:id', isAuth, (async (req, res) => {
+router.patch('/:id', isAuth, isAdmin, (async (req, res) => {
+  const params = validate(IdParamSchema, req.params, res)
+  if (!params) return
+
+  const body = validate(UpdateTechnologySchema, req.body, res)
+  if (!body) return
+  const { name, icon_url, type } = body
+
   try {
-    const id = parseInt(req.params.id, 10)
-    if (isNaN(id)) {
-      res.status(400).json({ message: 'Invalid ID format.' })
-      return
-    }
-
-    const { name, icon_url, type } = req.body as UpdateTechnologyDTO
-
-    let normalizedType: TechnologyType | undefined = undefined
-
-    if (type) {
-      normalizedType = type.toUpperCase() as TechnologyType
-
-      if (!validTypes.includes(normalizedType)) {
-        res.status(400).json({
-          message: `Invalid type '${type}'. Valid types are: ${validTypes.join(', ')}`,
-        })
-        return
-      }
-    }
-
     const updatedTechnology = await prisma.technology.update({
-      where: { id },
-      data: {
-        name,
-        iconUrl: icon_url,
-        type: normalizedType,
-      },
+      where: { id: params.id },
+      data: { name, iconUrl: icon_url, type },
     })
 
     res.json({
       message: 'Technology updated successfully.',
       technology_url: `${BASE_URL}/api/technologies/${updatedTechnology.id}`,
     })
-    return
   } catch (err) {
     if (err instanceof Prisma.PrismaClientKnownRequestError) {
       if (err.code === 'P2002') {
@@ -128,21 +84,17 @@ router.put('/:id', isAuth, (async (req, res) => {
     }
     console.error(err)
     res.status(500).json({ message: 'Failed to update technology.' })
-    return
   }
-}) as RequestHandler<{ id: string }, {}, UpdateTechnologyDTO>)
+}) as RequestHandler<{ id: string }>)
 
 // DELETE
-router.delete('/:id', isAuth, (async (req, res) => {
-  try {
-    const id = parseInt(req.params.id, 10)
-    if (isNaN(id)) {
-      res.status(400).json({ message: 'Invalid ID format.' })
-      return
-    }
+router.delete('/:id', isAuth, isAdmin, (async (req, res) => {
+  const params = validate(IdParamSchema, req.params, res)
+  if (!params) return
 
+  try {
     const techWithProjects = await prisma.technology.findUnique({
-      where: { id },
+      where: { id: params.id },
       include: { _count: { select: { projects: true } } },
     })
 
@@ -158,7 +110,7 @@ router.delete('/:id', isAuth, (async (req, res) => {
       return
     }
 
-    await prisma.technology.delete({ where: { id } })
+    await prisma.technology.delete({ where: { id: params.id } })
     res.json({ message: 'Technology deleted successfully.' })
   } catch (err) {
     console.error(err)

@@ -2,15 +2,19 @@ import express, { Router } from 'express'
 import isAuth from '../middlewares/isAuth.js'
 import { sendEmail } from '../utils/email.js'
 import prisma from '../utils/prisma.js'
+import { validate, IdParamSchema } from '../utils/validate.js'
+import { CreateProposalSchema } from '../schemas/proposalSchemas.js'
 
 const router: Router = express.Router()
 
 // SUBMIT PROJECT PROPOSAL
 router.post('/', async (req, res) => {
-  try {
-    const { fullName, phone, projectDescription, appFeatures, visualIdentity } =
-      req.body
+  const body = validate(CreateProposalSchema, req.body, res)
+  if (!body) return
+  const { fullName, phone, projectDescription, appFeatures, visualIdentity } =
+    body
 
+  try {
     const newProposal = await prisma.projectProposal.create({
       data: {
         name: fullName,
@@ -21,7 +25,7 @@ router.post('/', async (req, res) => {
       },
     })
 
-    res.status(200).json({ message: 'Data saved successfully' })
+    res.status(201).json({ message: 'Data saved successfully' })
 
     const subject = `Nova Proposta de Projeto - Enviada por ${fullName}`
     const text = `
@@ -53,12 +57,14 @@ router.get('/', isAuth, async (_req, res) => {
   }
 })
 
-// FIND SUBMITS BY ID
+// FIND SUBMIT BY ID
 router.get('/:id', isAuth, async (req, res) => {
+  const params = validate(IdParamSchema, req.params, res)
+  if (!params) return
+
   try {
-    const { id } = req.params
     const proposal = await prisma.projectProposal.findUnique({
-      where: { id: Number(id) },
+      where: { id: params.id },
     })
     if (!proposal) {
       res.status(404).json({ message: 'Not found' })

@@ -1,120 +1,25 @@
 import { RequestHandler } from 'express'
-import jwt from 'jsonwebtoken'
 import bcrypt from 'bcryptjs'
-import { TokenPayload } from '../middlewares/isAuth.js'
 import { Member, Prisma, Role } from '@prisma/client'
 import { BASE_URL } from '../index.js'
 import { formatDate, keysToSnakeCase } from '../utils/formats.js'
 import prisma from '../utils/prisma.js'
-
-interface LoginDTO {
-  email: string
-  password: string
-}
-
-interface CreateMemberDTO {
-  email: string
-  password: string
-  name: string
-  surname: string
-  bio?: string
-  course: string
-  avatar_url?: string
-  entry_date: string // YYYY-MM-DD
-  exit_date?: string // YYYY-MM-DD
-  is_active?: boolean
-  github_url?: string
-  instagram_url?: string
-  linkedin_url?: string
-  is_admin?: boolean
-  role_id: number
-}
-
-type UpdateMemberDTO = Partial<CreateMemberDTO>
+import { validate, IdParamSchema } from '../utils/validate.js'
+import {
+  CreateMemberSchema,
+  UpdateMemberSchema,
+} from '../schemas/memberSchemas.js'
 
 const memberController = {
-  login: (async (req, res) => {
-    const { email, password } = req.body as LoginDTO
-    if (!email || !password) {
-      res.status(400).json({ message: 'Email and password are required.' })
-      return
-    }
-
-    try {
-      const member = await prisma.member.findUnique({
-        where: { email },
-      })
-
-      if (!member) {
-        res.status(404).json({ message: 'Member not found' })
-        return
-      }
-
-      const isPasswordValid = await bcrypt.compare(password, member.password)
-      if (!isPasswordValid) {
-        res.status(401).json({ message: 'Invalid credentials' })
-        return
-      }
-
-      const tokenPayload: TokenPayload = {
-        id: member.id,
-        is_active: member.isActive,
-        is_admin: member.isAdmin,
-      }
-      const token: string = jwt.sign(
-        tokenPayload,
-        process.env.JWT_SECRET_KEY!,
-        {
-          expiresIn: '1h',
-        }
-      )
-
-      res.json({ token })
-    } catch (err) {
-      console.error(err)
-      res.status(500).json({ message: 'Internal server error during login' })
-    }
-  }) as RequestHandler,
-
   insert: (async (req, res) => {
-    const {
-      email,
-      password,
-      name,
-      surname,
-      course,
-      role_id,
-      entry_date,
-      ...rest
-    } = req.body as CreateMemberDTO
-
-    if (
-      !email ||
-      !password ||
-      !name ||
-      !surname ||
-      !course ||
-      !role_id ||
-      !entry_date
-    ) {
-      res.status(400).json({ message: 'Missing required fields.' })
-      return
-    }
-
-    if (!isSingleWord(name) || !isSingleWord(surname)) {
-      res
-        .status(400)
-        .json({ message: 'Name and surname must be single words.' })
-      return
-    }
+    const body = validate(CreateMemberSchema, req.body, res)
+    if (!body) return
+    const { email, name, surname, course, role_id, entry_date, ...rest } = body
 
     try {
-      const hashedPassword = await bcrypt.hash(password, 10)
-
       const newMember = await prisma.member.create({
         data: {
           email,
-          password: hashedPassword,
           name,
           surname,
           course,
@@ -122,14 +27,12 @@ const memberController = {
           bio: rest.bio,
           avatarUrl: rest.avatar_url,
           exitDate: rest.exit_date ? new Date(rest.exit_date) : null,
-          isActive: rest.is_active ?? true,
+          status: rest.status ?? 'PENDING',
           githubUrl: rest.github_url,
           instagramUrl: rest.instagram_url,
           linkedinUrl: rest.linkedin_url,
           isAdmin: rest.is_admin ?? false,
-          role: {
-            connect: { id: role_id },
-          },
+          role: { connect: { id: role_id } },
         },
       })
 
@@ -151,77 +54,50 @@ const memberController = {
         }
       }
       console.error(err)
-      res.status(500).json({ error: 'Failed to create member.' })
+      res.status(500).json({ message: 'Failed to create member.' })
     }
-  }) as RequestHandler<{}, {}, CreateMemberDTO>,
+  }) as RequestHandler,
 
   get: (async (req, res) => {
-    const id = parseInt(req.params.id, 10)
-    if (isNaN(id)) {
-      res.status(400).json({ error: 'Invalid id format.' })
-      return
-    }
+    const params = validate(IdParamSchema, req.params, res)
+    if (!params) return
 
     try {
       const member = await prisma.member.findUnique({
-        where: { id },
+        where: { id: params.id },
         include: { role: true },
       })
 
       if (!member) {
-        res.status(404).json({ error: 'Member not found.' })
+        res.status(404).json({ message: 'Member not found.' })
         return
       }
 
       res.json(sanitizeMemberForResponse(member))
     } catch (error) {
       console.error(error)
-      res.status(500).json({ error: 'Failed to retrieve member.' })
+      res.status(500).json({ message: 'Failed to retrieve member.' })
     }
   }) as RequestHandler<{ id: string }>,
 
   all: (async (_req, res) => {
     try {
-      const members = await prisma.member.findMany({
-        include: {
-          role: true,
-        },
-      })
+      const members = await prisma.member.findMany({ include: { role: true } })
       res.json(members.map(sanitizeMemberForResponse))
     } catch (error) {
       console.error(error)
-      res.status(500).json({ error: 'Failed to retrieve members.' })
+      res.status(500).json({ message: 'Failed to retrieve members.' })
     }
   }) as RequestHandler,
 
   update: (async (req, res) => {
-    const id = parseInt(req.params.id, 10)
-    if (isNaN(id)) {
-      res.status(400).json({ error: 'Invalid id format.' })
-      return
-    }
-    const { password, entry_date, exit_date, role_id, ...rest } =
-      req.body as UpdateMemberDTO
+    const params = validate(IdParamSchema, req.params, res)
+    if (!params) return
 
-    if (
-      Object.keys(rest).length === 0 &&
-      !password &&
-      !entry_date &&
-      !exit_date &&
-      !role_id
-    ) {
-      res.status(400).json({ error: 'No fields to update.' })
-      return
-    }
+    const body = validate(UpdateMemberSchema, req.body, res)
+    if (!body) return
 
-    if (rest.name && !isSingleWord(rest.name)) {
-      res.status(400).json({ message: 'Name must be a single word.' })
-      return
-    }
-    if (rest.surname && !isSingleWord(rest.surname)) {
-      res.status(400).json({ message: 'Surname must be a single word.' })
-      return
-    }
+    const { password, entry_date, exit_date, role_id, status, ...rest } = body
 
     try {
       const dataToUpdate: Prisma.MemberUpdateInput = {
@@ -230,7 +106,7 @@ const memberController = {
         course: rest.course,
         bio: rest.bio,
         avatarUrl: rest.avatar_url,
-        isActive: rest.is_active,
+        status,
         githubUrl: rest.github_url,
         instagramUrl: rest.instagram_url,
         linkedinUrl: rest.linkedin_url,
@@ -238,15 +114,12 @@ const memberController = {
       }
 
       if (password) dataToUpdate.password = await bcrypt.hash(password, 10)
-
       if (entry_date) dataToUpdate.entryDate = new Date(entry_date)
-
       if (exit_date) dataToUpdate.exitDate = new Date(exit_date)
-
       if (role_id) dataToUpdate.role = { connect: { id: role_id } }
 
       const updatedMember = await prisma.member.update({
-        where: { id },
+        where: { id: params.id },
         data: dataToUpdate,
         include: { role: true },
       })
@@ -264,25 +137,39 @@ const memberController = {
         return
       }
       console.error(error)
-      res.status(500).json({ error: 'Failed to update member.' })
+      res.status(500).json({ message: 'Failed to update member.' })
     }
-  }) as RequestHandler<{ id: string }, {}, Partial<CreateMemberDTO>>,
+  }) as RequestHandler<{ id: string }>,
 
   delete: (async (req, res) => {
-    const id = parseInt(req.params.id, 10)
-    if (isNaN(id)) {
-      res.status(400).json({ error: 'Invalid id format.' })
-      return
-    }
+    const params = validate(IdParamSchema, req.params, res)
+    if (!params) return
 
     try {
+      const member = await prisma.member.findUnique({
+        where: { id: params.id },
+      })
+
+      if (!member) {
+        res.status(404).json({ message: 'Member not found.' })
+        return
+      }
+
+      if (member.isAdmin) {
+        const adminCount = await prisma.member.count({
+          where: { isAdmin: true },
+        })
+        if (adminCount === 1) {
+          res
+            .status(403)
+            .json({ message: 'Cannot delete the last admin member.' })
+          return
+        }
+      }
+
       await prisma.$transaction(async (tx) => {
-        await tx.contributor.deleteMany({
-          where: { memberId: id },
-        })
-        await tx.member.delete({
-          where: { id },
-        })
+        await tx.contributor.deleteMany({ where: { memberId: params.id } })
+        await tx.member.delete({ where: { id: params.id } })
       })
 
       res.json({ message: 'Member deleted successfully.' })
@@ -295,25 +182,30 @@ const memberController = {
         return
       }
       console.error(error)
-      res.status(500).json({ error: 'Failed to delete member.' })
+      res.status(500).json({ message: 'Failed to delete member.' })
     }
   }) as RequestHandler<{ id: string }>,
 }
 
-const isSingleWord = (word: string): boolean => {
-  const singleWordRegex = /^[^\s]+$/
-  return singleWordRegex.test(word)
-}
-
-const sanitizeMemberForResponse = (member: Member & { role?: Role | null }) => {
-  const { password, role, entryDate, exitDate, ...camelCaseMember } = member
-  const intermediateObject = {
-    ...camelCaseMember,
+export const sanitizeMemberForResponse = (
+  member: Member & { role?: Role | null }
+) => {
+  const {
+    password: _password,
+    inviteToken: _inviteToken,
+    inviteTokenExpiresAt: _inviteTokenExpiresAt,
+    role,
+    entryDate,
+    exitDate,
+    ...rest
+  } = member
+  const intermediate = {
+    ...rest,
     entryDate: formatDate(entryDate),
     exitDate: exitDate ? formatDate(exitDate) : null,
     role: role?.name,
   }
-  return keysToSnakeCase(intermediateObject)
+  return keysToSnakeCase(intermediate)
 }
 
 export default memberController
