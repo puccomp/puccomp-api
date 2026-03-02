@@ -130,13 +130,19 @@ model CvApplication {
 }
 
 model ProjectProposal {
-  id             Int      @id @default(autoincrement())
-  name           String
-  phone          String
-  description    String
-  features       String?
-  visualIdentity String?  @map("visual_identity")
-  date           DateTime @default(now())
+  id                 Int            @id @default(autoincrement())
+  name               String
+  phone              String
+  problemDescription String         @map("problem_description")
+  solutionOverview   String?        @map("solution_overview")
+  features           String?
+  visualIdentity     String?        @map("visual_identity")
+  referenceLinks     String[]       @map("reference_links")
+  budgetRange        BudgetRange?   @map("budget_range")
+  status             ProposalStatus @default(PENDING)
+  internalNotes      String?        @map("internal_notes")
+  createdAt          DateTime       @default(now()) @map("created_at")
+  updatedAt          DateTime       @updatedAt @map("updated_at")
 
   @@map("project_proposals")
 }
@@ -183,4 +189,19 @@ enum TechnologyUsageLevel {
   SECONDARY
   SUPPORTIVE
   OBSOLETE
+}
+
+enum BudgetRange {
+  UNDER_3K
+  FROM_3K_TO_10K
+  FROM_10K_TO_25K
+  FROM_25K_TO_50K
+  ABOVE_50K
+}
+
+enum ProposalStatus {
+  PENDING
+  UNDER_ANALYSIS
+  ACCEPTED
+  REJECTED
 }

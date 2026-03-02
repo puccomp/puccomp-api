@@ -23,15 +23,15 @@ import {
 const formatProject = (
   project: Project & { assets?: ProjectAsset[] }
 ) => {
-  const { createdAt, updatedAt, ...rest } = project
+  const { createdAt, updatedAt, startDate, endDate, isFeatured, isInternal, ...rest } = project
   return {
     ...rest,
     created_at: formatDate(createdAt),
     updated_at: updatedAt ? formatDate(updatedAt) : null,
-    start_date: project.startDate ? formatDate(project.startDate) : null,
-    end_date: project.endDate ? formatDate(project.endDate) : null,
-    is_featured: project.isFeatured,
-    is_internal: project.isInternal,
+    start_date: startDate ? formatDate(startDate) : null,
+    end_date: endDate ? formatDate(endDate) : null,
+    is_featured: isFeatured,
+    is_internal: isInternal,
     assets: project.assets?.map(formatAsset) ?? undefined,
     contributors_url: `${BASE_URL}/api/projects/${project.slug}/contributors`,
     technologies_url: `${BASE_URL}/api/projects/${project.slug}/technologies`,
