@@ -9,7 +9,7 @@ Para desenvolver a aplicação localmente, utilizamos Docker Compose para simpli
 ### Executando o ambiente de desenvolvimento
 
 ```bash
-git clone 'https://github.com/puccomp/puccomp-api' 
+git clone 'https://github.com/puccomp/puccomp-api'
 
 cd puccomp-api
 
