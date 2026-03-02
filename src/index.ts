@@ -26,10 +26,6 @@ const FRONTEND_URLS = (process.env.FRONTEND_URLS || 'http://localhost:5173')
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 
-const allowedOrigins = process.env.FRONTEND_URLS
-  ? process.env.FRONTEND_URLS.split(',')
-  : ['http://localhost:5173']
-
 app.use(json())
 app.use(
   cors({
