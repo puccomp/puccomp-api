@@ -8,6 +8,7 @@ import { validate, IdParamSchema } from '../utils/validate.js'
 import {
   CreateMemberSchema,
   UpdateMemberSchema,
+  MemberQuerySchema,
 } from '../schemas/memberSchemas.js'
 
 const memberController = {
@@ -80,10 +81,54 @@ const memberController = {
     }
   }) as RequestHandler<{ id: string }>,
 
-  all: (async (_req, res) => {
+  all: (async (req, res) => {
+    const query = validate(MemberQuerySchema, req.query, res)
+    if (!query) return
+
+    const { status, role_id, is_admin, search, course, page, limit, sort_by, order } =
+      query
+
+    const where: Prisma.MemberWhereInput = {}
+    if (status) where.status = status
+    if (role_id !== undefined) where.roleId = role_id
+    if (is_admin !== undefined) where.isAdmin = is_admin
+    if (course) where.course = { contains: course, mode: 'insensitive' }
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { surname: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } },
+      ]
+    }
+
+    const orderBy: Prisma.MemberOrderByWithRelationInput =
+      sort_by === 'entry_date'
+        ? { entryDate: order }
+        : sort_by === 'exit_date'
+          ? { exitDate: order }
+          : { name: order }
+
     try {
-      const members = await prisma.member.findMany({ include: { role: true } })
-      res.json(members.map(sanitizeMemberForResponse))
+      const [members, total] = await Promise.all([
+        prisma.member.findMany({
+          where,
+          include: { role: true },
+          orderBy,
+          skip: (page - 1) * limit,
+          take: limit,
+        }),
+        prisma.member.count({ where }),
+      ])
+
+      res.json({
+        data: members.map(sanitizeMemberForResponse),
+        pagination: {
+          total,
+          page,
+          limit,
+          total_pages: Math.ceil(total / limit),
+        },
+      })
     } catch (error) {
       console.error(error)
       res.status(500).json({ message: 'Falha ao buscar os membros.' })
