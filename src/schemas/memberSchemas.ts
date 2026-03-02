@@ -35,7 +35,23 @@ const memberBaseSchema = z.object({
   role_id: z.number({ error: 'role_id é obrigatório.' }).int().positive(),
 })
 
-export const CreateMemberSchema = memberBaseSchema
+export const CreateMemberSchema = memberBaseSchema.superRefine((data, ctx) => {
+  const effectiveStatus = data.status ?? 'PENDING'
+  if (effectiveStatus === 'INACTIVE' && !data.exit_date) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Membros inativos devem ter uma data de saída.',
+      path: ['exit_date'],
+    })
+  }
+  if (effectiveStatus !== 'INACTIVE' && data.exit_date) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Membros ativos ou pendentes não podem ter data de saída.',
+      path: ['exit_date'],
+    })
+  }
+})
 
 export const UpdateMemberSchema = memberBaseSchema
   .omit({ email: true })
@@ -44,6 +60,11 @@ export const UpdateMemberSchema = memberBaseSchema
     password: z
       .string()
       .min(8, 'A senha deve ter ao menos 8 caracteres.')
+      .optional(),
+    exit_date: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, 'exit_date deve estar no formato YYYY-MM-DD.')
+      .nullable()
       .optional(),
   })
   .refine((data) => Object.values(data).some((v) => v !== undefined), {

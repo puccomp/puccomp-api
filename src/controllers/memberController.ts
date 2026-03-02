@@ -97,6 +97,32 @@ const memberController = {
     const body = validate(UpdateMemberSchema, req.body, res)
     if (!body) return
 
+    const currentMember = await prisma.member.findUnique({
+      where: { id: params.id },
+    })
+
+    if (!currentMember) {
+      res.status(404).json({ message: 'Membro não encontrado.' })
+      return
+    }
+
+    const effectiveStatus = body.status ?? currentMember.status
+    const effectiveExitDate =
+      body.exit_date !== undefined ? body.exit_date : currentMember.exitDate
+
+    if (effectiveStatus === 'INACTIVE' && !effectiveExitDate) {
+      res
+        .status(422)
+        .json({ message: 'Membros inativos devem ter uma data de saída.' })
+      return
+    }
+    if (effectiveStatus !== 'INACTIVE' && effectiveExitDate) {
+      res.status(422).json({
+        message: 'Membros ativos ou pendentes não podem ter data de saída.',
+      })
+      return
+    }
+
     const { password, entry_date, exit_date, role_id, status, ...rest } = body
 
     try {
@@ -115,7 +141,8 @@ const memberController = {
 
       if (password) dataToUpdate.password = await bcrypt.hash(password, 10)
       if (entry_date) dataToUpdate.entryDate = new Date(entry_date)
-      if (exit_date) dataToUpdate.exitDate = new Date(exit_date)
+      if (exit_date !== undefined)
+        dataToUpdate.exitDate = exit_date ? new Date(exit_date) : null
       if (role_id) dataToUpdate.role = { connect: { id: role_id } }
 
       const updatedMember = await prisma.member.update({

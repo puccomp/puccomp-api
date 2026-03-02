@@ -1,5 +1,6 @@
 import { NextFunction, Request, Response } from 'express'
 import jwt from 'jsonwebtoken'
+import prisma from '../utils/prisma.js'
 
 interface TokenPayload {
   id: number
@@ -15,7 +16,11 @@ declare global {
   }
 }
 
-function isAuth(req: Request, res: Response, next: NextFunction): void {
+async function isAuth(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
   const authHeader = req.headers['authorization']
   const token = authHeader && authHeader.split(' ')[1]
 
@@ -29,11 +34,18 @@ function isAuth(req: Request, res: Response, next: NextFunction): void {
       token,
       process.env.JWT_SECRET_KEY!
     ) as TokenPayload
-    if (!decoded.is_active) {
+
+    const member = await prisma.member.findUnique({
+      where: { id: decoded.id },
+      select: { status: true, isAdmin: true },
+    })
+
+    if (!member || member.status === 'INACTIVE') {
       res.status(403).json({ message: 'Membro inativo.' })
       return
     }
-    req.user = decoded
+
+    req.user = { id: decoded.id, is_active: true, is_admin: member.isAdmin }
     next()
   } catch (error) {
     if (error instanceof jwt.TokenExpiredError)
