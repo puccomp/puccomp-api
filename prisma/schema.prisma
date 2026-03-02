@@ -36,8 +36,10 @@ model Member {
   instagramUrl         String?       @map("instagram_url")
   linkedinUrl          String?       @map("linkedin_url")
   isAdmin              Boolean       @map("is_admin")
-  inviteToken          String?       @unique @map("invite_token")
-  inviteTokenExpiresAt DateTime?     @map("invite_token_expires_at")
+  inviteToken             String?       @unique @map("invite_token")
+  inviteTokenExpiresAt    DateTime?     @map("invite_token_expires_at")
+  passwordResetToken      String?       @unique @map("password_reset_token")
+  passwordResetExpiresAt  DateTime?     @map("password_reset_expires_at")
 
   roleId Int?  @map("role_id")
   role   Role? @relation(fields: [roleId], references: [id], onDelete: SetNull)

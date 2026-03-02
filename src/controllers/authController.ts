@@ -13,6 +13,8 @@ import {
   LoginSchema,
   InviteSchema,
   AcceptInviteSchema,
+  ForgotPasswordSchema,
+  ResetPasswordSchema,
 } from '../schemas/authSchemas.js'
 
 const INVITE_EXPIRY_DAYS = 7
@@ -157,6 +159,82 @@ const authController = {
       res.status(500).json({ message: 'Failed to accept invite.' })
     }
   }) as RequestHandler,
+  forgotPassword: (async (req, res) => {
+    const body = validate(ForgotPasswordSchema, req.body, res)
+    if (!body) return
+    const { email } = body
+
+    const internalUrl = process.env.INTERNAL_URL || 'http://localhost:3000'
+
+    try {
+      const member = await prisma.member.findUnique({ where: { email } })
+
+      if (member && member.status === MemberStatus.ACTIVE) {
+        const token = randomBytes(32).toString('hex')
+        const expiresAt = new Date(Date.now() + 60 * 60 * 1000)
+
+        await prisma.member.update({
+          where: { id: member.id },
+          data: {
+            passwordResetToken: token,
+            passwordResetExpiresAt: expiresAt,
+          },
+        })
+
+        const resetLink = `${internalUrl}/reset-password?token=${token}`
+        await sendEmail(
+          email,
+          'Redefinição de senha — COMP',
+          `Olá, ${member.name}!\n\nRecebemos uma solicitação para redefinir a senha da sua conta.\n\nClique no link abaixo para criar uma nova senha:\n\n${resetLink}\n\nEste link expira em 1 hora. Se você não solicitou a redefinição, ignore este e-mail.\n\nEquipe COMP`
+        )
+      }
+
+      res.json({
+        message: 'Se o e-mail existir, um link de redefinição foi enviado.',
+      })
+    } catch (err) {
+      console.error(err)
+      res.status(500).json({ message: 'Falha ao processar a solicitação.' })
+    }
+  }) as RequestHandler,
+
+  resetPassword: (async (req, res) => {
+    const body = validate(ResetPasswordSchema, req.body, res)
+    if (!body) return
+    const { token, password } = body
+
+    try {
+      const member = await prisma.member.findUnique({
+        where: { passwordResetToken: token },
+      })
+
+      if (!member || !member.passwordResetExpiresAt) {
+        res.status(400).json({ message: 'Token inválido ou expirado.' })
+        return
+      }
+
+      if (member.passwordResetExpiresAt < new Date()) {
+        res.status(400).json({ message: 'Token inválido ou expirado.' })
+        return
+      }
+
+      const hashedPassword = await bcrypt.hash(password, 10)
+      await prisma.member.update({
+        where: { id: member.id },
+        data: {
+          password: hashedPassword,
+          passwordResetToken: null,
+          passwordResetExpiresAt: null,
+        },
+      })
+
+      res.json({ message: 'Senha redefinida com sucesso.' })
+    } catch (err) {
+      console.error(err)
+      res.status(500).json({ message: 'Falha ao redefinir a senha.' })
+    }
+  }) as RequestHandler,
+
   me: (async (req, res) => {
     try {
       const member = await prisma.member.findUnique({
