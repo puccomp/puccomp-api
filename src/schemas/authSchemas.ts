@@ -1,45 +1,45 @@
 import { z } from 'zod'
 
 export const LoginSchema = z.object({
-  email: z.string().min(1, 'Email is required.'),
-  password: z.string().min(1, 'Password is required.'),
+  email: z.string().min(1, 'E-mail é obrigatório.'),
+  password: z.string().min(1, 'Senha é obrigatória.'),
 })
 
 export const InviteSchema = z.object({
   email: z
     .string()
-    .min(1, 'Email is required.')
-    .endsWith('@sga.pucminas.br', 'Email must be a @sga.pucminas.br address.'),
+    .min(1, 'E-mail é obrigatório.')
+    .endsWith('@sga.pucminas.br', 'O e-mail deve ser um endereço @sga.pucminas.br.'),
   name: z
     .string()
-    .min(1, 'Name is required.')
-    .regex(/^[^\s]+$/, 'Name must be a single word.'),
+    .min(1, 'Nome é obrigatório.')
+    .regex(/^[^\s]+$/, 'O nome deve ser uma única palavra.'),
   surname: z
     .string()
-    .min(1, 'Surname is required.')
-    .regex(/^[^\s]+$/, 'Surname must be a single word.'),
-  course: z.string().min(1, 'Course is required.'),
-  role_id: z.number({ error: 'role_id is required.' }).int().positive(),
+    .min(1, 'Sobrenome é obrigatório.')
+    .regex(/^[^\s]+$/, 'O sobrenome deve ser uma única palavra.'),
+  course: z.string().min(1, 'Curso é obrigatório.'),
+  role_id: z.number({ error: 'role_id é obrigatório.' }).int().positive(),
   entry_date: z
     .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, 'entry_date must be in YYYY-MM-DD format.'),
+    .regex(/^\d{4}-\d{2}-\d{2}$/, 'entry_date deve estar no formato YYYY-MM-DD.'),
   bio: z.string().optional(),
-  github_url: z.string().url('github_url must be a valid URL.').optional(),
+  github_url: z.string().url('github_url deve ser uma URL válida.').optional(),
   instagram_url: z
     .string()
-    .url('instagram_url must be a valid URL.')
+    .url('instagram_url deve ser uma URL válida.')
     .optional(),
-  linkedin_url: z.string().url('linkedin_url must be a valid URL.').optional(),
+  linkedin_url: z.string().url('linkedin_url deve ser uma URL válida.').optional(),
   is_admin: z.boolean().optional(),
 })
 
 export const AcceptInviteSchema = z.object({
-  token: z.string().min(1, 'Token is required.'),
-  password: z.string().min(8, 'Password must be at least 8 characters.'),
+  token: z.string().min(1, 'Token é obrigatório.'),
+  password: z.string().min(8, 'A senha deve ter ao menos 8 caracteres.'),
 })
 
 export const ForgotPasswordSchema = z.object({
-  email: z.string().email('Email inválido.'),
+  email: z.string().email('E-mail inválido.'),
 })
 
 export const ResetPasswordSchema = z.object({

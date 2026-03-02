@@ -1,4 +1,7 @@
+import { setupZodLocale } from './utils/zodLocale.js'
 import express, { json } from 'express'
+
+setupZodLocale()
 import cors from 'cors'
 import path, { dirname } from 'path'
 import { fileURLToPath } from 'url'

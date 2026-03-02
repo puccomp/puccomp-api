@@ -27,14 +27,14 @@ const findProjectByName = async (
       where: { name: project_name },
     })
     if (!project) {
-      res.status(404).json({ message: 'Project not found.' })
+      res.status(404).json({ message: 'Projeto não encontrado.' })
       return
     }
     req.project = project
     next()
   } catch (error) {
     console.error(error)
-    res.status(500).json({ message: 'Error while fetching project data.' })
+    res.status(500).json({ message: 'Erro ao buscar os dados do projeto.' })
   }
 }
 

@@ -2,7 +2,7 @@ import { z, ZodSchema } from 'zod'
 import { Response } from 'express'
 
 export const IdParamSchema = z.object({
-  id: z.coerce.number().int().positive('Invalid id format.'),
+  id: z.coerce.number().int().positive('Formato de id inválido.'),
 })
 
 export function validate<T>(

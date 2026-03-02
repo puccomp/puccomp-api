@@ -29,20 +29,20 @@ const authController = {
       const member = await prisma.member.findUnique({ where: { email } })
 
       if (!member || !member.password) {
-        res.status(401).json({ message: 'Invalid credentials' })
+        res.status(401).json({ message: 'Credenciais inválidas.' })
         return
       }
 
       if (member.status !== MemberStatus.ACTIVE) {
         res.status(403).json({
-          message: 'Account is not active. Please accept your invite first.',
+          message: 'Conta inativa. Aceite o convite antes de fazer login.',
         })
         return
       }
 
       const isPasswordValid = await bcrypt.compare(password, member.password)
       if (!isPasswordValid) {
-        res.status(401).json({ message: 'Invalid credentials' })
+        res.status(401).json({ message: 'Credenciais inválidas.' })
         return
       }
 
@@ -58,7 +58,7 @@ const authController = {
       res.json({ token })
     } catch (err) {
       console.error(err)
-      res.status(500).json({ message: 'Internal server error during login' })
+      res.status(500).json({ message: 'Erro interno do servidor ao fazer login.' })
     }
   }) as RequestHandler,
 
@@ -93,7 +93,7 @@ const authController = {
         },
       })
 
-      const inviteLink = `${internalUrl}/invite?token=${inviteToken}`
+      const inviteLink = `${internalUrl}/convite?token=${inviteToken}`
       await sendEmail(
         email,
         'Convite para o sistema COMP',
@@ -101,24 +101,24 @@ const authController = {
       )
 
       res.status(201).json({
-        message: `Invite sent to ${email}.`,
+        message: `Convite enviado para ${email}.`,
         member_url: `${BASE_URL}/api/members/${newMember.id}`,
       })
     } catch (err) {
       if (err instanceof Prisma.PrismaClientKnownRequestError) {
         if (err.code === 'P2002') {
-          res.status(409).json({ message: `Email '${email}' already exists.` })
+          res.status(409).json({ message: `O e-mail '${email}' já está cadastrado.` })
           return
         }
         if (err.code === 'P2025') {
           res
             .status(400)
-            .json({ message: `Role with id '${role_id}' not found.` })
+            .json({ message: `Cargo com id '${role_id}' não encontrado.` })
           return
         }
       }
       console.error(err)
-      res.status(500).json({ message: 'Failed to send invite.' })
+      res.status(500).json({ message: 'Falha ao enviar o convite.' })
     }
   }) as RequestHandler,
 
@@ -133,12 +133,12 @@ const authController = {
       })
 
       if (!member || !member.inviteTokenExpiresAt) {
-        res.status(400).json({ message: 'Invalid or expired invite token.' })
+        res.status(400).json({ message: 'Token de convite inválido ou expirado.' })
         return
       }
 
       if (member.inviteTokenExpiresAt < new Date()) {
-        res.status(400).json({ message: 'Invite token has expired.' })
+        res.status(400).json({ message: 'O token de convite expirou.' })
         return
       }
 
@@ -153,10 +153,10 @@ const authController = {
         },
       })
 
-      res.json({ message: 'Account activated successfully.' })
+      res.json({ message: 'Conta ativada com sucesso.' })
     } catch (err) {
       console.error(err)
-      res.status(500).json({ message: 'Failed to accept invite.' })
+      res.status(500).json({ message: 'Falha ao aceitar o convite.' })
     }
   }) as RequestHandler,
   forgotPassword: (async (req, res) => {
@@ -181,7 +181,7 @@ const authController = {
           },
         })
 
-        const resetLink = `${internalUrl}/reset-password?token=${token}`
+        const resetLink = `${internalUrl}/redefinir-senha?token=${token}`
         await sendEmail(
           email,
           'Redefinição de senha — COMP',
@@ -243,14 +243,14 @@ const authController = {
       })
 
       if (!member) {
-        res.status(404).json({ message: 'Member not found.' })
+        res.status(404).json({ message: 'Membro não encontrado.' })
         return
       }
 
       res.json(sanitizeMemberForResponse(member))
     } catch (err) {
       console.error(err)
-      res.status(500).json({ message: 'Failed to retrieve member.' })
+      res.status(500).json({ message: 'Falha ao buscar o membro.' })
     }
   }) as RequestHandler,
 }

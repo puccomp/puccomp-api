@@ -37,24 +37,24 @@ const memberController = {
       })
 
       res.status(201).json({
-        message: 'Member created successfully.',
+        message: 'Membro criado com sucesso.',
         member_url: `${BASE_URL}/api/members/${newMember.id}`,
       })
     } catch (err) {
       if (err instanceof Prisma.PrismaClientKnownRequestError) {
         if (err.code === 'P2002') {
-          res.status(409).json({ message: `Email '${email}' already exists.` })
+          res.status(409).json({ message: `O e-mail '${email}' já está cadastrado.` })
           return
         }
         if (err.code === 'P2025') {
           res
             .status(400)
-            .json({ message: `Role with id '${role_id}' not found.` })
+            .json({ message: `Cargo com id '${role_id}' não encontrado.` })
           return
         }
       }
       console.error(err)
-      res.status(500).json({ message: 'Failed to create member.' })
+      res.status(500).json({ message: 'Falha ao criar o membro.' })
     }
   }) as RequestHandler,
 
@@ -69,14 +69,14 @@ const memberController = {
       })
 
       if (!member) {
-        res.status(404).json({ message: 'Member not found.' })
+        res.status(404).json({ message: 'Membro não encontrado.' })
         return
       }
 
       res.json(sanitizeMemberForResponse(member))
     } catch (error) {
       console.error(error)
-      res.status(500).json({ message: 'Failed to retrieve member.' })
+      res.status(500).json({ message: 'Falha ao buscar o membro.' })
     }
   }) as RequestHandler<{ id: string }>,
 
@@ -86,7 +86,7 @@ const memberController = {
       res.json(members.map(sanitizeMemberForResponse))
     } catch (error) {
       console.error(error)
-      res.status(500).json({ message: 'Failed to retrieve members.' })
+      res.status(500).json({ message: 'Falha ao buscar os membros.' })
     }
   }) as RequestHandler,
 
@@ -125,7 +125,7 @@ const memberController = {
       })
 
       res.json({
-        message: 'Member updated successfully.',
+        message: 'Membro atualizado com sucesso.',
         member: sanitizeMemberForResponse(updatedMember),
       })
     } catch (error) {
@@ -133,11 +133,11 @@ const memberController = {
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === 'P2025'
       ) {
-        res.status(404).json({ message: 'Member not found.' })
+        res.status(404).json({ message: 'Membro não encontrado.' })
         return
       }
       console.error(error)
-      res.status(500).json({ message: 'Failed to update member.' })
+      res.status(500).json({ message: 'Falha ao atualizar o membro.' })
     }
   }) as RequestHandler<{ id: string }>,
 
@@ -151,7 +151,7 @@ const memberController = {
       })
 
       if (!member) {
-        res.status(404).json({ message: 'Member not found.' })
+        res.status(404).json({ message: 'Membro não encontrado.' })
         return
       }
 
@@ -162,7 +162,7 @@ const memberController = {
         if (adminCount === 1) {
           res
             .status(403)
-            .json({ message: 'Cannot delete the last admin member.' })
+            .json({ message: 'Não é possível excluir o último administrador.' })
           return
         }
       }
@@ -172,17 +172,17 @@ const memberController = {
         await tx.member.delete({ where: { id: params.id } })
       })
 
-      res.json({ message: 'Member deleted successfully.' })
+      res.json({ message: 'Membro excluído com sucesso.' })
     } catch (error) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === 'P2025'
       ) {
-        res.status(404).json({ message: 'Member not found.' })
+        res.status(404).json({ message: 'Membro não encontrado.' })
         return
       }
       console.error(error)
-      res.status(500).json({ message: 'Failed to delete member.' })
+      res.status(500).json({ message: 'Falha ao excluir o membro.' })
     }
   }) as RequestHandler<{ id: string }>,
 }

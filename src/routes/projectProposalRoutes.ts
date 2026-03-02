@@ -25,7 +25,7 @@ router.post('/', async (req, res) => {
       },
     })
 
-    res.status(201).json({ message: 'Data saved successfully' })
+    res.status(201).json({ message: 'Dados salvos com sucesso.' })
 
     const subject = `Nova Proposta de Projeto - Enviada por ${fullName}`
     const text = `
@@ -43,7 +43,7 @@ router.post('/', async (req, res) => {
       console.error('Failed to send email:', (emailError as Error).message)
     }
   } catch (error) {
-    res.status(500).json({ message: 'Error saving data' })
+    res.status(500).json({ message: 'Erro ao salvar os dados.' })
   }
 })
 
@@ -53,7 +53,7 @@ router.get('/', isAuth, async (_req, res) => {
     const proposals = await prisma.projectProposal.findMany()
     res.status(200).json(proposals)
   } catch {
-    res.status(500).json({ message: 'Error fetching data' })
+    res.status(500).json({ message: 'Erro ao buscar os dados.' })
   }
 })
 
@@ -67,12 +67,12 @@ router.get('/:id', isAuth, async (req, res) => {
       where: { id: params.id },
     })
     if (!proposal) {
-      res.status(404).json({ message: 'Not found' })
+      res.status(404).json({ message: 'Não encontrado.' })
       return
     }
     res.status(200).json(proposal)
   } catch {
-    res.status(500).json({ message: 'Error fetching data' })
+    res.status(500).json({ message: 'Erro ao buscar os dados.' })
   }
 })
 

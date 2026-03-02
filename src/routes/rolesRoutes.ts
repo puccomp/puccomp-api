@@ -24,7 +24,7 @@ router.post('/', isAuth, isAdmin, (async (req, res) => {
     })
 
     res.status(201).json({
-      message: 'Role created successfully.',
+      message: 'Cargo criado com sucesso.',
       role_url: `${BASE_URL}/api/roles/${newRole.id}`,
     })
   } catch (err) {
@@ -32,11 +32,11 @@ router.post('/', isAuth, isAdmin, (async (req, res) => {
       err instanceof Prisma.PrismaClientKnownRequestError &&
       err.code === 'P2002'
     ) {
-      res.status(409).json({ message: 'Role name already exists.' })
+      res.status(409).json({ message: 'Já existe um cargo com este nome.' })
       return
     }
     console.error(err)
-    res.status(500).json({ message: 'Failed to create role.' })
+    res.status(500).json({ message: 'Falha ao criar o cargo.' })
   }
 }) as RequestHandler)
 
@@ -53,7 +53,7 @@ router.get('/', (async (_req, res) => {
     )
   } catch (err) {
     console.error((err as Error).message)
-    res.status(500).json({ message: 'Failed to fetch roles.' })
+    res.status(500).json({ message: 'Falha ao buscar os cargos.' })
   }
 }) as RequestHandler)
 
@@ -66,7 +66,7 @@ router.get('/:id', (async (req, res) => {
     const role = await prisma.role.findUnique({ where: { id: params.id } })
 
     if (!role) {
-      res.status(404).json({ message: 'Role not found.' })
+      res.status(404).json({ message: 'Cargo não encontrado.' })
       return
     }
     res.json({
@@ -76,7 +76,7 @@ router.get('/:id', (async (req, res) => {
     })
   } catch (err) {
     console.error(err)
-    res.status(500).json({ message: 'Failed to fetch role.' })
+    res.status(500).json({ message: 'Falha ao buscar o cargo.' })
   }
 }) as RequestHandler<{ id: string }>)
 
@@ -96,22 +96,22 @@ router.patch('/:id', isAuth, isAdmin, (async (req, res) => {
     })
 
     res.json({
-      message: 'Role updated successfully.',
+      message: 'Cargo atualizado com sucesso.',
       role_url: `${BASE_URL}/api/roles/${updatedRole.id}`,
     })
   } catch (err) {
     if (err instanceof Prisma.PrismaClientKnownRequestError) {
       if (err.code === 'P2002') {
-        res.status(409).json({ message: 'Role name already exists.' })
+        res.status(409).json({ message: 'Já existe um cargo com este nome.' })
         return
       }
       if (err.code === 'P2025') {
-        res.status(404).json({ message: 'Role not found.' })
+        res.status(404).json({ message: 'Cargo não encontrado.' })
         return
       }
     }
     console.error(err)
-    res.status(500).json({ message: 'Failed to update role.' })
+    res.status(500).json({ message: 'Falha ao atualizar o cargo.' })
   }
 }) as RequestHandler<{ id: string }>)
 
@@ -127,22 +127,22 @@ router.delete('/:id', isAuth, isAdmin, (async (req, res) => {
     })
 
     if (!roleWithMemberCount) {
-      res.status(404).json({ message: 'Role not found.' })
+      res.status(404).json({ message: 'Cargo não encontrado.' })
       return
     }
 
     if (roleWithMemberCount._count.members > 0) {
       res.status(400).json({
-        message: 'Cannot delete role. It is associated with existing members.',
+        message: 'Não é possível excluir o cargo. Ele está associado a membros existentes.',
       })
       return
     }
 
     await prisma.role.delete({ where: { id: params.id } })
-    res.json({ message: 'Role deleted successfully.' })
+    res.json({ message: 'Cargo excluído com sucesso.' })
   } catch (err) {
     console.error(err)
-    res.status(500).json({ message: 'Failed to delete role.' })
+    res.status(500).json({ message: 'Falha ao excluir o cargo.' })
   }
 }) as RequestHandler<{ id: string }>)
 

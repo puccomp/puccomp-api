@@ -8,12 +8,12 @@ const technologyTypeSchema = z
   .transform((val) => val.toUpperCase().trim())
   .pipe(
     z.nativeEnum(TechnologyType, {
-      error: `type must be one of: ${validTypes.join(', ')}.`,
+      error: `type deve ser um dos valores: ${validTypes.join(', ')}.`,
     })
   )
 
 export const CreateTechnologySchema = z.object({
-  name: z.string().min(1, 'Name is required.'),
+  name: z.string().min(1, 'Nome é obrigatório.'),
   icon_url: z.string().optional(),
   type: technologyTypeSchema,
 })

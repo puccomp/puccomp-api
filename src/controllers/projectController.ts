@@ -41,8 +41,8 @@ const projectsController = {
 
       res.status(201).json({
         message: image
-          ? 'Project created successfully and image was uploaded.'
-          : 'Project created successfully. No image provided.',
+          ? 'Projeto criado com sucesso e imagem enviada.'
+          : 'Projeto criado com sucesso. Nenhuma imagem fornecida.',
         project_id: project.id,
         project_url: `${BASE_URL}/api/projects/${name}`,
       })
@@ -56,12 +56,12 @@ const projectsController = {
         if (err.code === 'P2002') {
           res
             .status(409)
-            .json({ message: 'A project with this name already exists.' })
+            .json({ message: 'Já existe um projeto com este nome.' })
           return
         }
       }
       console.error(err)
-      res.status(500).json({ message: 'Failed to create project.' })
+      res.status(500).json({ message: 'Falha ao criar o projeto.' })
     }
   }) as RequestHandler,
 
@@ -78,7 +78,7 @@ const projectsController = {
       })
     } catch (err) {
       console.error(err)
-      res.status(500).json({ message: 'Failed to fetch project.' })
+      res.status(500).json({ message: 'Falha ao buscar o projeto.' })
     }
   }) as RequestHandler,
 
@@ -100,7 +100,7 @@ const projectsController = {
       )
     } catch (err) {
       console.error(err)
-      res.status(500).json({ message: 'Failed to fetch projects.' })
+      res.status(500).json({ message: 'Falha ao buscar os projetos.' })
     }
   }) as RequestHandler,
 
@@ -139,7 +139,7 @@ const projectsController = {
       }
 
       res.json({
-        message: 'Project updated successfully.',
+        message: 'Projeto atualizado com sucesso.',
         project_url: `${BASE_URL}/api/projects/${updatedProject.name}`,
       })
     } catch (err) {
@@ -149,11 +149,11 @@ const projectsController = {
       ) {
         res
           .status(409)
-          .json({ message: 'A project with this name already exists.' })
+          .json({ message: 'Já existe um projeto com este nome.' })
         return
       }
       console.error(err)
-      res.status(500).json({ message: 'Failed to update the project.' })
+      res.status(500).json({ message: 'Falha ao atualizar o projeto.' })
     }
   }) as RequestHandler,
 
@@ -163,10 +163,10 @@ const projectsController = {
       if (imageKey) await deleteObjectFromS3(imageKey)
       await prisma.project.delete({ where: { name } })
 
-      res.json({ message: 'Project deleted successfully.' })
+      res.json({ message: 'Projeto excluído com sucesso.' })
     } catch (err) {
       console.error(err)
-      res.status(500).json({ message: 'Failed to delete projects.' })
+      res.status(500).json({ message: 'Falha ao excluir o projeto.' })
     }
   }) as RequestHandler,
 
@@ -181,22 +181,22 @@ const projectsController = {
       })
       res
         .status(201)
-        .json({ message: 'Contributor added successfully.', data: contributor })
+        .json({ message: 'Contribuidor adicionado com sucesso.', data: contributor })
     } catch (err) {
       if (err instanceof Prisma.PrismaClientKnownRequestError) {
         if (err.code === 'P2002') {
           res.status(409).json({
-            message: 'Member is already a contributor to this project.',
+            message: 'O membro já é contribuidor deste projeto.',
           })
           return
         }
         if (err.code === 'P2003' || err.code === 'P2025') {
-          res.status(404).json({ message: 'Member or Project not found.' })
+          res.status(404).json({ message: 'Membro ou projeto não encontrado.' })
           return
         }
       }
       console.error(err)
-      res.status(500).json({ message: 'Failed to add contributor.' })
+      res.status(500).json({ message: 'Falha ao adicionar o contribuidor.' })
     }
   }) as RequestHandler,
 
@@ -231,7 +231,7 @@ const projectsController = {
       )
     } catch (err) {
       console.error(err)
-      res.status(500).json({ message: 'Failed to fetch contributors.' })
+      res.status(500).json({ message: 'Falha ao buscar os contribuidores.' })
     }
   }) as RequestHandler,
 
@@ -246,7 +246,7 @@ const projectsController = {
           memberId_projectId: { memberId: params.member_id, projectId },
         },
       })
-      res.json({ message: 'Contributor removed successfully.' })
+      res.json({ message: 'Contribuidor removido com sucesso.' })
     } catch (err) {
       if (
         err instanceof Prisma.PrismaClientKnownRequestError &&
@@ -254,11 +254,11 @@ const projectsController = {
       ) {
         res
           .status(404)
-          .json({ message: 'Contributor not found in this project.' })
+          .json({ message: 'Contribuidor não encontrado neste projeto.' })
         return
       }
       console.error(err)
-      res.status(500).json({ message: 'Failed to remove contributor.' })
+      res.status(500).json({ message: 'Falha ao remover o contribuidor.' })
     }
   }) as RequestHandler<{ project_name: string; member_id: string }>,
 
@@ -273,7 +273,7 @@ const projectsController = {
         where: { name: technology_name },
       })
       if (!technology) {
-        res.status(404).json({ message: 'Technology not found.' })
+        res.status(404).json({ message: 'Tecnologia não encontrada.' })
         return
       }
 
@@ -286,7 +286,7 @@ const projectsController = {
       })
 
       res.status(201).json({
-        message: 'Technology added successfully to the project.',
+        message: 'Tecnologia adicionada ao projeto com sucesso.',
         project_id: projectTech.projectId,
         technology_id: technology.id,
       })
@@ -294,17 +294,17 @@ const projectsController = {
       if (err instanceof Prisma.PrismaClientKnownRequestError) {
         if (err.code === 'P2002') {
           res.status(409).json({
-            message: 'Technology is already associated with this project.',
+            message: 'A tecnologia já está associada a este projeto.',
           })
           return
         }
         if (err.code === 'P2003' || err.code === 'P2025') {
-          res.status(404).json({ message: 'Technology or Project not found.' })
+          res.status(404).json({ message: 'Tecnologia ou projeto não encontrado.' })
           return
         }
       }
       console.error(err)
-      res.status(500).json({ message: 'Failed to add technology.' })
+      res.status(500).json({ message: 'Falha ao adicionar a tecnologia.' })
     }
   }) as RequestHandler,
 
@@ -318,7 +318,7 @@ const projectsController = {
       res.json(technologies)
     } catch (err) {
       console.error(err)
-      res.status(500).json({ message: 'Failed to fetch technologies.' })
+      res.status(500).json({ message: 'Falha ao buscar as tecnologias.' })
     }
   }) as RequestHandler,
 
@@ -336,7 +336,7 @@ const projectsController = {
           },
         },
       })
-      res.json({ message: 'Technology removed successfully.' })
+      res.json({ message: 'Tecnologia removida com sucesso.' })
     } catch (err) {
       if (
         err instanceof Prisma.PrismaClientKnownRequestError &&
@@ -344,11 +344,11 @@ const projectsController = {
       ) {
         res
           .status(404)
-          .json({ message: 'Technology not associated with this project.' })
+          .json({ message: 'A tecnologia não está associada a este projeto.' })
         return
       }
       console.error(err)
-      res.status(500).json({ message: 'Failed to remove technology.' })
+      res.status(500).json({ message: 'Falha ao remover a tecnologia.' })
     }
   }) as RequestHandler<{ project_name: string; technology_id: string }>,
 }
