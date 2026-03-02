@@ -7,40 +7,21 @@ import { TokenPayload } from '../middlewares/isAuth.js'
 import { BASE_URL } from '../index.js'
 import prisma from '../utils/prisma.js'
 import { sendEmail } from '../utils/email.js'
-
-interface LoginDTO {
-  email: string
-  password: string
-}
-
-interface InviteDTO {
-  email: string
-  name: string
-  surname: string
-  course: string
-  role_id: number
-  entry_date: string
-  bio?: string
-  github_url?: string
-  instagram_url?: string
-  linkedin_url?: string
-  is_admin?: boolean
-}
-
-interface AcceptInviteDTO {
-  token: string
-  password: string
-}
+import { validate } from '../utils/validate.js'
+import { sanitizeMemberForResponse } from './memberController.js'
+import {
+  LoginSchema,
+  InviteSchema,
+  AcceptInviteSchema,
+} from '../schemas/authSchemas.js'
 
 const INVITE_EXPIRY_DAYS = 7
 
 const authController = {
   login: (async (req, res) => {
-    const { email, password } = req.body as LoginDTO
-    if (!email || !password) {
-      res.status(400).json({ message: 'Email and password are required.' })
-      return
-    }
+    const body = validate(LoginSchema, req.body, res)
+    if (!body) return
+    const { email, password } = body
 
     try {
       const member = await prisma.member.findUnique({ where: { email } })
@@ -80,41 +61,15 @@ const authController = {
   }) as RequestHandler,
 
   invite: (async (req, res) => {
-    const {
-      email,
-      name,
-      surname,
-      course,
-      role_id,
-      entry_date,
-      ...rest
-    } = req.body as InviteDTO
-
-    if (!email || !name || !surname || !course || !role_id || !entry_date) {
-      res.status(400).json({ message: 'Missing required fields.' })
-      return
-    }
-
-    if (!email.endsWith('@sga.pucminas.br')) {
-      res
-        .status(400)
-        .json({ message: 'Email must be a @sga.pucminas.br address.' })
-      return
-    }
-
-    if (!isSingleWord(name) || !isSingleWord(surname)) {
-      res
-        .status(400)
-        .json({ message: 'Name and surname must be single words.' })
-      return
-    }
+    const body = validate(InviteSchema, req.body, res)
+    if (!body) return
+    const { email, name, surname, course, role_id, entry_date, ...rest } = body
 
     const inviteToken = randomBytes(32).toString('hex')
     const inviteTokenExpiresAt = new Date(
       Date.now() + INVITE_EXPIRY_DAYS * 24 * 60 * 60 * 1000
     )
-    const internalUrl =
-      process.env.INTERNAL_URL || 'http://localhost:3000'
+    const internalUrl = process.env.INTERNAL_URL || 'http://localhost:3000'
 
     try {
       const newMember = await prisma.member.create({
@@ -150,9 +105,7 @@ const authController = {
     } catch (err) {
       if (err instanceof Prisma.PrismaClientKnownRequestError) {
         if (err.code === 'P2002') {
-          res
-            .status(409)
-            .json({ message: `Email '${email}' already exists.` })
+          res.status(409).json({ message: `Email '${email}' already exists.` })
           return
         }
         if (err.code === 'P2025') {
@@ -163,24 +116,14 @@ const authController = {
         }
       }
       console.error(err)
-      res.status(500).json({ error: 'Failed to send invite.' })
+      res.status(500).json({ message: 'Failed to send invite.' })
     }
   }) as RequestHandler,
 
   acceptInvite: (async (req, res) => {
-    const { token, password } = req.body as AcceptInviteDTO
-
-    if (!token || !password) {
-      res.status(400).json({ message: 'Token and password are required.' })
-      return
-    }
-
-    if (password.length < 8) {
-      res
-        .status(400)
-        .json({ message: 'Password must be at least 8 characters.' })
-      return
-    }
+    const body = validate(AcceptInviteSchema, req.body, res)
+    if (!body) return
+    const { token, password } = body
 
     try {
       const member = await prisma.member.findUnique({
@@ -188,9 +131,7 @@ const authController = {
       })
 
       if (!member || !member.inviteTokenExpiresAt) {
-        res
-          .status(400)
-          .json({ message: 'Invalid or expired invite token.' })
+        res.status(400).json({ message: 'Invalid or expired invite token.' })
         return
       }
 
@@ -213,11 +154,27 @@ const authController = {
       res.json({ message: 'Account activated successfully.' })
     } catch (err) {
       console.error(err)
-      res.status(500).json({ error: 'Failed to accept invite.' })
+      res.status(500).json({ message: 'Failed to accept invite.' })
+    }
+  }) as RequestHandler,
+  me: (async (req, res) => {
+    try {
+      const member = await prisma.member.findUnique({
+        where: { id: req.user!.id },
+        include: { role: true },
+      })
+
+      if (!member) {
+        res.status(404).json({ message: 'Member not found.' })
+        return
+      }
+
+      res.json(sanitizeMemberForResponse(member))
+    } catch (err) {
+      console.error(err)
+      res.status(500).json({ message: 'Failed to retrieve member.' })
     }
   }) as RequestHandler,
 }
-
-const isSingleWord = (word: string): boolean => /^[^\s]+$/.test(word)
 
 export default authController

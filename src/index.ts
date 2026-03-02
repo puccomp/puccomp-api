@@ -30,7 +30,7 @@ app.use(json())
 app.use(
   cors({
     origin: FRONTEND_URLS,
-    methods: ['GET', 'POST'],
+    methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
     credentials: false,
   })
 )

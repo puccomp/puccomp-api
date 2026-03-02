@@ -65,5 +65,7 @@ export async function getSignedS3URL(
     Key: fileKey,
   }
   const command = new GetObjectCommand(params)
-  return await getSignedUrl(getS3Client(), command, { expiresIn: expiresInSeconds })
+  return await getSignedUrl(getS3Client(), command, {
+    expiresIn: expiresInSeconds,
+  })
 }

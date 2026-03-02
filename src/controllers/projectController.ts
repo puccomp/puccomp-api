@@ -1,31 +1,26 @@
 import { RequestHandler } from 'express'
-import { BASE_URL, } from '../index.js'
+import { BASE_URL } from '../index.js'
 import { deleteObjectFromS3, getS3URL, uploadObjectToS3 } from '../utils/s3.js'
-import { Prisma, Project, TechnologyUsageLevel } from '@prisma/client'
+import { Prisma, Project } from '@prisma/client'
 import prisma from '../utils/prisma.js'
-
-type CreateProjectDTO = {
-  name: string
-  description: string
-  created_at: string // yyyy-mm-dd
-  updated_at: string // yyyy-mm-dd
-}
-type UpdateProjectDTO = Partial<CreateProjectDTO>
+import { validate } from '../utils/validate.js'
+import { sanitizeFileName } from '../utils/uploads.js'
+import {
+  CreateProjectSchema,
+  UpdateProjectSchema,
+  AddContributorSchema,
+  AddTechSchema,
+  MemberIdParamSchema,
+  TechIdParamSchema,
+} from '../schemas/projectSchemas.js'
 
 const projectsController = {
   insert: (async (req, res) => {
-    const { name, description, created_at, updated_at } = req.body
+    const body = validate(CreateProjectSchema, req.body, res)
+    if (!body) return
+    const { name, description, created_at, updated_at } = body
     const image = req.file
 
-    if (!name || !description) {
-      res.status(400).json({ message: 'Name and description are required.' })
-      return
-    }
-    const nameValidation = validateProjectName(name)
-    if (!nameValidation.valid) {
-      res.status(400).json({ message: nameValidation.message })
-      return
-    }
     let imageKey: string | null = null
     try {
       if (image) {
@@ -67,7 +62,7 @@ const projectsController = {
       console.error(err)
       res.status(500).json({ message: 'Failed to create project.' })
     }
-  }) as RequestHandler<{}, {}, CreateProjectDTO>,
+  }) as RequestHandler,
 
   get: (async (req, res) => {
     try {
@@ -105,26 +100,18 @@ const projectsController = {
   }) as RequestHandler,
 
   update: (async (req, res) => {
+    const body = validate(UpdateProjectSchema, req.body, res)
+    if (!body) return
+    const { name, description, created_at, updated_at } = body
+    const image = req.file
+    const oldProject = req.project!
+
     try {
-      const { name, description, created_at, updated_at } =
-        req.body as UpdateProjectDTO
-      const image = req.file
-      const oldProject = req.project!
-
-      if (name) {
-        const nameValidation = validateProjectName(name)
-        if (!nameValidation.valid) {
-          res.status(400).json({ message: nameValidation.message })
-          return
-        }
-      }
-
-      if (image && oldProject.imageKey)
-        await deleteObjectFromS3(oldProject.imageKey)
-
       const newImageKey = image
         ? `projects/${Date.now()}_${sanitizeFileName(image.originalname)}`
         : null
+
+      if (image && newImageKey) await uploadObjectToS3(image, newImageKey)
 
       const updatedProject = await prisma.project.update({
         where: { id: oldProject.id },
@@ -137,7 +124,14 @@ const projectsController = {
         },
       })
 
-      if (image && newImageKey) await uploadObjectToS3(image, newImageKey)
+      if (image && oldProject.imageKey) {
+        await deleteObjectFromS3(oldProject.imageKey).catch((err) => {
+          console.error(
+            `Failed to delete old S3 object ${oldProject.imageKey}:`,
+            err
+          )
+        })
+      }
 
       res.json({
         message: 'Project updated successfully.',
@@ -156,7 +150,7 @@ const projectsController = {
       console.error(err)
       res.status(500).json({ message: 'Failed to update the project.' })
     }
-  }) as RequestHandler<{ project_name: string }, {}, UpdateProjectDTO>,
+  }) as RequestHandler,
 
   delete: (async (req, res) => {
     try {
@@ -172,20 +166,13 @@ const projectsController = {
   }) as RequestHandler,
 
   addContributor: (async (req, res) => {
-    const { member_id } = req.body
+    const body = validate(AddContributorSchema, req.body, res)
+    if (!body) return
     const projectId = req.project!.id
-
-    if (!member_id) {
-      res.status(400).json({ message: 'Member id is required.' })
-      return
-    }
 
     try {
       const contributor = await prisma.contributor.create({
-        data: {
-          projectId,
-          memberId: Number(member_id),
-        },
+        data: { projectId, memberId: body.member_id },
       })
       res
         .status(201)
@@ -244,15 +231,17 @@ const projectsController = {
   }) as RequestHandler,
 
   removeContributor: (async (req, res) => {
-    const memberId = parseInt(req.params.member_id, 10)
+    const params = validate(MemberIdParamSchema, req.params, res)
+    if (!params) return
     const projectId = req.project!.id
 
     try {
       await prisma.contributor.delete({
-        where: { memberId_projectId: { memberId, projectId } },
+        where: {
+          memberId_projectId: { memberId: params.member_id, projectId },
+        },
       })
       res.json({ message: 'Contributor removed successfully.' })
-      return
     } catch (err) {
       if (
         err instanceof Prisma.PrismaClientKnownRequestError &&
@@ -265,28 +254,15 @@ const projectsController = {
       }
       console.error(err)
       res.status(500).json({ message: 'Failed to remove contributor.' })
-      return
     }
   }) as RequestHandler<{ project_name: string; member_id: string }>,
 
   addTech: (async (req, res) => {
-    const { technology_name, usage_level } = req.body
+    const body = validate(AddTechSchema, req.body, res)
+    if (!body) return
+    const { technology_name, usage_level } = body
     const projectId = req.project!.id
 
-    if (!technology_name || !usage_level) {
-      res
-        .status(400)
-        .json({ message: 'Technology name and usage level are required.' })
-      return
-    }
-
-    const validUsageLevels = Object.values(TechnologyUsageLevel)
-    if (!validUsageLevels.includes(usage_level)) {
-      res.status(400).json({
-        message: `Invalid usage level. Must be one of: ${validUsageLevels.join(', ')}`,
-      })
-      return
-    }
     try {
       const technology = await prisma.technology.findUnique({
         where: { name: technology_name },
@@ -300,7 +276,7 @@ const projectsController = {
         data: {
           projectId,
           technologyId: technology.id,
-          usageLevel: usage_level as TechnologyUsageLevel,
+          usageLevel: usage_level,
         },
       })
 
@@ -332,9 +308,7 @@ const projectsController = {
       const projectId = req.project!.id
       const technologies = await prisma.projectTechnology.findMany({
         where: { projectId },
-        include: {
-          technology: true,
-        },
+        include: { technology: true },
       })
       res.json(technologies)
     } catch (err) {
@@ -344,15 +318,20 @@ const projectsController = {
   }) as RequestHandler,
 
   removeTech: (async (req, res) => {
-    const technologyId = parseInt(req.params.technology_id, 10)
+    const params = validate(TechIdParamSchema, req.params, res)
+    if (!params) return
     const projectId = req.project!.id
 
     try {
       await prisma.projectTechnology.delete({
-        where: { projectId_technologyId: { projectId, technologyId } },
+        where: {
+          projectId_technologyId: {
+            projectId,
+            technologyId: params.technology_id,
+          },
+        },
       })
       res.json({ message: 'Technology removed successfully.' })
-      return
     } catch (err) {
       if (
         err instanceof Prisma.PrismaClientKnownRequestError &&
@@ -365,43 +344,8 @@ const projectsController = {
       }
       console.error(err)
       res.status(500).json({ message: 'Failed to remove technology.' })
-      return
     }
   }) as RequestHandler<{ project_name: string; technology_id: string }>,
-}
-
-const validateProjectName = (
-  name: string
-): { valid: boolean; message?: string } => {
-  if (
-    !name ||
-    typeof name !== 'string' ||
-    name.length < 3 ||
-    name.length > 50
-  ) {
-    return {
-      valid: false,
-      message: 'Project name must be between 3 and 50 characters.',
-    }
-  }
-  const regex = /^[a-zA-Z0-9](?!.*[-_]{2})[-_a-zA-Z0-9]*[a-zA-Z0-9]$/
-  if (!regex.test(name)) {
-    return {
-      valid: false,
-      message:
-        'Project name can only contain alphanumeric characters, single hyphens, and single underscores, and cannot start or end with a hyphen or underscore. Consecutive hyphens or underscores are not allowed.',
-    }
-  }
-  return { valid: true }
-}
-
-function sanitizeFileName(filename: string): string {
-  return filename
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-zA-Z0-9._-]/g, '_')
-    .replace(/\s+/g, '_')
-    .toLowerCase()
 }
 
 export default projectsController

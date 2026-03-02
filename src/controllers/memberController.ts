@@ -1,74 +1,20 @@
 import { RequestHandler } from 'express'
 import bcrypt from 'bcryptjs'
-import { Member, MemberStatus, Prisma, Role } from '@prisma/client'
+import { Member, Prisma, Role } from '@prisma/client'
 import { BASE_URL } from '../index.js'
 import { formatDate, keysToSnakeCase } from '../utils/formats.js'
 import prisma from '../utils/prisma.js'
-
-interface CreateMemberDTO {
-  email: string
-  name: string
-  surname: string
-  bio?: string
-  course: string
-  avatar_url?: string
-  entry_date: string // YYYY-MM-DD
-  exit_date?: string // YYYY-MM-DD
-  status?: MemberStatus
-  github_url?: string
-  instagram_url?: string
-  linkedin_url?: string
-  is_admin?: boolean
-  role_id: number
-}
-
-interface UpdateMemberDTO {
-  password?: string
-  name?: string
-  surname?: string
-  bio?: string
-  course?: string
-  avatar_url?: string
-  entry_date?: string
-  exit_date?: string
-  status?: MemberStatus
-  github_url?: string
-  instagram_url?: string
-  linkedin_url?: string
-  is_admin?: boolean
-  role_id?: number
-}
+import { validate, IdParamSchema } from '../utils/validate.js'
+import {
+  CreateMemberSchema,
+  UpdateMemberSchema,
+} from '../schemas/memberSchemas.js'
 
 const memberController = {
   insert: (async (req, res) => {
-    const {
-      email,
-      name,
-      surname,
-      course,
-      role_id,
-      entry_date,
-      ...rest
-    } = req.body as CreateMemberDTO
-
-    if (!email || !name || !surname || !course || !role_id || !entry_date) {
-      res.status(400).json({ message: 'Missing required fields.' })
-      return
-    }
-
-    if (!email.endsWith('@sga.pucminas.br')) {
-      res
-        .status(400)
-        .json({ message: 'Email must be a @sga.pucminas.br address.' })
-      return
-    }
-
-    if (!isSingleWord(name) || !isSingleWord(surname)) {
-      res
-        .status(400)
-        .json({ message: 'Name and surname must be single words.' })
-      return
-    }
+    const body = validate(CreateMemberSchema, req.body, res)
+    if (!body) return
+    const { email, name, surname, course, role_id, entry_date, ...rest } = body
 
     try {
       const newMember = await prisma.member.create({
@@ -81,7 +27,7 @@ const memberController = {
           bio: rest.bio,
           avatarUrl: rest.avatar_url,
           exitDate: rest.exit_date ? new Date(rest.exit_date) : null,
-          status: rest.status ?? MemberStatus.PENDING,
+          status: rest.status ?? 'PENDING',
           githubUrl: rest.github_url,
           instagramUrl: rest.instagram_url,
           linkedinUrl: rest.linkedin_url,
@@ -97,9 +43,7 @@ const memberController = {
     } catch (err) {
       if (err instanceof Prisma.PrismaClientKnownRequestError) {
         if (err.code === 'P2002') {
-          res
-            .status(409)
-            .json({ message: `Email '${email}' already exists.` })
+          res.status(409).json({ message: `Email '${email}' already exists.` })
           return
         }
         if (err.code === 'P2025') {
@@ -110,32 +54,29 @@ const memberController = {
         }
       }
       console.error(err)
-      res.status(500).json({ error: 'Failed to create member.' })
+      res.status(500).json({ message: 'Failed to create member.' })
     }
-  }) as RequestHandler<{}, {}, CreateMemberDTO>,
+  }) as RequestHandler,
 
   get: (async (req, res) => {
-    const id = parseInt(req.params.id, 10)
-    if (isNaN(id)) {
-      res.status(400).json({ error: 'Invalid id format.' })
-      return
-    }
+    const params = validate(IdParamSchema, req.params, res)
+    if (!params) return
 
     try {
       const member = await prisma.member.findUnique({
-        where: { id },
+        where: { id: params.id },
         include: { role: true },
       })
 
       if (!member) {
-        res.status(404).json({ error: 'Member not found.' })
+        res.status(404).json({ message: 'Member not found.' })
         return
       }
 
       res.json(sanitizeMemberForResponse(member))
     } catch (error) {
       console.error(error)
-      res.status(500).json({ error: 'Failed to retrieve member.' })
+      res.status(500).json({ message: 'Failed to retrieve member.' })
     }
   }) as RequestHandler<{ id: string }>,
 
@@ -145,46 +86,18 @@ const memberController = {
       res.json(members.map(sanitizeMemberForResponse))
     } catch (error) {
       console.error(error)
-      res.status(500).json({ error: 'Failed to retrieve members.' })
+      res.status(500).json({ message: 'Failed to retrieve members.' })
     }
   }) as RequestHandler,
 
   update: (async (req, res) => {
-    const id = parseInt(req.params.id, 10)
-    if (isNaN(id)) {
-      res.status(400).json({ error: 'Invalid id format.' })
-      return
-    }
+    const params = validate(IdParamSchema, req.params, res)
+    if (!params) return
 
-    const {
-      password,
-      entry_date,
-      exit_date,
-      role_id,
-      status,
-      ...rest
-    } = req.body as UpdateMemberDTO
+    const body = validate(UpdateMemberSchema, req.body, res)
+    if (!body) return
 
-    if (
-      Object.keys(rest).length === 0 &&
-      !password &&
-      !entry_date &&
-      !exit_date &&
-      !role_id &&
-      !status
-    ) {
-      res.status(400).json({ error: 'No fields to update.' })
-      return
-    }
-
-    if (rest.name && !isSingleWord(rest.name)) {
-      res.status(400).json({ message: 'Name must be a single word.' })
-      return
-    }
-    if (rest.surname && !isSingleWord(rest.surname)) {
-      res.status(400).json({ message: 'Surname must be a single word.' })
-      return
-    }
+    const { password, entry_date, exit_date, role_id, status, ...rest } = body
 
     try {
       const dataToUpdate: Prisma.MemberUpdateInput = {
@@ -206,7 +119,7 @@ const memberController = {
       if (role_id) dataToUpdate.role = { connect: { id: role_id } }
 
       const updatedMember = await prisma.member.update({
-        where: { id },
+        where: { id: params.id },
         data: dataToUpdate,
         include: { role: true },
       })
@@ -224,21 +137,39 @@ const memberController = {
         return
       }
       console.error(error)
-      res.status(500).json({ error: 'Failed to update member.' })
+      res.status(500).json({ message: 'Failed to update member.' })
     }
-  }) as RequestHandler<{ id: string }, {}, UpdateMemberDTO>,
+  }) as RequestHandler<{ id: string }>,
 
   delete: (async (req, res) => {
-    const id = parseInt(req.params.id, 10)
-    if (isNaN(id)) {
-      res.status(400).json({ error: 'Invalid id format.' })
-      return
-    }
+    const params = validate(IdParamSchema, req.params, res)
+    if (!params) return
 
     try {
+      const member = await prisma.member.findUnique({
+        where: { id: params.id },
+      })
+
+      if (!member) {
+        res.status(404).json({ message: 'Member not found.' })
+        return
+      }
+
+      if (member.isAdmin) {
+        const adminCount = await prisma.member.count({
+          where: { isAdmin: true },
+        })
+        if (adminCount === 1) {
+          res
+            .status(403)
+            .json({ message: 'Cannot delete the last admin member.' })
+          return
+        }
+      }
+
       await prisma.$transaction(async (tx) => {
-        await tx.contributor.deleteMany({ where: { memberId: id } })
-        await tx.member.delete({ where: { id } })
+        await tx.contributor.deleteMany({ where: { memberId: params.id } })
+        await tx.member.delete({ where: { id: params.id } })
       })
 
       res.json({ message: 'Member deleted successfully.' })
@@ -251,14 +182,12 @@ const memberController = {
         return
       }
       console.error(error)
-      res.status(500).json({ error: 'Failed to delete member.' })
+      res.status(500).json({ message: 'Failed to delete member.' })
     }
   }) as RequestHandler<{ id: string }>,
 }
 
-const isSingleWord = (word: string): boolean => /^[^\s]+$/.test(word)
-
-const sanitizeMemberForResponse = (
+export const sanitizeMemberForResponse = (
   member: Member & { role?: Role | null }
 ) => {
   const {
