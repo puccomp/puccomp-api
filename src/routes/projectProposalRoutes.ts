@@ -1,9 +1,13 @@
 import express, { Router } from 'express'
+import { Prisma } from '@prisma/client'
 import isAuth from '../middlewares/isAuth.js'
 import { sendEmail } from '../utils/email.js'
 import prisma from '../utils/prisma.js'
 import { validate, IdParamSchema } from '../utils/validate.js'
-import { CreateProposalSchema } from '../schemas/proposalSchemas.js'
+import {
+  CreateProposalSchema,
+  ProposalQuerySchema,
+} from '../schemas/proposalSchemas.js'
 
 const router: Router = express.Router()
 
@@ -48,10 +52,48 @@ router.post('/', async (req, res) => {
 })
 
 // FIND ALL SUBMITS
-router.get('/', isAuth, async (_req, res) => {
+router.get('/', isAuth, async (req, res) => {
+  const query = validate(ProposalQuerySchema, req.query, res)
+  if (!query) return
+
+  const { search, date_from, date_to, page, limit, sort_by, order } = query
+
+  const where: Prisma.ProjectProposalWhereInput = {}
+
+  if (search) {
+    where.OR = [
+      { name: { contains: search, mode: 'insensitive' } },
+      { description: { contains: search, mode: 'insensitive' } },
+    ]
+  }
+
+  if (date_from || date_to) {
+    where.date = {
+      ...(date_from && { gte: new Date(date_from) }),
+      ...(date_to && { lte: new Date(`${date_to}T23:59:59.999Z`) }),
+    }
+  }
+
   try {
-    const proposals = await prisma.projectProposal.findMany()
-    res.status(200).json(proposals)
+    const [proposals, total] = await Promise.all([
+      prisma.projectProposal.findMany({
+        where,
+        orderBy: { [sort_by]: order },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      prisma.projectProposal.count({ where }),
+    ])
+
+    res.json({
+      data: proposals,
+      pagination: {
+        total,
+        page,
+        limit,
+        total_pages: Math.ceil(total / limit),
+      },
+    })
   } catch {
     res.status(500).json({ message: 'Erro ao buscar os dados.' })
   }
