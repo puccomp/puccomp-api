@@ -15,6 +15,8 @@ cd puccomp-api
 
 cp .env.example .env # adicione variáveis de ambiente
 
+sudo chmod +x localstack-init/create-bucket.sh
+
 # inicie os serviços/containers
 docker compose up -d  # -d (ou --detach) recuperar o controle do terminal após execeutar o comando
 
@@ -27,6 +29,53 @@ docker compose exec app npm run prisma:seed
 
 - Hot reload habilitado através de bind mounts (`./src` e `./prisma`)
 - Dados persistidos em volume nomeado (`pgdata`)
+
+### Serviços de desenvolvimento
+
+Em `NODE_ENV !== production`, a API usa automaticamente o **LocalStack** (S3) e o **MailHog** (e-mail) no lugar dos serviços reais.
+
+| Serviço | Descrição | Endpoint |
+|---------|-----------|----------|
+| **LocalStack** — S3 API | Emula a AWS S3 localmente | `http://localhost:4566` |
+| **LocalStack** — Health | Status dos serviços em execução (JSON) | `http://localhost:4566/_localstack/health` |
+| **MailHog** — Web UI | Caixa de entrada dos e-mails capturados | `http://localhost:8025` |
+| **MailHog** — API REST | Listagem e busca de mensagens | `http://localhost:8025/api/v2/messages` |
+
+#### Inspecionando o LocalStack com rclone
+
+Como alternativa ao AWS CLI, é possível usar o [rclone](https://rclone.org) para navegar pelos buckets do LocalStack.
+
+Configure um remote uma única vez:
+
+```bash
+rclone config create localstack s3 \
+  provider Other \
+  endpoint http://localhost:4566 \
+  access_key_id test \
+  secret_access_key test \
+  region us-east-1
+```
+
+Ou adicione manualmente em `~/.config/rclone/rclone.conf`:
+
+```ini
+[localstack]
+type = s3
+provider = Other
+endpoint = http://localhost:4566
+access_key_id = test
+secret_access_key = test
+region = us-east-1
+```
+
+Comandos úteis:
+
+```bash
+rclone lsd localstack:                          # listar buckets
+rclone ls localstack:puccomp-uploads            # listar objetos do bucket
+rclone copy ./arquivo.jpg localstack:puccomp-uploads/pasta/  # enviar arquivo
+rclone deletefile localstack:puccomp-uploads/pasta/arquivo.jpg  # deletar objeto
+```
 
 ### Comandos úteis
 

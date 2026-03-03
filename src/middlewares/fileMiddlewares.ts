@@ -1,5 +1,12 @@
 import path from 'path'
 import { NextFunction, Request, Response } from 'express'
+import { fileTypeFromBuffer } from 'file-type'
+
+export const ALLOWED_MIMES: Record<string, string[]> = {
+  IMAGE: ['image/jpeg', 'image/png', 'image/webp', 'image/gif'],
+  DOCUMENT: ['application/pdf'],
+  VIDEO: ['video/mp4', 'video/webm', 'video/quicktime'],
+}
 
 export function fileRequiredMiddleware(
   req: Request,
@@ -14,6 +21,38 @@ export function fileRequiredMiddleware(
 }
 
 const PDF_MAGIC = Buffer.from([0x25, 0x50, 0x44, 0x46]) // %PDF
+
+export async function validateAssetTypeMiddleware(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  const file = req.file!
+  const type = (req.body.type as string | undefined) ?? 'IMAGE'
+
+  const allowedMimes = ALLOWED_MIMES[type]
+  if (!allowedMimes) {
+    // Unknown type value — let schema validation handle it
+    next()
+    return
+  }
+
+  const detected = await fileTypeFromBuffer(file.buffer)
+
+  if (!detected) {
+    res.status(400).json({ message: 'Não foi possível identificar o tipo do arquivo enviado.' })
+    return
+  }
+
+  if (!allowedMimes.includes(detected.mime)) {
+    res.status(400).json({
+      message: `Arquivo incompatível com o tipo ${type}. Recebido: ${detected.mime}. Aceitos: ${allowedMimes.join(', ')}.`,
+    })
+    return
+  }
+
+  next()
+}
 
 export function validatePdfFileMiddleware(
   req: Request,

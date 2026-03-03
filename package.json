@@ -27,6 +27,7 @@
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "express": "^5.0.1",
+    "file-type": "^21.3.0",
     "jsonwebtoken": "^9.0.2",
     "multer": "^1.4.5-lts.1",
     "nodemailer": "^6.9.16",
@@ -43,12 +44,15 @@
     "@types/multer": "^1.4.13",
     "@types/node": "^24.0.3",
     "@types/nodemailer": "^6.4.17",
+    "@types/supertest": "^7.2.0",
     "@types/swagger-jsdoc": "^6.0.4",
     "@types/swagger-ui-express": "^4.1.8",
     "nodemon": "^3.1.9",
     "prettier": "^3.4.2",
     "prisma": "^6.10.1",
+    "supertest": "^7.2.2",
     "tsx": "^4.20.3",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "vitest": "^4.0.18"
   }
 }

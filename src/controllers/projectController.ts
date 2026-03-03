@@ -1,4 +1,5 @@
 import { RequestHandler } from 'express'
+import sharp from 'sharp'
 import { BASE_URL } from '../index.js'
 import { formatDate } from '../utils/formats.js'
 import { deleteObjectFromS3, getS3URL, uploadObjectToS3 } from '../utils/s3.js'
@@ -14,22 +15,32 @@ import {
   AddTechSchema,
   CreateAssetSchema,
   UpdateAssetSchema,
+  ProjectQuerySchema,
   MemberIdParamSchema,
   TechIdParamSchema,
   AssetIdParamSchema,
 } from '../schemas/projectSchemas.js'
 
+const sortMap: Record<string, string> = {
+  priority: 'priority',
+  created_at: 'createdAt',
+  name: 'name',
+  start_date: 'startDate',
+}
+
 
 const formatProject = (
   project: Project & { assets?: ProjectAsset[] }
 ) => {
-  const { createdAt, updatedAt, startDate, endDate, isFeatured, isInternal, ...rest } = project
+  const { createdAt, updatedAt, startDate, endDate, deadline, completedAt, isFeatured, isInternal, ...rest } = project
   return {
     ...rest,
     created_at: formatDate(createdAt),
     updated_at: updatedAt ? formatDate(updatedAt) : null,
     start_date: startDate ? formatDate(startDate) : null,
     end_date: endDate ? formatDate(endDate) : null,
+    deadline: deadline ? formatDate(deadline) : null,
+    completed_at: completedAt ? formatDate(completedAt) : null,
     is_featured: isFeatured,
     is_internal: isInternal,
     assets: project.assets?.map(formatAsset) ?? undefined,
@@ -59,10 +70,18 @@ const projectsController = {
       priority,
       start_date,
       end_date,
+      deadline,
+      completed_at,
       is_internal,
       created_at,
       updated_at,
     } = body
+
+    const resolvedStatus = status ?? 'PLANNING'
+    const resolvedCompletedAt =
+      completed_at !== undefined
+        ? completed_at ? new Date(completed_at) : null
+        : resolvedStatus === 'DONE' ? new Date() : null
 
     try {
       const project = await prisma.project.create({
@@ -70,11 +89,13 @@ const projectsController = {
           name,
           slug: slug ?? generateSlug(name),
           description,
-          status: status ?? 'PLANNING',
+          status: resolvedStatus,
           isFeatured: is_featured ?? false,
           priority: priority ?? 0,
           startDate: start_date ? new Date(start_date) : null,
           endDate: end_date ? new Date(end_date) : null,
+          deadline: deadline ? new Date(deadline) : null,
+          completedAt: resolvedCompletedAt,
           isInternal: is_internal ?? false,
           createdAt: created_at ? new Date(created_at) : new Date(),
           updatedAt: updated_at ? new Date(updated_at) : new Date(),
@@ -84,6 +105,7 @@ const projectsController = {
       res.status(201).json({
         message: 'Projeto criado com sucesso.',
         project_id: project.id,
+        project_slug: project.slug,
         project_url: `${BASE_URL}/api/projects/${project.slug}`,
       })
     } catch (err) {
@@ -114,13 +136,44 @@ const projectsController = {
     }
   }) as RequestHandler,
 
-  all: (async (_req, res) => {
+  all: (async (req, res) => {
+    const query = validate(ProjectQuerySchema, req.query, res)
+    if (!query) return
+
+    const { page, limit, sort_by, order, status, is_featured, is_internal } =
+      query
+    const skip = (page - 1) * limit
+    const where = {
+      ...(status !== undefined && { status }),
+      ...(is_featured !== undefined && { isFeatured: is_featured }),
+      ...(is_internal !== undefined && { isInternal: is_internal }),
+    }
+    const orderBy = [
+      { [sortMap[sort_by]]: order },
+      ...(sort_by !== 'priority' ? [{ priority: 'desc' as const }] : []),
+    ]
+
     try {
-      const projects = await prisma.project.findMany({
-        include: { assets: { orderBy: { order: 'asc' } } },
-        orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }],
+      const [projects, total] = await Promise.all([
+        prisma.project.findMany({
+          where,
+          include: { assets: { orderBy: { order: 'asc' } } },
+          orderBy,
+          take: limit,
+          skip,
+        }),
+        prisma.project.count({ where }),
+      ])
+
+      res.json({
+        data: projects.map(formatProject),
+        pagination: {
+          total,
+          page,
+          limit,
+          total_pages: Math.ceil(total / limit),
+        },
       })
-      res.json(projects.map(formatProject))
     } catch (err) {
       console.error(err)
       res.status(500).json({ message: 'Falha ao buscar os projetos.' })
@@ -139,11 +192,34 @@ const projectsController = {
       priority,
       start_date,
       end_date,
+      deadline,
+      completed_at,
       is_internal,
       created_at,
       updated_at,
     } = body
     const oldProject = req.project!
+
+    // completed_at consistency check against DB status when status not in body
+    if (completed_at && !status && oldProject.status !== 'DONE') {
+      res.status(422).json({
+        message: 'completed_at só pode ser definido quando o status é DONE.',
+      })
+      return
+    }
+
+    // Auto-manage completedAt based on status transition
+    let resolvedCompletedAt: Date | null | undefined
+    if (status === 'DONE') {
+      resolvedCompletedAt =
+        completed_at !== undefined
+          ? completed_at ? new Date(completed_at) : null
+          : new Date()
+    } else if (status !== undefined) {
+      resolvedCompletedAt = null // clear when leaving DONE
+    } else if (completed_at !== undefined) {
+      resolvedCompletedAt = completed_at ? new Date(completed_at) : null
+    }
 
     try {
       const updatedProject = await prisma.project.update({
@@ -161,6 +237,10 @@ const projectsController = {
           endDate: end_date !== undefined
             ? (end_date ? new Date(end_date) : null)
             : undefined,
+          deadline: deadline !== undefined
+            ? (deadline ? new Date(deadline) : null)
+            : undefined,
+          completedAt: resolvedCompletedAt,
           isInternal: is_internal,
           createdAt: created_at ? new Date(created_at) : undefined,
           updatedAt: updated_at ? new Date(updated_at) : undefined,
@@ -207,26 +287,47 @@ const projectsController = {
   // ── Assets ──────────────────────────────────────────────────────────────
 
   addAsset: (async (req, res) => {
-    const file = req.file
-    if (!file) {
-      res.status(400).json({ message: 'Nenhum arquivo enviado.' })
-      return
-    }
+    const file = req.file!
 
     const body = validate(CreateAssetSchema, req.body, res)
     if (!body) return
 
     const projectId = req.project!.id
-    const assetKey = `projects/${projectId}/assets/${Date.now()}_${sanitizeFileName(file.originalname)}`
+    const assetType = body.type ?? 'IMAGE'
+
+    const maxAssets = parseInt(process.env.MAX_ASSETS_PER_PROJECT ?? '10', 10)
+    const assetCount = await prisma.projectAsset.count({ where: { projectId } })
+    if (assetCount >= maxAssets) {
+      res.status(422).json({
+        message: `Limite de ${maxAssets} assets por projeto atingido.`,
+      })
+      return
+    }
+
+    const baseName = sanitizeFileName(file.originalname).replace(/\.[^.]+$/, '')
+    const isImage = assetType === 'IMAGE'
+    const fileName = isImage ? `${baseName}.webp` : sanitizeFileName(file.originalname)
+    const assetKey = `projects/${projectId}/assets/${Date.now()}_${fileName}`
+
+    const uploadFile = isImage
+      ? {
+          buffer: await sharp(file.buffer)
+            .resize(800, 600, { fit: 'cover', position: 'centre' })
+            .webp({ quality: 82 })
+            .toBuffer(),
+          mimetype: 'image/webp',
+          originalname: `${baseName}.webp`,
+        }
+      : file
 
     try {
-      await uploadObjectToS3(file, assetKey)
+      await uploadObjectToS3(uploadFile, assetKey)
 
       const asset = await prisma.projectAsset.create({
         data: {
           projectId,
           key: assetKey,
-          type: body.type ?? 'IMAGE',
+          type: assetType,
           caption: body.caption,
           order: body.order ?? 0,
         },

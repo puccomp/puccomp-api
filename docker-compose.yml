@@ -43,6 +43,8 @@ services:
     environment:
       - SERVICES=s3
       - AWS_DEFAULT_REGION=us-east-1
+    env_file:
+      - .env
     volumes:
       - ./localstack-init:/etc/localstack/init/ready.d
     healthcheck:

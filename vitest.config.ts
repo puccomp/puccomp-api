@@ -8,8 +8,10 @@ export default defineConfig({
     env: {
       NODE_ENV: 'test',
     },
-    // Single fork so integration tests share one DB connection and run sequentially
+    // Single fork + no file parallelism: integration tests share one DB connection
+    // and test files execute sequentially, preventing beforeEach cleanup conflicts
     pool: 'forks',
     singleFork: true,
+    fileParallelism: false,
   },
 })

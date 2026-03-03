@@ -4,6 +4,7 @@ import projectsController from '../controllers/projectController.js'
 import { memUpload } from '../utils/uploads.js'
 import isAuth from '../middlewares/isAuth.js'
 import { multerErrorHandler } from '../middlewares/errorHandlers.js'
+import { fileRequiredMiddleware, validateAssetTypeMiddleware } from '../middlewares/fileMiddlewares.js'
 import prisma from '../utils/prisma.js'
 
 declare global {
@@ -96,6 +97,8 @@ router.post(
   isAuth,
   findProjectBySlug,
   memUpload.single('file'),
+  fileRequiredMiddleware,
+  validateAssetTypeMiddleware,
   projectsController.addAsset
 )
 

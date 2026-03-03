@@ -59,6 +59,8 @@ model Project {
   priority    Int           @default(0)
   startDate   DateTime?     @map("start_date") @db.Date
   endDate     DateTime?     @map("end_date") @db.Date
+  deadline    DateTime?     @db.Date
+  completedAt DateTime?     @map("completed_at") @db.Date
   isInternal  Boolean       @default(false) @map("is_internal")
   createdAt   DateTime      @map("created_at") @db.Date
   updatedAt   DateTime?     @map("updated_at") @db.Date
