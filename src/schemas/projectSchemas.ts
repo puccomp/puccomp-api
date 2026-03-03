@@ -43,6 +43,35 @@ export const ProjectQuerySchema = z.object({
 const slugRegex = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
 const dateRegex = /^\d{4}-\d{2}-\d{2}$/
 
+// Item 1: validates format AND actual calendar validity (rejects e.g. 2024-02-30)
+const isValidCalendarDate = (v: string): boolean => {
+  const [year, month, day] = v.split('-').map(Number)
+  const d = new Date(year, month - 1, day)
+  return (
+    d.getFullYear() === year &&
+    d.getMonth() === month - 1 &&
+    d.getDate() === day
+  )
+}
+
+const dateField = (fieldName: string) =>
+  z
+    .string()
+    .regex(dateRegex, `${fieldName} deve estar no formato YYYY-MM-DD.`)
+    .refine(isValidCalendarDate, {
+      message: `${fieldName} contém uma data de calendário inválida.`,
+    })
+    .nullable()
+    .optional()
+
+// Item 2: shared description validator with max length
+const descriptionField = z
+  .string()
+  .min(1, 'Descrição é obrigatória.')
+  .max(2000, 'A descrição deve ter no máximo 2000 caracteres.')
+
+// Item 7: description removed from base shape — declared explicitly in each schema
+// to make its required/optional status unambiguous at the call site
 const projectBaseShape = {
   slug: z
     .string()
@@ -53,39 +82,30 @@ const projectBaseShape = {
       'O slug deve conter apenas letras minúsculas, números e hífens, sem hífens no início ou fim.'
     )
     .optional(),
-  description: z.string().min(1, 'Descrição é obrigatória.'),
-  status: z.nativeEnum(ProjectStatus).optional(),
+  // Item 5: custom error message (consistent with other enum fields)
+  status: z
+    .nativeEnum(ProjectStatus, {
+      error: `status deve ser um dos valores: ${Object.values(ProjectStatus).join(', ')}.`,
+    })
+    .optional(),
   is_featured: z.boolean().optional(),
   priority: z
     .number()
     .int()
     .min(0, 'priority deve ser um inteiro não-negativo.')
     .optional(),
-  start_date: z
-    .string()
-    .regex(dateRegex, 'start_date deve estar no formato YYYY-MM-DD.')
-    .nullable()
-    .optional(),
-  end_date: z
-    .string()
-    .regex(dateRegex, 'end_date deve estar no formato YYYY-MM-DD.')
-    .nullable()
-    .optional(),
-  deadline: z
-    .string()
-    .regex(dateRegex, 'deadline deve estar no formato YYYY-MM-DD.')
-    .nullable()
-    .optional(),
-  completed_at: z
-    .string()
-    .regex(dateRegex, 'completed_at deve estar no formato YYYY-MM-DD.')
-    .nullable()
-    .optional(),
+  // Item 1: date fields now validate calendar validity, not just format
+  start_date: dateField('start_date'),
+  end_date: dateField('end_date'),
+  deadline: dateField('deadline'),
+  completed_at: dateField('completed_at'),
   is_internal: z.boolean().optional(),
-  created_at: z.string().optional(),
-  updated_at: z.string().optional(),
 }
 
+// Item 3: resolvedStatus allows callers to pass the effective status (e.g. the
+// CREATE default 'PLANNING') so the schema can catch completed_at without status.
+// UPDATE passes no resolvedStatus — the runtime controller guard handles that case
+// since the schema cannot know the project's current status in the database.
 const validateProjectDates = (
   data: {
     status?: string
@@ -94,7 +114,8 @@ const validateProjectDates = (
     deadline?: string | null
     completed_at?: string | null
   },
-  ctx: z.RefinementCtx
+  ctx: z.RefinementCtx,
+  resolvedStatus?: string,
 ) => {
   if (data.start_date && data.end_date && data.end_date < data.start_date) {
     ctx.addIssue({
@@ -112,7 +133,8 @@ const validateProjectDates = (
     })
   }
 
-  if (data.completed_at && data.status && data.status !== 'DONE') {
+  const statusToCheck = resolvedStatus ?? data.status
+  if (data.completed_at && statusToCheck && statusToCheck !== 'DONE') {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       message: 'completed_at só pode ser definido quando o status é DONE.',
@@ -127,9 +149,14 @@ export const CreateProjectSchema = z
       .string()
       .min(1, 'Nome é obrigatório.')
       .max(100, 'O nome do projeto deve ter no máximo 100 caracteres.'),
+    description: descriptionField, // Item 7: required in CREATE
     ...projectBaseShape,
   })
-  .superRefine(validateProjectDates)
+  // Item 3: status ?? 'PLANNING' so the schema rejects completed_at when
+  // status is omitted (it would default to PLANNING in the controller)
+  .superRefine((data, ctx) =>
+    validateProjectDates(data, ctx, data.status ?? 'PLANNING'),
+  )
 
 export const UpdateProjectSchema = z
   .object({
@@ -138,13 +165,15 @@ export const UpdateProjectSchema = z
       .min(1, 'Nome é obrigatório.')
       .max(100, 'O nome do projeto deve ter no máximo 100 caracteres.')
       .optional(),
+    description: descriptionField, // Item 7: same rules; .partial() below makes it optional
     ...projectBaseShape,
   })
   .partial()
   .refine((data) => Object.values(data).some((v) => v !== undefined), {
     message: 'Nenhum campo para atualizar.',
   })
-  .superRefine(validateProjectDates)
+  // Item 3: no resolvedStatus — cannot know DB state; runtime guard handles it
+  .superRefine((data, ctx) => validateProjectDates(data, ctx))
 
 export const AddContributorSchema = z.object({
   member_id: z
@@ -166,7 +195,7 @@ export const CreateAssetSchema = z.object({
       error: `type deve ser um dos valores: ${Object.values(AssetType).join(', ')}.`,
     })
     .optional(),
-  caption: z.string().optional(),
+  caption: z.string().max(300, 'A legenda deve ter no máximo 300 caracteres.').optional(), // Item 2
   order: z.coerce
     .number()
     .int()
@@ -176,16 +205,11 @@ export const CreateAssetSchema = z.object({
 
 export const UpdateAssetSchema = z
   .object({
-    caption: z.string().optional(),
+    caption: z.string().max(300, 'A legenda deve ter no máximo 300 caracteres.').optional(), // Item 2
     order: z.coerce
       .number()
       .int()
       .min(0, 'order deve ser um número inteiro não-negativo.')
-      .optional(),
-    type: z
-      .nativeEnum(AssetType, {
-        error: `type deve ser um dos valores: ${Object.values(AssetType).join(', ')}.`,
-      })
       .optional(),
   })
   .refine((data) => Object.values(data).some((v) => v !== undefined), {

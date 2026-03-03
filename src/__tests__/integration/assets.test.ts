@@ -17,6 +17,15 @@ vi.mock('../../utils/s3.js', () => ({
   getSignedS3URL: vi.fn().mockResolvedValue('https://s3.example.com/signed'),
 }))
 
+vi.mock('sharp', () => {
+  const chain = {
+    resize: vi.fn().mockReturnThis(),
+    webp: vi.fn().mockReturnThis(),
+    toBuffer: vi.fn().mockResolvedValue(Buffer.from([0xff, 0xd8, 0xff, 0xe0])),
+  }
+  return { default: vi.fn(() => chain) }
+})
+
 import app from '../../index.js'
 import prisma from '../../utils/prisma.js'
 import { uploadObjectToS3, deleteObjectFromS3 } from '../../utils/s3.js'
@@ -114,7 +123,7 @@ describe('POST /api/projects/:slug/assets', () => {
 
     expect(mockUpload).toHaveBeenCalledOnce()
     const [calledFile, calledKey] = mockUpload.mock.calls[0]
-    expect(calledFile.originalname).toBe('photo.jpg')
+    expect(calledFile.originalname).toBe('photo.webp')
     expect(calledKey).toMatch(/^projects\/\d+\/assets\//)
   })
 
@@ -275,7 +284,7 @@ describe('PATCH /api/projects/:slug/assets/:asset_id', () => {
     expect(updated?.order).toBe(5)
   })
 
-  it('updates type', async () => {
+  it('returns 400 when only type is sent (type cannot be changed after upload)', async () => {
     const project = await createProject()
     const asset = await createAsset(project.id)
 
@@ -283,8 +292,10 @@ describe('PATCH /api/projects/:slug/assets/:asset_id', () => {
       .patch(`/api/projects/test-project/assets/${asset.id}`)
       .send({ type: 'VIDEO' })
 
-    expect(res.status).toBe(200)
-    expect(res.body.asset.type).toBe('VIDEO')
+    // type is stripped by schema (not an updatable field); empty body → 400
+    expect(res.status).toBe(400)
+    const unchanged = await prisma.projectAsset.findUnique({ where: { id: asset.id } })
+    expect(unchanged?.type).toBe('IMAGE')
   })
 
   it('returns 400 with empty body', async () => {

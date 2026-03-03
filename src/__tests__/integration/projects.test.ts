@@ -140,7 +140,7 @@ describe('GET /api/projects', () => {
   it('returns empty array when no projects exist', async () => {
     const res = await request(app).get('/api/projects')
     expect(res.status).toBe(200)
-    expect(res.body).toEqual([])
+    expect(res.body.data).toEqual([])
   })
 
   it('returns all projects with assets included', async () => {
@@ -149,8 +149,8 @@ describe('GET /api/projects', () => {
 
     const res = await request(app).get('/api/projects')
     expect(res.status).toBe(200)
-    expect(res.body).toHaveLength(2)
-    expect(res.body[0]).toHaveProperty('assets')
+    expect(res.body.data).toHaveLength(2)
+    expect(res.body.data[0]).toHaveProperty('assets')
   })
 })
 
@@ -231,6 +231,75 @@ describe('PATCH /api/projects/:slug', () => {
       .send({ start_date: '2024-12-01', end_date: '2024-01-01' })
 
     expect(res.status).toBe(400)
+  })
+
+  it('sets completedAt to now when status changes to DONE without completed_at', async () => {
+    await createProject()
+
+    const before = new Date()
+    const res = await request(app)
+      .patch('/api/projects/test-project')
+      .send({ status: 'DONE' })
+    const after = new Date()
+
+    expect(res.status).toBe(200)
+
+    const updated = await prisma.project.findUnique({
+      where: { slug: 'test-project' },
+    })
+    expect(updated?.status).toBe('DONE')
+    expect(updated?.completedAt).not.toBeNull()
+    // completedAt is stored as DATE (no time), so just check it falls within today
+    const completedAt = updated!.completedAt!
+    expect(completedAt.getTime()).toBeGreaterThanOrEqual(
+      new Date(before.toDateString()).getTime(),
+    )
+    expect(completedAt.getTime()).toBeLessThanOrEqual(
+      new Date(after.toDateString()).getTime() + 86_400_000 - 1,
+    )
+  })
+
+  it('uses the provided completed_at when status changes to DONE', async () => {
+    await createProject()
+
+    const res = await request(app)
+      .patch('/api/projects/test-project')
+      .send({ status: 'DONE', completed_at: '2026-03-02' })
+
+    expect(res.status).toBe(200)
+
+    const updated = await prisma.project.findUnique({
+      where: { slug: 'test-project' },
+    })
+    expect(updated?.status).toBe('DONE')
+    // DB stores as Date; compare only the date portion
+    expect(updated?.completedAt?.toISOString().slice(0, 10)).toBe('2026-03-02')
+  })
+
+  it('clears completedAt when status leaves DONE', async () => {
+    await createProject({ status: 'DONE', completedAt: new Date('2026-03-01') })
+
+    const res = await request(app)
+      .patch('/api/projects/test-project')
+      .send({ status: 'IN_PROGRESS' })
+
+    expect(res.status).toBe(200)
+
+    const updated = await prisma.project.findUnique({
+      where: { slug: 'test-project' },
+    })
+    expect(updated?.status).toBe('IN_PROGRESS')
+    expect(updated?.completedAt).toBeNull()
+  })
+
+  it('returns 422 when setting completed_at on a non-DONE project', async () => {
+    await createProject()
+
+    const res = await request(app)
+      .patch('/api/projects/test-project')
+      .send({ completed_at: '2026-03-02' })
+
+    expect(res.status).toBe(422)
   })
 })
 

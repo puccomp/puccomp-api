@@ -73,11 +73,18 @@ const projectsController = {
       deadline,
       completed_at,
       is_internal,
-      created_at,
-      updated_at,
     } = body
 
     const resolvedStatus = status ?? 'PLANNING'
+
+    // Bug 1: completed_at só faz sentido com status DONE
+    if (completed_at && resolvedStatus !== 'DONE') {
+      res.status(422).json({
+        message: 'completed_at só pode ser definido quando o status é DONE.',
+      })
+      return
+    }
+
     const resolvedCompletedAt =
       completed_at !== undefined
         ? completed_at ? new Date(completed_at) : null
@@ -97,8 +104,8 @@ const projectsController = {
           deadline: deadline ? new Date(deadline) : null,
           completedAt: resolvedCompletedAt,
           isInternal: is_internal ?? false,
-          createdAt: created_at ? new Date(created_at) : new Date(),
-          updatedAt: updated_at ? new Date(updated_at) : new Date(),
+          createdAt: new Date(),
+          updatedAt: new Date(),
         },
       })
 
@@ -195,8 +202,6 @@ const projectsController = {
       deadline,
       completed_at,
       is_internal,
-      created_at,
-      updated_at,
     } = body
     const oldProject = req.project!
 
@@ -242,8 +247,7 @@ const projectsController = {
             : undefined,
           completedAt: resolvedCompletedAt,
           isInternal: is_internal,
-          createdAt: created_at ? new Date(created_at) : undefined,
-          updatedAt: updated_at ? new Date(updated_at) : undefined,
+          updatedAt: new Date(),
         },
       })
 
@@ -295,7 +299,11 @@ const projectsController = {
     const projectId = req.project!.id
     const assetType = body.type ?? 'IMAGE'
 
-    const maxAssets = parseInt(process.env.MAX_ASSETS_PER_PROJECT ?? '10', 10)
+    // Bug 5: parse seguro — valor inválido cai no default 10
+    const parsed = parseInt(process.env.MAX_ASSETS_PER_PROJECT ?? '10', 10)
+    const maxAssets = Number.isNaN(parsed) || parsed <= 0 ? 10 : parsed
+
+    // Verificação antecipada (otimização; verificação autoritativa é dentro da transação)
     const assetCount = await prisma.projectAsset.count({ where: { projectId } })
     if (assetCount >= maxAssets) {
       res.status(422).json({
@@ -320,17 +328,26 @@ const projectsController = {
         }
       : file
 
+    // Bug 3: transação garante atomicidade entre contagem e criação
+    let limitExceeded = false
     try {
       await uploadObjectToS3(uploadFile, assetKey)
 
-      const asset = await prisma.projectAsset.create({
-        data: {
-          projectId,
-          key: assetKey,
-          type: assetType,
-          caption: body.caption,
-          order: body.order ?? 0,
-        },
+      const asset = await prisma.$transaction(async (tx) => {
+        const count = await tx.projectAsset.count({ where: { projectId } })
+        if (count >= maxAssets) {
+          limitExceeded = true
+          throw new Error('LIMIT_EXCEEDED')
+        }
+        return tx.projectAsset.create({
+          data: {
+            projectId,
+            key: assetKey,
+            type: assetType,
+            caption: body.caption,
+            order: body.order ?? 0,
+          },
+        })
       })
 
       res.status(201).json({
@@ -341,6 +358,12 @@ const projectsController = {
       await deleteObjectFromS3(assetKey).catch((cleanupErr) => {
         console.error(`S3 CLEANUP FAILED for key ${assetKey}:`, cleanupErr)
       })
+      if (limitExceeded) {
+        res.status(422).json({
+          message: `Limite de ${maxAssets} assets por projeto atingido.`,
+        })
+        return
+      }
       console.error(err)
       res.status(500).json({ message: 'Falha ao adicionar o asset.' })
     }
@@ -377,7 +400,7 @@ const projectsController = {
     try {
       const updated = await prisma.projectAsset.update({
         where: { id: asset.id },
-        data: { caption: body.caption, order: body.order, type: body.type },
+        data: { caption: body.caption, order: body.order },
       })
       res.json({
         message: 'Asset atualizado com sucesso.',
@@ -402,8 +425,10 @@ const projectsController = {
     }
 
     try {
-      await deleteObjectFromS3(asset.key)
+      // Bug 2: DB primeiro — se S3 falhar, o registro já foi removido (orphan)
+      // é menos grave do que ter um registro apontando para arquivo inexistente
       await prisma.projectAsset.delete({ where: { id: asset.id } })
+      await deleteObjectFromS3(asset.key)
       res.json({ message: 'Asset excluído com sucesso.' })
     } catch (err) {
       console.error(err)
