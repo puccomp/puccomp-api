@@ -101,8 +101,9 @@ const projectBaseShape = {
   is_internal: z.boolean().optional(),
 }
 
-// resolvedStatus allows callers to pass the effective status (e.g. the CREATE
-// default 'PLANNING') so the schema can validate status-dependent rules.
+// resolvedStatus is provided for CREATE (the effective status after defaulting),
+// undefined for UPDATE (schema can only validate fields present in the body).
+// isCreate = resolvedStatus !== undefined.
 const validateProjectDates = (
   data: {
     status?: string
@@ -113,6 +114,7 @@ const validateProjectDates = (
   ctx: z.RefinementCtx,
   resolvedStatus?: string,
 ) => {
+  // Date ordering (applies regardless of status)
   if (data.start_date && data.end_date && data.end_date < data.start_date) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
@@ -129,26 +131,87 @@ const validateProjectDates = (
     })
   }
 
+  const isCreate = resolvedStatus !== undefined
   const statusToCheck = resolvedStatus ?? data.status
+  if (!statusToCheck) return
 
-  if (statusToCheck === 'IN_PROGRESS') {
-    const missingStartDate =
-      resolvedStatus !== undefined ? !data.start_date : data.start_date === null
-    if (missingStartDate) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'start_date é obrigatório quando o status é IN_PROGRESS.',
-        path: ['start_date'],
-      })
-    }
-  }
+  // Status contract:
+  //   PLANNING  : startDate = null,  endDate = null
+  //   IN_PROGRESS: startDate != null, endDate = null  (auto-set allowed on create)
+  //   PAUSED    : startDate != null, endDate = null  (must be explicit on create)
+  //   DONE      : startDate != null, endDate != null (endDate auto-set allowed)
+  switch (statusToCheck) {
+    case 'PLANNING':
+      if (data.start_date != null) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'start_date deve ser nulo quando o status é PLANNING.',
+          path: ['start_date'],
+        })
+      }
+      if (data.end_date != null) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'end_date deve ser nulo quando o status é PLANNING.',
+          path: ['end_date'],
+        })
+      }
+      break
 
-  if (statusToCheck === 'PLANNING' && data.end_date != null) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: 'end_date não pode ser definido quando o status é PLANNING.',
-      path: ['end_date'],
-    })
+    case 'IN_PROGRESS':
+      // Explicit null is always rejected; absent is ok (controller auto-sets today)
+      if (data.start_date === null) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'start_date não pode ser nulo quando o status é IN_PROGRESS.',
+          path: ['start_date'],
+        })
+      }
+      if (data.end_date != null) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'end_date deve ser nulo quando o status é IN_PROGRESS.',
+          path: ['end_date'],
+        })
+      }
+      break
+
+    case 'PAUSED':
+      // No auto-set for PAUSED — must be explicitly provided on create
+      if (isCreate ? !data.start_date : data.start_date === null) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'start_date é obrigatório quando o status é PAUSED.',
+          path: ['start_date'],
+        })
+      }
+      if (data.end_date != null) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'end_date deve ser nulo quando o status é PAUSED.',
+          path: ['end_date'],
+        })
+      }
+      break
+
+    case 'DONE':
+      // No auto-set for startDate on DONE — must be explicitly provided on create
+      if (isCreate ? !data.start_date : data.start_date === null) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'start_date é obrigatório quando o status é DONE.',
+          path: ['start_date'],
+        })
+      }
+      // Explicit null rejected; absent is ok (controller auto-sets today)
+      if (data.end_date === null) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'end_date não pode ser nulo quando o status é DONE.',
+          path: ['end_date'],
+        })
+      }
+      break
   }
 }
 

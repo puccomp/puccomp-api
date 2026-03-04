@@ -76,10 +76,27 @@ const projectsController = {
 
     const resolvedStatus = status ?? 'PLANNING'
 
-    const resolvedEndDate =
-      end_date !== undefined
-        ? end_date ? new Date(end_date) : null
-        : resolvedStatus === 'DONE' ? new Date() : null
+    // Auto-manage startDate:
+    //   PLANNING → always null
+    //   IN_PROGRESS → today if not provided (schema already rejects explicit null)
+    //   PAUSED/DONE → from body (schema requires it)
+    const resolvedStartDate: Date | null =
+      resolvedStatus === 'PLANNING'
+        ? null
+        : start_date
+          ? new Date(start_date)
+          : resolvedStatus === 'IN_PROGRESS'
+            ? new Date()
+            : null
+
+    // Auto-manage endDate:
+    //   Only DONE can have endDate; auto-set today if absent
+    const resolvedEndDate: Date | null =
+      resolvedStatus !== 'DONE'
+        ? null
+        : end_date !== undefined
+          ? end_date ? new Date(end_date) : null
+          : new Date()
 
     try {
       const project = await prisma.project.create({
@@ -90,7 +107,7 @@ const projectsController = {
           status: resolvedStatus,
           isFeatured: is_featured ?? false,
           priority: priority ?? 0,
-          startDate: start_date ? new Date(start_date) : null,
+          startDate: resolvedStartDate,
           endDate: resolvedEndDate,
           deadline: deadline ? new Date(deadline) : null,
           isInternal: is_internal ?? false,
@@ -193,32 +210,70 @@ const projectsController = {
       is_internal,
     } = body
     const oldProject = req.project!
+    const oldStatus = oldProject.status
 
-    // IN_PROGRESS requires a start_date (from body or already in DB)
-    if (status === 'IN_PROGRESS') {
-      const willHaveStartDate =
-        start_date !== undefined ? Boolean(start_date) : Boolean(oldProject.startDate)
-      if (!willHaveStartDate) {
-        res.status(422).json({
-          message: 'start_date é obrigatório quando o status é IN_PROGRESS.',
-        })
-        return
-      }
+    // Block reopening a DONE project
+    if (oldStatus === 'DONE' && status !== undefined && status !== 'DONE') {
+      res.status(422).json({
+        message: 'Não é possível reabrir um projeto com status DONE.',
+      })
+      return
     }
 
-    // Auto-manage endDate based on status transition
+    const effectiveStatus = status ?? oldStatus
+
+    // Resolve startDate:
+    //   → PLANNING: auto-clear
+    //   → IN_PROGRESS (from PLANNING): auto-set today if no startDate in body or DB
+    //   → other: use body value or leave unchanged
+    let resolvedStartDate: Date | null | undefined
+    if (status === 'PLANNING') {
+      resolvedStartDate = null
+    } else if (start_date !== undefined) {
+      resolvedStartDate = start_date ? new Date(start_date) : null
+    } else if (status === 'IN_PROGRESS' && !oldProject.startDate) {
+      resolvedStartDate = new Date()
+    }
+
+    // Resolve endDate:
+    //   → non-DONE: auto-clear
+    //   → DONE: use body value, auto-set today if transitioning in, else keep DB value
     let resolvedEndDate: Date | null | undefined
-    if (status === 'DONE') {
+    if (status !== undefined && status !== 'DONE') {
+      resolvedEndDate = null
+    } else if (status === 'DONE') {
       if (end_date !== undefined) {
         resolvedEndDate = end_date ? new Date(end_date) : null
-      } else if (!oldProject.endDate) {
-        resolvedEndDate = new Date() // auto-fill today
+      } else if (oldStatus !== 'DONE') {
+        resolvedEndDate = new Date() // first time reaching DONE — auto-set today
       }
-      // else DB already has endDate — leave undefined (no change)
-    } else if (status === 'PLANNING') {
-      resolvedEndDate = null // auto-clear
+      // else already DONE and no end_date in body → leave DB value (undefined = no change)
     } else if (end_date !== undefined) {
       resolvedEndDate = end_date ? new Date(end_date) : null
+    }
+
+    // Validate final state (controller checks DB-dependent invariants)
+    const finalStartDate =
+      resolvedStartDate !== undefined ? resolvedStartDate : oldProject.startDate
+    const finalEndDate =
+      resolvedEndDate !== undefined ? resolvedEndDate : oldProject.endDate
+
+    if (
+      (effectiveStatus === 'IN_PROGRESS' || effectiveStatus === 'PAUSED') &&
+      !finalStartDate
+    ) {
+      res.status(422).json({
+        message: `start_date é obrigatório quando o status é ${effectiveStatus}.`,
+      })
+      return
+    }
+    if (effectiveStatus === 'DONE' && !finalStartDate) {
+      res.status(422).json({ message: 'start_date é obrigatório quando o status é DONE.' })
+      return
+    }
+    if (effectiveStatus === 'DONE' && !finalEndDate) {
+      res.status(422).json({ message: 'end_date é obrigatório quando o status é DONE.' })
+      return
     }
 
     try {
@@ -231,9 +286,7 @@ const projectsController = {
           status,
           isFeatured: is_featured,
           priority,
-          startDate: start_date !== undefined
-            ? (start_date ? new Date(start_date) : null)
-            : undefined,
+          startDate: resolvedStartDate,
           endDate: resolvedEndDate,
           deadline: deadline !== undefined
             ? (deadline ? new Date(deadline) : null)

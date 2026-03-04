@@ -140,6 +140,7 @@ describe('POST /api/projects', () => {
       name: 'Done Project',
       description: 'Descrição',
       status: 'DONE',
+      start_date: '2026-01-01',
     })
 
     expect(res.status).toBe(201)
@@ -247,7 +248,7 @@ describe('PATCH /api/projects/:slug', () => {
   })
 
   it('sets endDate to now when status changes to DONE without end_date', async () => {
-    await createProject()
+    await createProject({ startDate: new Date('2026-01-01') })
 
     const before = new Date()
     const res = await request(app)
@@ -273,7 +274,7 @@ describe('PATCH /api/projects/:slug', () => {
   })
 
   it('uses the provided end_date when status changes to DONE', async () => {
-    await createProject()
+    await createProject({ startDate: new Date('2026-01-01') })
 
     const res = await request(app)
       .patch('/api/projects/test-project')
@@ -289,8 +290,8 @@ describe('PATCH /api/projects/:slug', () => {
     expect(updated?.endDate?.toISOString().slice(0, 10)).toBe('2026-03-02')
   })
 
-  it('clears endDate when status changes to PLANNING', async () => {
-    await createProject({ status: 'DONE', endDate: new Date('2026-03-01'), startDate: new Date('2026-01-01') })
+  it('clears endDate and startDate when IN_PROGRESS transitions to PLANNING', async () => {
+    await createProject({ status: 'IN_PROGRESS', startDate: new Date('2026-01-01') })
 
     const res = await request(app)
       .patch('/api/projects/test-project')
@@ -302,17 +303,20 @@ describe('PATCH /api/projects/:slug', () => {
       where: { slug: 'test-project' },
     })
     expect(updated?.status).toBe('PLANNING')
+    expect(updated?.startDate).toBeNull()
     expect(updated?.endDate).toBeNull()
   })
 
-  it('returns 422 when transitioning to IN_PROGRESS with no startDate in DB or body', async () => {
+  it('auto-sets startDate when transitioning to IN_PROGRESS with no startDate in DB or body', async () => {
     await createProject() // no startDate
 
     const res = await request(app)
       .patch('/api/projects/test-project')
       .send({ status: 'IN_PROGRESS' })
 
-    expect(res.status).toBe(422)
+    expect(res.status).toBe(200)
+    const updated = await prisma.project.findUnique({ where: { slug: 'test-project' } })
+    expect(updated?.startDate).not.toBeNull()
   })
 
   it('allows transition to IN_PROGRESS when startDate already in DB', async () => {
@@ -336,7 +340,7 @@ describe('PATCH /api/projects/:slug', () => {
   })
 
   it('auto-fills end_date when transitioning to DONE without end_date in DB', async () => {
-    await createProject() // no endDate
+    await createProject({ startDate: new Date('2026-01-01') }) // no endDate
 
     const res = await request(app)
       .patch('/api/projects/test-project')
@@ -348,13 +352,16 @@ describe('PATCH /api/projects/:slug', () => {
     expect(updated?.endDate).not.toBeNull()
   })
 
-  it('keeps existing end_date when transitioning to DONE and endDate already in DB', async () => {
-    const existingEndDate = new Date('2026-02-01')
-    await createProject({ status: 'IN_PROGRESS', endDate: existingEndDate, startDate: new Date('2026-01-01') })
+  it('keeps existing end_date when staying DONE without end_date in body', async () => {
+    await createProject({
+      status: 'DONE',
+      startDate: new Date('2026-01-01'),
+      endDate: new Date('2026-02-01'),
+    })
 
     const res = await request(app)
       .patch('/api/projects/test-project')
-      .send({ status: 'DONE' })
+      .send({ priority: 5 }) // update something else, endDate not in body
 
     expect(res.status).toBe(200)
 
@@ -373,6 +380,147 @@ describe('PATCH /api/projects/:slug', () => {
 
     const updated = await prisma.project.findUnique({ where: { slug: 'test-project' } })
     expect(updated?.endDate).toBeNull()
+  })
+
+  // ── Workflow / transition rules ────────────────────────────────────────────
+
+  it('blocks DONE → IN_PROGRESS (cannot reopen a DONE project)', async () => {
+    await createProject({
+      status: 'DONE',
+      startDate: new Date('2026-01-01'),
+      endDate: new Date('2026-03-01'),
+    })
+
+    const res = await request(app)
+      .patch('/api/projects/test-project')
+      .send({ status: 'IN_PROGRESS' })
+
+    expect(res.status).toBe(422)
+  })
+
+  it('blocks DONE → PAUSED', async () => {
+    await createProject({
+      status: 'DONE',
+      startDate: new Date('2026-01-01'),
+      endDate: new Date('2026-03-01'),
+    })
+
+    const res = await request(app)
+      .patch('/api/projects/test-project')
+      .send({ status: 'PAUSED' })
+
+    expect(res.status).toBe(422)
+  })
+
+  it('blocks DONE → PLANNING', async () => {
+    await createProject({
+      status: 'DONE',
+      startDate: new Date('2026-01-01'),
+      endDate: new Date('2026-03-01'),
+    })
+
+    const res = await request(app)
+      .patch('/api/projects/test-project')
+      .send({ status: 'PLANNING' })
+
+    expect(res.status).toBe(422)
+  })
+
+  it('allows DONE → DONE (updating fields while staying DONE)', async () => {
+    await createProject({
+      status: 'DONE',
+      startDate: new Date('2026-01-01'),
+      endDate: new Date('2026-03-01'),
+    })
+
+    const res = await request(app)
+      .patch('/api/projects/test-project')
+      .send({ status: 'DONE', end_date: '2026-03-15' })
+
+    expect(res.status).toBe(200)
+    const updated = await prisma.project.findUnique({ where: { slug: 'test-project' } })
+    expect(updated?.endDate?.toISOString().slice(0, 10)).toBe('2026-03-15')
+  })
+
+  it('auto-sets startDate to today when transitioning PLANNING → IN_PROGRESS without startDate', async () => {
+    await createProject() // PLANNING, no startDate
+
+    const res = await request(app)
+      .patch('/api/projects/test-project')
+      .send({ status: 'IN_PROGRESS' })
+
+    expect(res.status).toBe(200)
+    const updated = await prisma.project.findUnique({ where: { slug: 'test-project' } })
+    expect(updated?.startDate).not.toBeNull()
+    expect(updated?.endDate).toBeNull()
+  })
+
+  it('clears startDate and endDate when IN_PROGRESS transitions to PLANNING', async () => {
+    await createProject({
+      status: 'IN_PROGRESS',
+      startDate: new Date('2026-01-01'),
+    })
+
+    const res = await request(app)
+      .patch('/api/projects/test-project')
+      .send({ status: 'PLANNING' })
+
+    expect(res.status).toBe(200)
+    const updated = await prisma.project.findUnique({ where: { slug: 'test-project' } })
+    expect(updated?.startDate).toBeNull()
+    expect(updated?.endDate).toBeNull()
+  })
+
+  it('returns 422 when transitioning PLANNING → PAUSED without startDate', async () => {
+    await createProject() // PLANNING, no startDate
+
+    const res = await request(app)
+      .patch('/api/projects/test-project')
+      .send({ status: 'PAUSED' })
+
+    expect(res.status).toBe(422)
+  })
+
+  it('clears endDate when transitioning IN_PROGRESS → PAUSED', async () => {
+    // endDate should never exist in IN_PROGRESS, but if somehow it does, clear it
+    await createProject({
+      status: 'IN_PROGRESS',
+      startDate: new Date('2026-01-01'),
+    })
+
+    const res = await request(app)
+      .patch('/api/projects/test-project')
+      .send({ status: 'PAUSED' })
+
+    expect(res.status).toBe(200)
+    const updated = await prisma.project.findUnique({ where: { slug: 'test-project' } })
+    expect(updated?.status).toBe('PAUSED')
+    expect(updated?.startDate?.toISOString().slice(0, 10)).toBe('2026-01-01')
+    expect(updated?.endDate).toBeNull()
+  })
+
+  it('returns 422 when nullifying startDate on an IN_PROGRESS project', async () => {
+    await createProject({ status: 'IN_PROGRESS', startDate: new Date('2026-01-01') })
+
+    const res = await request(app)
+      .patch('/api/projects/test-project')
+      .send({ start_date: null })
+
+    expect(res.status).toBe(422)
+  })
+
+  it('returns 422 when nullifying endDate on a DONE project', async () => {
+    await createProject({
+      status: 'DONE',
+      startDate: new Date('2026-01-01'),
+      endDate: new Date('2026-03-01'),
+    })
+
+    const res = await request(app)
+      .patch('/api/projects/test-project')
+      .send({ end_date: null })
+
+    expect(res.status).toBe(422)
   })
 })
 
