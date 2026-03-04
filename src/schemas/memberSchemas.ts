@@ -80,6 +80,7 @@ export const MemberQuerySchema = z.object({
     .optional(),
   search: z.string().min(1).optional(),
   course: z.string().min(1).optional(),
+  exclude_project: z.string().min(1).optional(),
   page: z.coerce
     .number({ error: 'page deve ser um número.' })
     .int()

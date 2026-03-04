@@ -14,60 +14,55 @@ model Role {
   level       Int
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
-
-  members Member[]
+  members     Member[]
 
   @@map("roles")
 }
 
 model Member {
-  id                   Int           @id @default(autoincrement())
-  email                String        @unique
-  password             String?
-  name                 String
-  surname              String
-  bio                  String?
-  course               String
-  avatarUrl            String?       @map("avatar_url")
-  entryDate            DateTime      @map("entry_date") @db.Date
-  exitDate             DateTime?     @map("exit_date") @db.Date
-  status               MemberStatus  @default(PENDING)
-  githubUrl            String?       @map("github_url")
-  instagramUrl         String?       @map("instagram_url")
-  linkedinUrl          String?       @map("linkedin_url")
-  isAdmin              Boolean       @map("is_admin")
-  inviteToken             String?       @unique @map("invite_token")
-  inviteTokenExpiresAt    DateTime?     @map("invite_token_expires_at")
-  passwordResetToken      String?       @unique @map("password_reset_token")
-  passwordResetExpiresAt  DateTime?     @map("password_reset_expires_at")
-
-  roleId Int?  @map("role_id")
-  role   Role? @relation(fields: [roleId], references: [id], onDelete: SetNull)
-
-  projects Contributor[]
+  id                     Int           @id @default(autoincrement())
+  email                  String        @unique
+  password               String?
+  name                   String
+  surname                String
+  bio                    String?
+  course                 String
+  avatarUrl              String?       @map("avatar_url")
+  entryDate              DateTime      @map("entry_date") @db.Date
+  exitDate               DateTime?     @map("exit_date") @db.Date
+  githubUrl              String?       @map("github_url")
+  instagramUrl           String?       @map("instagram_url")
+  linkedinUrl            String?       @map("linkedin_url")
+  isAdmin                Boolean       @map("is_admin")
+  roleId                 Int?          @map("role_id")
+  inviteToken            String?       @unique @map("invite_token")
+  inviteTokenExpiresAt   DateTime?     @map("invite_token_expires_at")
+  status                 MemberStatus  @default(PENDING)
+  passwordResetToken     String?       @unique @map("password_reset_token")
+  passwordResetExpiresAt DateTime?     @map("password_reset_expires_at")
+  projects               Contributor[]
+  role                   Role?         @relation(fields: [roleId], references: [id])
 
   @@map("members")
 }
 
 model Project {
-  id          Int           @id @default(autoincrement())
-  name        String        @unique
-  slug        String        @unique
-  description String
-  status      ProjectStatus @default(PLANNING)
-  isFeatured  Boolean       @default(false) @map("is_featured")
-  priority    Int           @default(0)
-  startDate   DateTime?     @map("start_date") @db.Date
-  endDate     DateTime?     @map("end_date") @db.Date
-  deadline    DateTime?     @db.Date
-  completedAt DateTime?     @map("completed_at") @db.Date
-  isInternal  Boolean       @default(false) @map("is_internal")
-  createdAt   DateTime      @map("created_at") @db.Date
-  updatedAt   DateTime?     @map("updated_at") @db.Date
-
+  id           Int                 @id @default(autoincrement())
+  name         String              @unique
+  description  String
+  createdAt    DateTime            @map("created_at") @db.Date
+  updatedAt    DateTime?           @map("updated_at") @db.Date
+  slug         String              @unique
+  status       ProjectStatus       @default(PLANNING)
+  isFeatured   Boolean             @default(false) @map("is_featured")
+  priority     Int                 @default(0)
+  startDate    DateTime?           @map("start_date") @db.Date
+  endDate      DateTime?           @map("end_date") @db.Date
+  isInternal   Boolean             @default(false) @map("is_internal")
+  deadline     DateTime?           @db.Date
   contributors Contributor[]
-  technologies ProjectTechnology[]
   assets       ProjectAsset[]
+  technologies ProjectTechnology[]
 
   @@map("projects")
 }
@@ -79,8 +74,7 @@ model ProjectAsset {
   key       String    @unique
   caption   String?
   order     Int       @default(0)
-
-  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  project   Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   @@map("project_assets")
 }
@@ -96,12 +90,16 @@ model Contributor {
 }
 
 model Technology {
-  id      Int            @id @default(autoincrement())
-  name    String         @unique
-  iconUrl String?        @map("icon_url")
-  type    TechnologyType @default(OTHER)
-
-  projects ProjectTechnology[]
+  id          Int                 @id @default(autoincrement())
+  name        String              @unique
+  iconUrl     String?             @map("icon_url")
+  type        TechnologyType      @default(OTHER)
+  slug        String              @unique
+  color       String?
+  description String?
+  createdAt   DateTime            @default(now()) @map("created_at")
+  updatedAt   DateTime            @default(now()) @updatedAt @map("updated_at")
+  projects    ProjectTechnology[]
 
   @@map("technologies")
 }
@@ -110,9 +108,8 @@ model ProjectTechnology {
   projectId    Int                  @map("project_id")
   technologyId Int                  @map("technology_id")
   usageLevel   TechnologyUsageLevel @map("usage_level")
-
-  project    Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  technology Technology @relation(fields: [technologyId], references: [id], onDelete: Cascade)
+  project      Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  technology   Technology           @relation(fields: [technologyId], references: [id], onDelete: Cascade)
 
   @@id([projectId, technologyId])
   @@map("project_technologies")
@@ -136,15 +133,15 @@ model ProjectProposal {
   name               String
   phone              String
   problemDescription String         @map("problem_description")
-  solutionOverview   String?        @map("solution_overview")
   features           String?
   visualIdentity     String?        @map("visual_identity")
-  referenceLinks     String[]       @map("reference_links")
-  budgetRange        BudgetRange?   @map("budget_range")
+  createdAt          DateTime       @default(now()) @map("created_at")
+  solutionOverview   String?        @map("solution_overview")
   status             ProposalStatus @default(PENDING)
   internalNotes      String?        @map("internal_notes")
-  createdAt          DateTime       @default(now()) @map("created_at")
-  updatedAt          DateTime       @updatedAt @map("updated_at")
+  updatedAt          DateTime       @default(now()) @updatedAt @map("updated_at")
+  referenceLinks     String[]       @map("reference_links")
+  budgetRange        BudgetRange?   @map("budget_range")
 
   @@map("project_proposals")
 }

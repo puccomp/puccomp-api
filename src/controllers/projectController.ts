@@ -13,6 +13,7 @@ import {
   UpdateProjectSchema,
   AddContributorSchema,
   AddTechSchema,
+  UpdateTechSchema,
   CreateAssetSchema,
   UpdateAssetSchema,
   ProjectQuerySchema,
@@ -32,7 +33,7 @@ const sortMap: Record<string, string> = {
 const formatProject = (
   project: Project & { assets?: ProjectAsset[] }
 ) => {
-  const { createdAt, updatedAt, startDate, endDate, deadline, completedAt, isFeatured, isInternal, ...rest } = project
+  const { createdAt, updatedAt, startDate, endDate, deadline, isFeatured, isInternal, ...rest } = project
   return {
     ...rest,
     created_at: formatDate(createdAt),
@@ -40,7 +41,6 @@ const formatProject = (
     start_date: startDate ? formatDate(startDate) : null,
     end_date: endDate ? formatDate(endDate) : null,
     deadline: deadline ? formatDate(deadline) : null,
-    completed_at: completedAt ? formatDate(completedAt) : null,
     is_featured: isFeatured,
     is_internal: isInternal,
     assets: project.assets?.map(formatAsset) ?? undefined,
@@ -71,23 +71,14 @@ const projectsController = {
       start_date,
       end_date,
       deadline,
-      completed_at,
       is_internal,
     } = body
 
     const resolvedStatus = status ?? 'PLANNING'
 
-    // Bug 1: completed_at só faz sentido com status DONE
-    if (completed_at && resolvedStatus !== 'DONE') {
-      res.status(422).json({
-        message: 'completed_at só pode ser definido quando o status é DONE.',
-      })
-      return
-    }
-
-    const resolvedCompletedAt =
-      completed_at !== undefined
-        ? completed_at ? new Date(completed_at) : null
+    const resolvedEndDate =
+      end_date !== undefined
+        ? end_date ? new Date(end_date) : null
         : resolvedStatus === 'DONE' ? new Date() : null
 
     try {
@@ -100,9 +91,8 @@ const projectsController = {
           isFeatured: is_featured ?? false,
           priority: priority ?? 0,
           startDate: start_date ? new Date(start_date) : null,
-          endDate: end_date ? new Date(end_date) : null,
+          endDate: resolvedEndDate,
           deadline: deadline ? new Date(deadline) : null,
-          completedAt: resolvedCompletedAt,
           isInternal: is_internal ?? false,
           createdAt: new Date(),
           updatedAt: new Date(),
@@ -200,30 +190,35 @@ const projectsController = {
       start_date,
       end_date,
       deadline,
-      completed_at,
       is_internal,
     } = body
     const oldProject = req.project!
 
-    // completed_at consistency check against DB status when status not in body
-    if (completed_at && !status && oldProject.status !== 'DONE') {
-      res.status(422).json({
-        message: 'completed_at só pode ser definido quando o status é DONE.',
-      })
-      return
+    // IN_PROGRESS requires a start_date (from body or already in DB)
+    if (status === 'IN_PROGRESS') {
+      const willHaveStartDate =
+        start_date !== undefined ? Boolean(start_date) : Boolean(oldProject.startDate)
+      if (!willHaveStartDate) {
+        res.status(422).json({
+          message: 'start_date é obrigatório quando o status é IN_PROGRESS.',
+        })
+        return
+      }
     }
 
-    // Auto-manage completedAt based on status transition
-    let resolvedCompletedAt: Date | null | undefined
+    // Auto-manage endDate based on status transition
+    let resolvedEndDate: Date | null | undefined
     if (status === 'DONE') {
-      resolvedCompletedAt =
-        completed_at !== undefined
-          ? completed_at ? new Date(completed_at) : null
-          : new Date()
-    } else if (status !== undefined) {
-      resolvedCompletedAt = null // clear when leaving DONE
-    } else if (completed_at !== undefined) {
-      resolvedCompletedAt = completed_at ? new Date(completed_at) : null
+      if (end_date !== undefined) {
+        resolvedEndDate = end_date ? new Date(end_date) : null
+      } else if (!oldProject.endDate) {
+        resolvedEndDate = new Date() // auto-fill today
+      }
+      // else DB already has endDate — leave undefined (no change)
+    } else if (status === 'PLANNING') {
+      resolvedEndDate = null // auto-clear
+    } else if (end_date !== undefined) {
+      resolvedEndDate = end_date ? new Date(end_date) : null
     }
 
     try {
@@ -239,13 +234,10 @@ const projectsController = {
           startDate: start_date !== undefined
             ? (start_date ? new Date(start_date) : null)
             : undefined,
-          endDate: end_date !== undefined
-            ? (end_date ? new Date(end_date) : null)
-            : undefined,
+          endDate: resolvedEndDate,
           deadline: deadline !== undefined
             ? (deadline ? new Date(deadline) : null)
             : undefined,
-          completedAt: resolvedCompletedAt,
           isInternal: is_internal,
           updatedAt: new Date(),
         },
@@ -581,16 +573,63 @@ const projectsController = {
   allTechs: (async (req, res) => {
     try {
       const projectId = req.project!.id
-      const technologies = await prisma.projectTechnology.findMany({
+      const techs = await prisma.projectTechnology.findMany({
         where: { projectId },
         include: { technology: true },
+        orderBy: { technology: { name: 'asc' } },
       })
-      res.json(technologies)
+      res.json(
+        techs.map(({ usageLevel, technology }) => ({
+          id: technology.id,
+          name: technology.name,
+          slug: technology.slug,
+          type: technology.type,
+          color: technology.color,
+          description: technology.description,
+          icon_url: technology.iconUrl,
+          usage_level: usageLevel,
+        }))
+      )
     } catch (err) {
       console.error(err)
       res.status(500).json({ message: 'Falha ao buscar as tecnologias.' })
     }
   }) as RequestHandler,
+
+  updateTech: (async (req, res) => {
+    const params = validate(TechIdParamSchema, req.params, res)
+    if (!params) return
+
+    const body = validate(UpdateTechSchema, req.body, res)
+    if (!body) return
+
+    const projectId = req.project!.id
+
+    try {
+      await prisma.projectTechnology.update({
+        where: {
+          projectId_technologyId: {
+            projectId,
+            technologyId: params.technology_id,
+          },
+        },
+        data: { usageLevel: body.usage_level },
+      })
+      res.json({ message: 'Nível de uso atualizado com sucesso.' })
+    } catch (err) {
+      if (
+        err instanceof Prisma.PrismaClientKnownRequestError &&
+        err.code === 'P2025'
+      ) {
+        res
+          .status(404)
+          .json({ message: 'A tecnologia não está associada a este projeto.' })
+        return
+      }
+      console.error(err)
+      res.status(500).json({ message: 'Falha ao atualizar a tecnologia.' })
+    }
+  }) as RequestHandler<{ slug: string; technology_id: string }>,
 
   removeTech: (async (req, res) => {
     const params = validate(TechIdParamSchema, req.params, res)

@@ -98,21 +98,17 @@ const projectBaseShape = {
   start_date: dateField('start_date'),
   end_date: dateField('end_date'),
   deadline: dateField('deadline'),
-  completed_at: dateField('completed_at'),
   is_internal: z.boolean().optional(),
 }
 
-// Item 3: resolvedStatus allows callers to pass the effective status (e.g. the
-// CREATE default 'PLANNING') so the schema can catch completed_at without status.
-// UPDATE passes no resolvedStatus — the runtime controller guard handles that case
-// since the schema cannot know the project's current status in the database.
+// resolvedStatus allows callers to pass the effective status (e.g. the CREATE
+// default 'PLANNING') so the schema can validate status-dependent rules.
 const validateProjectDates = (
   data: {
     status?: string
     start_date?: string | null
     end_date?: string | null
     deadline?: string | null
-    completed_at?: string | null
   },
   ctx: z.RefinementCtx,
   resolvedStatus?: string,
@@ -134,11 +130,24 @@ const validateProjectDates = (
   }
 
   const statusToCheck = resolvedStatus ?? data.status
-  if (data.completed_at && statusToCheck && statusToCheck !== 'DONE') {
+
+  if (statusToCheck === 'IN_PROGRESS') {
+    const missingStartDate =
+      resolvedStatus !== undefined ? !data.start_date : data.start_date === null
+    if (missingStartDate) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'start_date é obrigatório quando o status é IN_PROGRESS.',
+        path: ['start_date'],
+      })
+    }
+  }
+
+  if (statusToCheck === 'PLANNING' && data.end_date != null) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
-      message: 'completed_at só pode ser definido quando o status é DONE.',
-      path: ['completed_at'],
+      message: 'end_date não pode ser definido quando o status é PLANNING.',
+      path: ['end_date'],
     })
   }
 }
@@ -152,8 +161,6 @@ export const CreateProjectSchema = z
     description: descriptionField, // Item 7: required in CREATE
     ...projectBaseShape,
   })
-  // Item 3: status ?? 'PLANNING' so the schema rejects completed_at when
-  // status is omitted (it would default to PLANNING in the controller)
   .superRefine((data, ctx) =>
     validateProjectDates(data, ctx, data.status ?? 'PLANNING'),
   )
@@ -172,7 +179,6 @@ export const UpdateProjectSchema = z
   .refine((data) => Object.values(data).some((v) => v !== undefined), {
     message: 'Nenhum campo para atualizar.',
   })
-  // Item 3: no resolvedStatus — cannot know DB state; runtime guard handles it
   .superRefine((data, ctx) => validateProjectDates(data, ctx))
 
 export const AddContributorSchema = z.object({
@@ -184,6 +190,12 @@ export const AddContributorSchema = z.object({
 
 export const AddTechSchema = z.object({
   technology_name: z.string().min(1, 'technology_name é obrigatório.'),
+  usage_level: z.nativeEnum(TechnologyUsageLevel, {
+    error: `usage_level deve ser um dos valores: ${Object.values(TechnologyUsageLevel).join(', ')}.`,
+  }),
+})
+
+export const UpdateTechSchema = z.object({
   usage_level: z.nativeEnum(TechnologyUsageLevel, {
     error: `usage_level deve ser um dos valores: ${Object.values(TechnologyUsageLevel).join(', ')}.`,
   }),
@@ -236,6 +248,7 @@ export type CreateProjectInput = z.infer<typeof CreateProjectSchema>
 export type UpdateProjectInput = z.infer<typeof UpdateProjectSchema>
 export type AddContributorInput = z.infer<typeof AddContributorSchema>
 export type AddTechInput = z.infer<typeof AddTechSchema>
+export type UpdateTechInput = z.infer<typeof UpdateTechSchema>
 export type CreateAssetInput = z.infer<typeof CreateAssetSchema>
 export type UpdateAssetInput = z.infer<typeof UpdateAssetSchema>
 export type MemberIdParamInput = z.infer<typeof MemberIdParamSchema>

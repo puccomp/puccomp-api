@@ -85,7 +85,7 @@ const memberController = {
     const query = validate(MemberQuerySchema, req.query, res)
     if (!query) return
 
-    const { status, role_id, is_admin, search, course, page, limit, sort_by, order } =
+    const { status, role_id, is_admin, search, course, exclude_project, page, limit, sort_by, order } =
       query
 
     const where: Prisma.MemberWhereInput = {}
@@ -93,6 +93,9 @@ const memberController = {
     if (role_id !== undefined) where.roleId = role_id
     if (is_admin !== undefined) where.isAdmin = is_admin
     if (course) where.course = { contains: course, mode: 'insensitive' }
+    if (exclude_project !== undefined) {
+      where.NOT = { projects: { some: { project: { slug: exclude_project } } } }
+    }
     if (search) {
       where.OR = [
         { name: { contains: search, mode: 'insensitive' } },

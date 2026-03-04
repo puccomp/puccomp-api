@@ -134,6 +134,19 @@ describe('POST /api/projects', () => {
     const project = await prisma.project.findFirst()
     expect(project?.status).toBe('PLANNING')
   })
+
+  it('auto-fills end_date when creating with status DONE and no end_date provided', async () => {
+    const res = await request(app).post('/api/projects').send({
+      name: 'Done Project',
+      description: 'Descrição',
+      status: 'DONE',
+    })
+
+    expect(res.status).toBe(201)
+
+    const project = await prisma.project.findFirst({ where: { name: 'Done Project' } })
+    expect(project?.endDate).not.toBeNull()
+  })
 })
 
 describe('GET /api/projects', () => {
@@ -233,7 +246,7 @@ describe('PATCH /api/projects/:slug', () => {
     expect(res.status).toBe(400)
   })
 
-  it('sets completedAt to now when status changes to DONE without completed_at', async () => {
+  it('sets endDate to now when status changes to DONE without end_date', async () => {
     await createProject()
 
     const before = new Date()
@@ -248,23 +261,23 @@ describe('PATCH /api/projects/:slug', () => {
       where: { slug: 'test-project' },
     })
     expect(updated?.status).toBe('DONE')
-    expect(updated?.completedAt).not.toBeNull()
-    // completedAt is stored as DATE (no time), so just check it falls within today
-    const completedAt = updated!.completedAt!
-    expect(completedAt.getTime()).toBeGreaterThanOrEqual(
+    expect(updated?.endDate).not.toBeNull()
+    // endDate is stored as DATE (no time), so just check it falls within today
+    const endDate = updated!.endDate!
+    expect(endDate.getTime()).toBeGreaterThanOrEqual(
       new Date(before.toDateString()).getTime(),
     )
-    expect(completedAt.getTime()).toBeLessThanOrEqual(
+    expect(endDate.getTime()).toBeLessThanOrEqual(
       new Date(after.toDateString()).getTime() + 86_400_000 - 1,
     )
   })
 
-  it('uses the provided completed_at when status changes to DONE', async () => {
+  it('uses the provided end_date when status changes to DONE', async () => {
     await createProject()
 
     const res = await request(app)
       .patch('/api/projects/test-project')
-      .send({ status: 'DONE', completed_at: '2026-03-02' })
+      .send({ status: 'DONE', end_date: '2026-03-02' })
 
     expect(res.status).toBe(200)
 
@@ -273,33 +286,93 @@ describe('PATCH /api/projects/:slug', () => {
     })
     expect(updated?.status).toBe('DONE')
     // DB stores as Date; compare only the date portion
-    expect(updated?.completedAt?.toISOString().slice(0, 10)).toBe('2026-03-02')
+    expect(updated?.endDate?.toISOString().slice(0, 10)).toBe('2026-03-02')
   })
 
-  it('clears completedAt when status leaves DONE', async () => {
-    await createProject({ status: 'DONE', completedAt: new Date('2026-03-01') })
+  it('clears endDate when status changes to PLANNING', async () => {
+    await createProject({ status: 'DONE', endDate: new Date('2026-03-01'), startDate: new Date('2026-01-01') })
 
     const res = await request(app)
       .patch('/api/projects/test-project')
-      .send({ status: 'IN_PROGRESS' })
+      .send({ status: 'PLANNING' })
 
     expect(res.status).toBe(200)
 
     const updated = await prisma.project.findUnique({
       where: { slug: 'test-project' },
     })
-    expect(updated?.status).toBe('IN_PROGRESS')
-    expect(updated?.completedAt).toBeNull()
+    expect(updated?.status).toBe('PLANNING')
+    expect(updated?.endDate).toBeNull()
   })
 
-  it('returns 422 when setting completed_at on a non-DONE project', async () => {
+  it('returns 422 when transitioning to IN_PROGRESS with no startDate in DB or body', async () => {
+    await createProject() // no startDate
+
+    const res = await request(app)
+      .patch('/api/projects/test-project')
+      .send({ status: 'IN_PROGRESS' })
+
+    expect(res.status).toBe(422)
+  })
+
+  it('allows transition to IN_PROGRESS when startDate already in DB', async () => {
+    await createProject({ startDate: new Date('2026-01-01') })
+
+    const res = await request(app)
+      .patch('/api/projects/test-project')
+      .send({ status: 'IN_PROGRESS' })
+
+    expect(res.status).toBe(200)
+  })
+
+  it('allows transition to IN_PROGRESS when start_date provided in body', async () => {
     await createProject()
 
     const res = await request(app)
       .patch('/api/projects/test-project')
-      .send({ completed_at: '2026-03-02' })
+      .send({ status: 'IN_PROGRESS', start_date: '2026-01-01' })
 
-    expect(res.status).toBe(422)
+    expect(res.status).toBe(200)
+  })
+
+  it('auto-fills end_date when transitioning to DONE without end_date in DB', async () => {
+    await createProject() // no endDate
+
+    const res = await request(app)
+      .patch('/api/projects/test-project')
+      .send({ status: 'DONE' })
+
+    expect(res.status).toBe(200)
+
+    const updated = await prisma.project.findUnique({ where: { slug: 'test-project' } })
+    expect(updated?.endDate).not.toBeNull()
+  })
+
+  it('keeps existing end_date when transitioning to DONE and endDate already in DB', async () => {
+    const existingEndDate = new Date('2026-02-01')
+    await createProject({ status: 'IN_PROGRESS', endDate: existingEndDate, startDate: new Date('2026-01-01') })
+
+    const res = await request(app)
+      .patch('/api/projects/test-project')
+      .send({ status: 'DONE' })
+
+    expect(res.status).toBe(200)
+
+    const updated = await prisma.project.findUnique({ where: { slug: 'test-project' } })
+    expect(updated?.endDate?.toISOString().slice(0, 10)).toBe('2026-02-01')
+  })
+
+  it('clears end_date when transitioning to PLANNING', async () => {
+    await createProject({ endDate: new Date('2026-02-01') })
+
+    const res = await request(app)
+      .patch('/api/projects/test-project')
+      .send({ status: 'PLANNING' })
+
+    expect(res.status).toBe(200)
+
+    const updated = await prisma.project.findUnique({ where: { slug: 'test-project' } })
+    expect(updated?.endDate).toBeNull()
   })
 })
 

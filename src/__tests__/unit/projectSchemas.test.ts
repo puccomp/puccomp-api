@@ -20,7 +20,7 @@ describe('CreateProjectSchema', () => {
     const result = CreateProjectSchema.safeParse({
       ...validBase,
       slug: 'meu-projeto',
-      status: 'PLANNING',
+      status: 'IN_PROGRESS',
       is_featured: true,
       priority: 5,
       start_date: '2024-01-01',
@@ -56,6 +56,7 @@ describe('CreateProjectSchema', () => {
     expect(
       CreateProjectSchema.safeParse({
         ...validBase,
+        status: 'IN_PROGRESS',
         start_date: '2024-06-01',
         end_date: '2024-06-01',
       }).success
@@ -66,6 +67,7 @@ describe('CreateProjectSchema', () => {
     expect(
       CreateProjectSchema.safeParse({
         ...validBase,
+        status: 'IN_PROGRESS',
         start_date: '2024-01-01',
         end_date: '2024-12-31',
       }).success
@@ -95,6 +97,65 @@ describe('CreateProjectSchema', () => {
   })
 })
 
+// ─── IN_PROGRESS / PLANNING rules (CreateProjectSchema) ──────────────────────
+
+describe('IN_PROGRESS and PLANNING date rules (create)', () => {
+  it('rejects IN_PROGRESS without start_date', () => {
+    const result = CreateProjectSchema.safeParse({
+      ...validBase,
+      status: 'IN_PROGRESS',
+    })
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      expect(result.error.issues.map((i) => i.path.join('.'))).toContain('start_date')
+    }
+  })
+
+  it('rejects IN_PROGRESS with start_date: null', () => {
+    const result = CreateProjectSchema.safeParse({
+      ...validBase,
+      status: 'IN_PROGRESS',
+      start_date: null,
+    })
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      expect(result.error.issues.map((i) => i.path.join('.'))).toContain('start_date')
+    }
+  })
+
+  it('accepts IN_PROGRESS with a valid start_date', () => {
+    expect(
+      CreateProjectSchema.safeParse({
+        ...validBase,
+        status: 'IN_PROGRESS',
+        start_date: '2024-01-01',
+      }).success
+    ).toBe(true)
+  })
+
+  it('rejects PLANNING with a non-null end_date', () => {
+    const result = CreateProjectSchema.safeParse({
+      ...validBase,
+      status: 'PLANNING',
+      end_date: '2024-12-31',
+    })
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      expect(result.error.issues.map((i) => i.path.join('.'))).toContain('end_date')
+    }
+  })
+
+  it('accepts PLANNING with end_date: null', () => {
+    expect(
+      CreateProjectSchema.safeParse({
+        ...validBase,
+        status: 'PLANNING',
+        end_date: null,
+      }).success
+    ).toBe(true)
+  })
+})
+
 // ─── UpdateProjectSchema ──────────────────────────────────────────────────────
 
 describe('UpdateProjectSchema', () => {
@@ -116,6 +177,34 @@ describe('UpdateProjectSchema', () => {
     const result = UpdateProjectSchema.safeParse({
       start_date: '2024-12-01',
       end_date: '2024-01-01',
+    })
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      expect(result.error.issues.map((i) => i.path.join('.'))).toContain('end_date')
+    }
+  })
+
+  it('rejects status: IN_PROGRESS with explicit start_date: null', () => {
+    const result = UpdateProjectSchema.safeParse({
+      status: 'IN_PROGRESS',
+      start_date: null,
+    })
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      expect(result.error.issues.map((i) => i.path.join('.'))).toContain('start_date')
+    }
+  })
+
+  it('accepts status: IN_PROGRESS without start_date in body (controller checks DB)', () => {
+    expect(
+      UpdateProjectSchema.safeParse({ status: 'IN_PROGRESS' }).success
+    ).toBe(true)
+  })
+
+  it('rejects status: PLANNING with a non-null end_date in same body', () => {
+    const result = UpdateProjectSchema.safeParse({
+      status: 'PLANNING',
+      end_date: '2025-01-01',
     })
     expect(result.success).toBe(false)
     if (!result.success) {
@@ -192,6 +281,7 @@ describe('deadline field', () => {
     expect(
       CreateProjectSchema.safeParse({
         ...validBase,
+        status: 'IN_PROGRESS',
         start_date: '2025-01-01',
         end_date: '2025-06-01',
         deadline: '2025-12-31',
@@ -200,80 +290,6 @@ describe('deadline field', () => {
   })
 })
 
-// ─── completed_at ─────────────────────────────────────────────────────────────
-
-describe('completed_at field', () => {
-  it('accepts completed_at when status is DONE', () => {
-    expect(
-      CreateProjectSchema.safeParse({
-        ...validBase,
-        status: 'DONE',
-        completed_at: '2025-03-01',
-      }).success
-    ).toBe(true)
-  })
-
-  it('accepts status DONE without completed_at (auto-set by controller)', () => {
-    expect(
-      CreateProjectSchema.safeParse({ ...validBase, status: 'DONE' }).success
-    ).toBe(true)
-  })
-
-  it('accepts null completed_at', () => {
-    expect(
-      CreateProjectSchema.safeParse({ ...validBase, completed_at: null }).success
-    ).toBe(true)
-  })
-
-  it('rejects invalid completed_at format', () => {
-    expect(
-      CreateProjectSchema.safeParse({
-        ...validBase,
-        status: 'DONE',
-        completed_at: '01-03-2025',
-      }).success
-    ).toBe(false)
-  })
-
-  it.each(['PLANNING', 'IN_PROGRESS', 'PAUSED'])(
-    'rejects completed_at when status is %s',
-    (status) => {
-      const result = CreateProjectSchema.safeParse({
-        ...validBase,
-        status,
-        completed_at: '2025-03-01',
-      })
-      expect(result.success).toBe(false)
-      if (!result.success) {
-        expect(result.error.issues.map((i) => i.path.join('.'))).toContain('completed_at')
-      }
-    }
-  )
-
-  it('rejects completed_at with non-DONE status in same update body', () => {
-    const result = UpdateProjectSchema.safeParse({
-      status: 'IN_PROGRESS',
-      completed_at: '2025-03-01',
-    })
-    expect(result.success).toBe(false)
-    if (!result.success) {
-      expect(result.error.issues.map((i) => i.path.join('.'))).toContain('completed_at')
-    }
-  })
-
-  it('allows completed_at alone in update body (DB status may be DONE)', () => {
-    // Schema cannot know the current DB status; controller validates this case
-    expect(
-      UpdateProjectSchema.safeParse({ completed_at: '2025-03-01' }).success
-    ).toBe(true)
-  })
-
-  it('allows null completed_at to clear the field in update', () => {
-    expect(
-      UpdateProjectSchema.safeParse({ completed_at: null }).success
-    ).toBe(true)
-  })
-})
 
 // ─── combined status + dates ──────────────────────────────────────────────────
 
@@ -286,20 +302,6 @@ describe('status and date fields coexistence', () => {
         start_date: '2024-01-01',
         end_date: '2024-12-01',
         deadline: '2024-11-30',
-        completed_at: '2024-12-01',
-      }).success
-    ).toBe(true)
-  })
-
-  it('rejects DONE project with completed_at before start_date (end_date rule is separate)', () => {
-    // completed_at is a date field but has no range rule against start_date in the schema
-    // This test confirms the schema does NOT reject it (controller/business layer would)
-    expect(
-      CreateProjectSchema.safeParse({
-        ...validBase,
-        status: 'DONE',
-        start_date: '2024-06-01',
-        completed_at: '2024-01-01',
       }).success
     ).toBe(true)
   })

@@ -84,6 +84,13 @@ router.get(
   projectsController.allTechs
 )
 
+router.patch(
+  '/:slug/technologies/:technology_id',
+  isAuth,
+  findProjectBySlug,
+  projectsController.updateTech
+)
+
 router.delete(
   '/:slug/technologies/:technology_id',
   isAuth,
