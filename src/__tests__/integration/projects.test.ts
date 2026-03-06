@@ -384,7 +384,7 @@ describe('PATCH /api/projects/:slug', () => {
 
   // ── Workflow / transition rules ────────────────────────────────────────────
 
-  it('blocks DONE → IN_PROGRESS (cannot reopen a DONE project)', async () => {
+  it('allows DONE → IN_PROGRESS (clears endDate, keeps startDate)', async () => {
     await createProject({
       status: 'DONE',
       startDate: new Date('2026-01-01'),
@@ -395,10 +395,15 @@ describe('PATCH /api/projects/:slug', () => {
       .patch('/api/projects/test-project')
       .send({ status: 'IN_PROGRESS' })
 
-    expect(res.status).toBe(422)
+    expect(res.status).toBe(200)
+
+    const updated = await prisma.project.findUnique({ where: { slug: 'test-project' } })
+    expect(updated?.status).toBe('IN_PROGRESS')
+    expect(updated?.startDate?.toISOString().slice(0, 10)).toBe('2026-01-01')
+    expect(updated?.endDate).toBeNull()
   })
 
-  it('blocks DONE → PAUSED', async () => {
+  it('allows DONE → PAUSED (clears endDate, keeps startDate)', async () => {
     await createProject({
       status: 'DONE',
       startDate: new Date('2026-01-01'),
@@ -409,10 +414,15 @@ describe('PATCH /api/projects/:slug', () => {
       .patch('/api/projects/test-project')
       .send({ status: 'PAUSED' })
 
-    expect(res.status).toBe(422)
+    expect(res.status).toBe(200)
+
+    const updated = await prisma.project.findUnique({ where: { slug: 'test-project' } })
+    expect(updated?.status).toBe('PAUSED')
+    expect(updated?.startDate?.toISOString().slice(0, 10)).toBe('2026-01-01')
+    expect(updated?.endDate).toBeNull()
   })
 
-  it('blocks DONE → PLANNING', async () => {
+  it('allows DONE → PLANNING (clears both endDate and startDate)', async () => {
     await createProject({
       status: 'DONE',
       startDate: new Date('2026-01-01'),
@@ -423,7 +433,12 @@ describe('PATCH /api/projects/:slug', () => {
       .patch('/api/projects/test-project')
       .send({ status: 'PLANNING' })
 
-    expect(res.status).toBe(422)
+    expect(res.status).toBe(200)
+
+    const updated = await prisma.project.findUnique({ where: { slug: 'test-project' } })
+    expect(updated?.status).toBe('PLANNING')
+    expect(updated?.startDate).toBeNull()
+    expect(updated?.endDate).toBeNull()
   })
 
   it('allows DONE → DONE (updating fields while staying DONE)', async () => {

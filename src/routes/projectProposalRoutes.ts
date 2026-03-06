@@ -41,11 +41,11 @@ router.post('/', async (req, res) => {
   if (!body) return
 
   const {
-    full_name,
+    name,
     phone,
     problem_description,
     solution_overview,
-    app_features,
+    features,
     visual_identity,
     reference_links,
     budget_range,
@@ -54,11 +54,11 @@ router.post('/', async (req, res) => {
   try {
     const newProposal = await prisma.projectProposal.create({
       data: {
-        name: full_name,
+        name,
         phone,
         problemDescription: problem_description,
         solutionOverview: solution_overview,
-        features: app_features,
+        features,
         visualIdentity: visual_identity,
         referenceLinks: reference_links,
         budgetRange: budget_range,
@@ -67,13 +67,13 @@ router.post('/', async (req, res) => {
 
     res.status(201).json({ message: 'Dados salvos com sucesso.' })
 
-    const subject = `Nova Proposta de Projeto - Enviada por ${full_name}`
+    const subject = `Nova Proposta de Projeto - Enviada por ${name}`
     const text = `
-        Nome: ${full_name}
+        Nome: ${name}
         Telefone: ${phone}
         Problema: ${problem_description}
         Visão de solução: ${solution_overview ?? '-'}
-        Features: ${app_features ?? '-'}
+        Features: ${features ?? '-'}
         Identidade Visual: ${visual_identity ?? '-'}
         Links de referência: ${reference_links?.join(', ') ?? '-'}
         Faixa de investimento: ${budget_range ?? '-'}

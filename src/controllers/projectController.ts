@@ -49,6 +49,13 @@ const formatProject = (
   }
 }
 
+const formatProjectSummary = (
+  project: Project & { assets?: ProjectAsset[] }
+) => {
+  const { created_at, updated_at, ...rest } = formatProject(project)
+  return rest
+}
+
 const formatAsset = (asset: ProjectAsset) => ({
   id: asset.id,
   type: asset.type,
@@ -180,7 +187,7 @@ const projectsController = {
       ])
 
       res.json({
-        data: projects.map(formatProject),
+        data: projects.map(formatProjectSummary),
         pagination: {
           total,
           page,
@@ -211,14 +218,6 @@ const projectsController = {
     } = body
     const oldProject = req.project!
     const oldStatus = oldProject.status
-
-    // Block reopening a DONE project
-    if (oldStatus === 'DONE' && status !== undefined && status !== 'DONE') {
-      res.status(422).json({
-        message: 'Não é possível reabrir um projeto com status DONE.',
-      })
-      return
-    }
 
     const effectiveStatus = status ?? oldStatus
 
@@ -534,6 +533,7 @@ const projectsController = {
 
       res.json(
         contributors.map((contributor) => ({
+          id: contributor.member.id,
           name: contributor.member.name,
           surname: contributor.member.surname,
           avatar_url: contributor.member.avatarUrl,

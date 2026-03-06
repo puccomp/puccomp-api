@@ -17,7 +17,7 @@ const ProposalStatusEnum = z.enum(
 )
 
 export const CreateProposalSchema = z.object({
-  full_name: z.string().min(1, 'full_name é obrigatório.'),
+  name: z.string().min(1, 'name é obrigatório.'),
   phone: z
     .string()
     .min(1, 'phone é obrigatório.')
@@ -26,7 +26,7 @@ export const CreateProposalSchema = z.object({
     .string()
     .min(1, 'problem_description é obrigatório.'),
   solution_overview: z.string().optional(),
-  app_features: z.string().optional(),
+  features: z.string().optional(),
   visual_identity: z.string().optional(),
   reference_links: z
     .array(z.string().url('Cada item de reference_links deve ser uma URL válida.'))

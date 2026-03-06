@@ -14,8 +14,8 @@ const transporter = IS_PROD
       },
     })
   : nodemailer.createTransport({
-      host: process.env.EMAIL_HOST ?? 'mailhog',
-      port: parseInt(process.env.EMAIL_PORT ?? '1025', 10),
+      host: 'mailhog',
+      port: 1025,
       secure: false,
     })
 
