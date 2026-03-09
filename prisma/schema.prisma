@@ -20,28 +20,29 @@ model Role {
 }
 
 model Member {
-  id                     Int           @id @default(autoincrement())
-  email                  String        @unique
+  id                     Int               @id @default(autoincrement())
+  email                  String            @unique
   password               String?
   name                   String
   surname                String
   bio                    String?
   course                 String
-  avatarUrl              String?       @map("avatar_url")
-  entryDate              DateTime      @map("entry_date") @db.Date
-  exitDate               DateTime?     @map("exit_date") @db.Date
-  githubUrl              String?       @map("github_url")
-  instagramUrl           String?       @map("instagram_url")
-  linkedinUrl            String?       @map("linkedin_url")
-  isAdmin                Boolean       @map("is_admin")
-  roleId                 Int?          @map("role_id")
-  inviteToken            String?       @unique @map("invite_token")
-  inviteTokenExpiresAt   DateTime?     @map("invite_token_expires_at")
-  status                 MemberStatus  @default(PENDING)
-  passwordResetToken     String?       @unique @map("password_reset_token")
-  passwordResetExpiresAt DateTime?     @map("password_reset_expires_at")
+  avatarUrl              String?           @map("avatar_url")
+  entryDate              DateTime          @map("entry_date") @db.Date
+  exitDate               DateTime?         @map("exit_date") @db.Date
+  githubUrl              String?           @map("github_url")
+  instagramUrl           String?           @map("instagram_url")
+  linkedinUrl            String?           @map("linkedin_url")
+  isAdmin                Boolean           @map("is_admin")
+  roleId                 Int?              @map("role_id")
+  inviteToken            String?           @unique @map("invite_token")
+  inviteTokenExpiresAt   DateTime?         @map("invite_token_expires_at")
+  status                 MemberStatus      @default(PENDING)
+  passwordResetToken     String?           @unique @map("password_reset_token")
+  passwordResetExpiresAt DateTime?         @map("password_reset_expires_at")
   projects               Contributor[]
-  role                   Role?         @relation(fields: [roleId], references: [id])
+  decidedProposals       ProjectProposal[]
+  role                   Role?             @relation(fields: [roleId], references: [id])
 
   @@map("members")
 }
@@ -133,7 +134,7 @@ model ProjectProposal {
   name               String
   phone              String
   problemDescription String         @map("problem_description")
-  features           String?
+  features           String[]
   visualIdentity     String?        @map("visual_identity")
   createdAt          DateTime       @default(now()) @map("created_at")
   solutionOverview   String?        @map("solution_overview")
@@ -142,6 +143,8 @@ model ProjectProposal {
   updatedAt          DateTime       @default(now()) @updatedAt @map("updated_at")
   referenceLinks     String[]       @map("reference_links")
   budgetRange        BudgetRange?   @map("budget_range")
+  decidedById        Int?           @map("decided_by_id")
+  decidedBy          Member?        @relation(fields: [decidedById], references: [id])
 
   @@map("project_proposals")
 }
@@ -200,7 +203,6 @@ enum BudgetRange {
 
 enum ProposalStatus {
   PENDING
-  UNDER_ANALYSIS
   ACCEPTED
   REJECTED
 }

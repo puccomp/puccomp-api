@@ -8,43 +8,68 @@ const BudgetRangeEnum = z.enum(
   }
 )
 
-const ProposalStatusEnum = z.enum(
-  ['PENDING', 'UNDER_ANALYSIS', 'ACCEPTED', 'REJECTED'],
-  {
-    error:
-      "status deve ser 'PENDING', 'UNDER_ANALYSIS', 'ACCEPTED' ou 'REJECTED'.",
-  }
-)
+const ProposalStatusEnum = z.enum(['PENDING', 'ACCEPTED', 'REJECTED'], {
+  error: "status deve ser 'PENDING', 'ACCEPTED' ou 'REJECTED'.",
+})
+
+const DecisionStatusEnum = z.enum(['ACCEPTED', 'REJECTED'], {
+  error: "status deve ser 'ACCEPTED' ou 'REJECTED'.",
+})
 
 export const CreateProposalSchema = z.object({
-  name: z.string().min(1, 'name é obrigatório.'),
+  name: z
+    .string()
+    .min(1, 'name é obrigatório.')
+    .max(100, 'name não pode exceder 100 caracteres.'),
   phone: z
     .string()
     .min(1, 'phone é obrigatório.')
     .regex(/^\+?[\d\s\-().]{8,20}$/, 'phone deve ser um número de telefone válido.'),
   problem_description: z
     .string()
-    .min(1, 'problem_description é obrigatório.'),
-  solution_overview: z.string().optional(),
-  features: z.string().optional(),
-  visual_identity: z.string().optional(),
+    .min(10, 'problem_description deve ter pelo menos 10 caracteres.')
+    .max(3000, 'problem_description não pode exceder 3000 caracteres.'),
+  solution_overview: z
+    .string()
+    .max(3000, 'solution_overview não pode exceder 3000 caracteres.')
+    .optional(),
+  features: z
+    .array(
+      z
+        .string()
+        .min(1, 'Cada feature não pode ser vazia.')
+        .max(150, 'Cada feature não pode exceder 150 caracteres.')
+    )
+    .max(30, 'features não pode ter mais de 30 itens.')
+    .optional(),
+  visual_identity: z
+    .string()
+    .max(2000, 'visual_identity não pode exceder 2000 caracteres.')
+    .optional(),
   reference_links: z
     .array(z.string().url('Cada item de reference_links deve ser uma URL válida.'))
+    .max(10, 'reference_links não pode ter mais de 10 links.')
     .optional(),
   budget_range: BudgetRangeEnum.optional(),
 })
 
 export const UpdateProposalSchema = z
   .object({
-    status: ProposalStatusEnum.optional(),
-    internal_notes: z.string().optional(),
+    status: DecisionStatusEnum.optional(),
+    internal_notes: z
+      .string()
+      .trim()
+      .min(1, 'internal_notes não pode ser uma string vazia.')
+      .max(5000, 'internal_notes não pode exceder 5000 caracteres.')
+      .nullable()
+      .optional(),
   })
   .refine((data) => data.status !== undefined || data.internal_notes !== undefined, {
     message: 'Pelo menos um campo deve ser fornecido.',
   })
 
 export const ProposalQuerySchema = z.object({
-  search: z.string().min(1).optional(),
+  search: z.string().min(1).max(100).optional(),
   status: ProposalStatusEnum.optional(),
   date_from: z
     .string()

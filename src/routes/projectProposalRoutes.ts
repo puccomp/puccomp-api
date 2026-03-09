@@ -1,6 +1,7 @@
 import express, { Router } from 'express'
 import { Prisma, ProjectProposal } from '@prisma/client'
 import isAuth from '../middlewares/isAuth.js'
+import isAdmin from '../middlewares/isAdmin.js'
 import { sendEmail } from '../utils/email.js'
 import { formatDate } from '../utils/formats.js'
 import prisma from '../utils/prisma.js'
@@ -19,7 +20,11 @@ const sortMap: Record<string, string> = {
   status: 'status',
 }
 
-const formatProposal = (p: ProjectProposal) => ({
+type ProposalWithDecidedBy = ProjectProposal & {
+  decidedBy?: { id: number; name: string; surname: string; avatarUrl: string | null } | null
+}
+
+const formatProposal = (p: ProposalWithDecidedBy) => ({
   id: p.id,
   name: p.name,
   phone: p.phone,
@@ -31,9 +36,16 @@ const formatProposal = (p: ProjectProposal) => ({
   budget_range: p.budgetRange,
   status: p.status,
   internal_notes: p.internalNotes,
+  decided_by: p.decidedBy
+    ? { id: p.decidedBy.id, name: p.decidedBy.name, surname: p.decidedBy.surname, avatar_url: p.decidedBy.avatarUrl }
+    : null,
   created_at: formatDate(p.createdAt),
   updated_at: formatDate(p.updatedAt),
 })
+
+const proposalInclude = {
+  decidedBy: { select: { id: true, name: true, surname: true, avatarUrl: true } },
+} satisfies Prisma.ProjectProposalInclude
 
 // SUBMIT PROJECT PROPOSAL
 router.post('/', async (req, res) => {
@@ -58,9 +70,9 @@ router.post('/', async (req, res) => {
         phone,
         problemDescription: problem_description,
         solutionOverview: solution_overview,
-        features,
+        features: features ?? [],
         visualIdentity: visual_identity,
-        referenceLinks: reference_links,
+        referenceLinks: reference_links ?? [],
         budgetRange: budget_range,
       },
     })
@@ -73,7 +85,7 @@ router.post('/', async (req, res) => {
         Telefone: ${phone}
         Problema: ${problem_description}
         Visão de solução: ${solution_overview ?? '-'}
-        Features: ${features ?? '-'}
+        Features: ${features?.join(', ') ?? '-'}
         Identidade Visual: ${visual_identity ?? '-'}
         Links de referência: ${reference_links?.join(', ') ?? '-'}
         Faixa de investimento: ${budget_range ?? '-'}
@@ -122,6 +134,7 @@ router.get('/', isAuth, async (req, res) => {
     const [proposals, total] = await Promise.all([
       prisma.projectProposal.findMany({
         where,
+        include: proposalInclude,
         orderBy: { [sortMap[sort_by]]: order },
         skip: (page - 1) * limit,
         take: limit,
@@ -138,7 +151,8 @@ router.get('/', isAuth, async (req, res) => {
         total_pages: Math.ceil(total / limit),
       },
     })
-  } catch {
+  } catch (err) {
+    console.error('[GET /project-proposals]', err)
     res.status(500).json({ message: 'Erro ao buscar os dados.' })
   }
 })
@@ -151,6 +165,7 @@ router.get('/:id', isAuth, async (req, res) => {
   try {
     const proposal = await prisma.projectProposal.findUnique({
       where: { id: params.id },
+      include: proposalInclude,
     })
     if (!proposal) {
       res.status(404).json({ message: 'Não encontrado.' })
@@ -162,8 +177,8 @@ router.get('/:id', isAuth, async (req, res) => {
   }
 })
 
-// UPDATE STATUS / INTERNAL NOTES
-router.patch('/:id', isAuth, async (req, res) => {
+// ACCEPT OR REJECT PROPOSAL
+router.patch('/:id', isAuth, isAdmin, async (req, res) => {
   const params = validate(IdParamSchema, req.params, res)
   if (!params) return
 
@@ -171,11 +186,35 @@ router.patch('/:id', isAuth, async (req, res) => {
   if (!body) return
 
   try {
+    const proposal = await prisma.projectProposal.findUnique({
+      where: { id: params.id },
+    })
+
+    if (!proposal) {
+      res.status(404).json({ message: 'Proposta não encontrada.' })
+      return
+    }
+
+    if (body.status === undefined && proposal.decidedById !== req.user!.id) {
+      res.status(403).json({
+        message:
+          'Apenas o admin que tomou a última decisão pode editar as notas sem alterar o status.',
+      })
+      return
+    }
+
     const updated = await prisma.projectProposal.update({
       where: { id: params.id },
+      include: proposalInclude,
       data: {
-        status: body.status,
-        internalNotes: body.internal_notes,
+        ...(body.status !== undefined && {
+          status: body.status,
+          decidedById: req.user!.id,
+          internalNotes: body.internal_notes ?? null,
+        }),
+        ...(body.status === undefined && {
+          internalNotes: body.internal_notes ?? null,
+        }),
       },
     })
     res.json({
