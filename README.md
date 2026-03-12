@@ -84,14 +84,80 @@ rclone deletefile localstack:puccomp-uploads/pasta/arquivo.jpg  # deletar objeto
 docker compose logs app -f # -f (ou --follow) o terminal fica "conectado" ao fluxo de logs
 
 # executar comandos no container da aplicação
-docker compose exec app npm run dev 
+docker compose exec app npm run dev
 
 # executar migrações do Prisma
 docker compose exec app npx prisma migrate dev
 
 # parar os serviços
-docker compose down 
+docker compose down
 
 # parar e remover volumes (apaga dados do banco)
 docker compose down -v
 ```
+
+## Produção
+
+O ambiente de produção usa `docker-compose.prod.yml`, que sobe apenas a API e o PostgreSQL. O nginx roda diretamente no host para permitir o gerenciamento de múltiplos serviços.
+
+### Pré-requisitos na VPS
+
+```bash
+sudo apt update && sudo apt install -y docker.io docker-compose-plugin nginx certbot python3-certbot-nginx
+sudo usermod -aG docker $USER
+# reconecte ao SSH para aplicar o grupo
+```
+
+### Deploy inicial
+
+```bash
+git clone 'https://github.com/puccomp/puccomp-api'
+cd puccomp-api
+
+cp .env.example .env
+nano .env  # preencher todas as variáveis (ver tabela abaixo)
+
+docker compose -f docker-compose.prod.yml up -d --build
+
+# popular o banco na primeira execução
+docker compose -f docker-compose.prod.yml exec app npx tsx prisma/seed.ts
+```
+
+As migrações do Prisma são aplicadas automaticamente toda vez que o container da API inicia.
+
+### Variáveis de ambiente para produção
+
+| Variável | Descrição |
+|---|---|
+| `NODE_ENV` | `production` |
+| `PORT` | `8080` |
+| `BASE_URL` | URL pública da API (ex: `https://api.seudominio.com`) |
+| `DATABASE_URL` | `postgresql://POSTGRES_USER:POSTGRES_PASSWORD@db:5432/POSTGRES_DB` |
+| `POSTGRES_USER` | Usuário do banco |
+| `POSTGRES_PASSWORD` | Senha forte do banco |
+| `POSTGRES_DB` | Nome do banco (ex: `puccomp`) |
+| `JWT_SECRET_KEY` | String aleatória longa |
+| `AWS_*` | Credenciais reais do S3 |
+| `EMAIL_*` | SMTP real (ex: SendGrid, Amazon SES) |
+| `FRONTEND_URLS` | Origens permitidas pelo CORS |
+
+### Configurando o nginx no host
+
+Copie o arquivo de configuração de referência:
+
+```bash
+sudo cp nginx/puccomp-api.conf /etc/nginx/sites-available/puccomp-api
+# edite server_name com seu domínio
+sudo nano /etc/nginx/sites-available/puccomp-api
+
+sudo ln -s /etc/nginx/sites-available/puccomp-api /etc/nginx/sites-enabled/
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+### SSL com Let's Encrypt
+
+```bash
+sudo certbot --nginx -d seudominio.com
+```
+
+O certbot atualiza o arquivo de configuração do nginx automaticamente com os certificados.
