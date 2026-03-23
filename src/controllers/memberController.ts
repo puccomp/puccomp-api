@@ -276,9 +276,9 @@ export const sanitizeMemberForResponse = (
   } = member
   const intermediate = {
     ...rest,
-    entryDate: formatDate(entryDate),
+    entryDate: entryDate ? formatDate(entryDate) : null,
     exitDate: exitDate ? formatDate(exitDate) : null,
-    role: role?.name,
+    role: role?.name ?? null,
   }
   return keysToSnakeCase(intermediate)
 }

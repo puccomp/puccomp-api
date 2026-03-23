@@ -94,7 +94,7 @@ router.post(
 router.use(multerErrorHandler)
 
 // FIND ALL CV APPLICATIONS
-router.get('/', isAuth, isAdmin, (async (req, res) => {
+router.get('/', isAuth, (async (req, res) => {
   const query = validate(CVQuerySchema, req.query, res)
   if (!query) return
   const {

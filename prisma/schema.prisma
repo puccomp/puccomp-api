@@ -23,12 +23,12 @@ model Member {
   id                     Int               @id @default(autoincrement())
   email                  String            @unique
   password               String?
-  name                   String
-  surname                String
+  name                   String?
+  surname                String?
   bio                    String?
-  course                 String
+  course                 String?
   avatarUrl              String?           @map("avatar_url")
-  entryDate              DateTime          @map("entry_date") @db.Date
+  entryDate              DateTime?         @map("entry_date") @db.Date
   exitDate               DateTime?         @map("exit_date") @db.Date
   githubUrl              String?           @map("github_url")
   instagramUrl           String?           @map("instagram_url")
