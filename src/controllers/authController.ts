@@ -16,6 +16,7 @@ import {
   ForgotPasswordSchema,
   ResetPasswordSchema,
 } from '../schemas/authSchemas.js'
+import { z } from 'zod'
 
 const INVITE_EXPIRY_DAYS = 7
 
@@ -65,7 +66,7 @@ const authController = {
   invite: (async (req, res) => {
     const body = validate(InviteSchema, req.body, res)
     if (!body) return
-    const { email, name, surname, course, role_id, entry_date, ...rest } = body
+    const { email, role_id, is_admin } = body
 
     const inviteToken = randomBytes(32).toString('hex')
     const inviteTokenExpiresAt = new Date(
@@ -77,27 +78,23 @@ const authController = {
       const newMember = await prisma.member.create({
         data: {
           email,
-          name,
-          surname,
-          course,
-          entryDate: new Date(entry_date),
-          bio: rest.bio,
-          githubUrl: rest.github_url,
-          instagramUrl: rest.instagram_url,
-          linkedinUrl: rest.linkedin_url,
-          isAdmin: rest.is_admin ?? false,
+          name: null,
+          surname: null,
+          course: null,
+          entryDate: null,
+          isAdmin: is_admin ?? false,
           status: MemberStatus.PENDING,
           inviteToken,
           inviteTokenExpiresAt,
-          role: { connect: { id: role_id } },
+          ...(role_id ? { role: { connect: { id: role_id } } } : {}),
         },
       })
 
       const inviteLink = `${internalUrl}/convite?token=${inviteToken}`
       await sendEmail(
         email,
-        'Convite para o sistema COMP',
-        `Olá, ${name}!\n\nVocê foi convidado(a) para fazer parte do sistema da COMP.\n\nClique no link abaixo para definir sua senha e ativar sua conta:\n\n${inviteLink}\n\nEste link expira em ${INVITE_EXPIRY_DAYS} dias.\n\nEquipe COMP`
+        'Convite para o sistema de Gestão Interna COMP',
+        `Olá!\n\nVocê foi convidado(a) para fazer parte do sistema da COMP.\n\nClique no link abaixo para preencher seus dados e ativar sua conta:\n\n${inviteLink}\n\nEste link expira em ${INVITE_EXPIRY_DAYS} dias.\n\nEquipe COMP`
       )
 
       res.status(201).json({
@@ -122,10 +119,44 @@ const authController = {
     }
   }) as RequestHandler,
 
+  getInvite: (async (req, res) => {
+    const token = z.string().min(1).safeParse(req.params.token)
+    if (!token.success) {
+      res.status(400).json({ message: 'Token inválido.' })
+      return
+    }
+
+    try {
+      const member = await prisma.member.findUnique({
+        where: { inviteToken: token.data },
+        include: { role: true },
+      })
+
+      if (!member || !member.inviteTokenExpiresAt) {
+        res.status(404).json({ message: 'Token de convite inválido ou expirado.' })
+        return
+      }
+
+      if (member.inviteTokenExpiresAt < new Date()) {
+        res.status(410).json({ message: 'O token de convite expirou.' })
+        return
+      }
+
+      res.json({
+        email: member.email,
+        role: member.role?.name ?? null,
+        expires_at: member.inviteTokenExpiresAt.toISOString(),
+      })
+    } catch (err) {
+      console.error(err)
+      res.status(500).json({ message: 'Falha ao validar o convite.' })
+    }
+  }) as RequestHandler<{ token: string }>,
+
   acceptInvite: (async (req, res) => {
     const body = validate(AcceptInviteSchema, req.body, res)
     if (!body) return
-    const { token, password } = body
+    const { token, password, name, surname, course, entry_date, ...rest } = body
 
     try {
       const member = await prisma.member.findUnique({
@@ -146,6 +177,15 @@ const authController = {
       await prisma.member.update({
         where: { id: member.id },
         data: {
+          name,
+          surname,
+          course,
+          entryDate: new Date(entry_date),
+          bio: rest.bio,
+          githubUrl: rest.github_url,
+          instagramUrl: rest.instagram_url,
+          linkedinUrl: rest.linkedin_url,
+          // TODO: implementar upload de avatar (S3) via PATCH /members/:id/avatar
           password: hashedPassword,
           status: MemberStatus.ACTIVE,
           inviteToken: null,
@@ -159,6 +199,7 @@ const authController = {
       res.status(500).json({ message: 'Falha ao aceitar o convite.' })
     }
   }) as RequestHandler,
+
   forgotPassword: (async (req, res) => {
     const body = validate(ForgotPasswordSchema, req.body, res)
     if (!body) return
@@ -185,7 +226,7 @@ const authController = {
         await sendEmail(
           email,
           'Redefinição de senha — COMP',
-          `Olá, ${member.name}!\n\nRecebemos uma solicitação para redefinir a senha da sua conta.\n\nClique no link abaixo para criar uma nova senha:\n\n${resetLink}\n\nEste link expira em 1 hora. Se você não solicitou a redefinição, ignore este e-mail.\n\nEquipe COMP`
+          `Olá, ${member.name ?? 'membro'}!\n\nRecebemos uma solicitação para redefinir a senha da sua conta.\n\nClique no link abaixo para criar uma nova senha:\n\n${resetLink}\n\nEste link expira em 1 hora. Se você não solicitou a redefinição, ignore este e-mail.\n\nEquipe COMP`
         )
       }
 
