@@ -18,13 +18,13 @@ cp .env.example .env # adicione variáveis de ambiente
 sudo chmod +x localstack-init/create-bucket.sh
 
 # inicie os serviços/containers
-docker compose up -d  # -d (ou --detach) recuperar o controle do terminal após execeutar o comando
+docker compose -f docker-compose.dev.yml up -d  # -d (ou --detach) recuperar o controle do terminal após execeutar o comando
 
 # crie as tabelas no postgresql
-docker compose exec app npx prisma migrate dev
+docker compose -f docker-compose.dev.yml exec app npx prisma migrate dev
 
 # popular o banco inicialmente
-docker compose exec app npm run prisma:seed
+docker compose -f docker-compose.dev.yml exec app npm run prisma:seed
 ```
 
 - Hot reload habilitado através de bind mounts (`./src` e `./prisma`)
@@ -81,24 +81,30 @@ rclone deletefile localstack:puccomp-uploads/pasta/arquivo.jpg  # deletar objeto
 
 ```bash
 # vizualizar logs
-docker compose logs app -f # -f (ou --follow) o terminal fica "conectado" ao fluxo de logs
+docker compose -f docker-compose.dev.yml logs app -f # -f (ou --follow) o terminal fica "conectado" ao fluxo de logs
 
 # executar comandos no container da aplicação
-docker compose exec app npm run dev
+docker compose -f docker-compose.dev.yml exec app npm run dev
 
 # executar migrações do Prisma
-docker compose exec app npx prisma migrate dev
+docker compose -f docker-compose.dev.yml exec app npx prisma migrate dev
 
 # parar os serviços
-docker compose down
+docker compose -f docker-compose.dev.yml down
 
 # parar e remover volumes (apaga dados do banco)
-docker compose down -v
+docker compose -f docker-compose.dev.yml down -v
 ```
 
 ## Produção
 
-O ambiente de produção usa `docker-compose.prod.yml`, que sobe apenas a API e o PostgreSQL. O nginx roda diretamente no host para permitir o gerenciamento de múltiplos serviços.
+O deploy é feito automaticamente via **GitHub Actions** a cada push na branch `main`. O workflow:
+
+1. Builda a imagem Docker usando `Dockerfile.prod`
+2. Faz push para o GitHub Container Registry (`ghcr.io`)
+3. Conecta na VPS via SSH e executa `docker compose pull api && docker compose up -d api`
+
+As migrações do Prisma são aplicadas automaticamente na inicialização do container.
 
 ### Pré-requisitos na VPS
 
@@ -108,22 +114,24 @@ sudo usermod -aG docker $USER
 # reconecte ao SSH para aplicar o grupo
 ```
 
-### Deploy inicial
+### Setup inicial na VPS (só uma vez)
 
 ```bash
-git clone 'https://github.com/puccomp/puccomp-api'
-cd puccomp-api
+# autenticar no GitHub Container Registry
+echo SEU_PAT | docker login ghcr.io -u SEU_USUARIO --password-stdin
 
-cp .env.example .env
-nano .env  # preencher todas as variáveis (ver tabela abaixo)
+# criar o arquivo de configuração no diretório central
+mkdir -p /var/www/puccomp
+cp .env.example /var/www/puccomp/puccomp-api/.env
+nano /var/www/puccomp/puccomp-api/.env  # preencher todas as variáveis
 
-docker compose -f docker-compose.prod.yml up -d --build
+# subir pela primeira vez
+cd /var/www/puccomp
+docker compose up -d
 
 # popular o banco na primeira execução
-docker compose -f docker-compose.prod.yml exec app npx tsx prisma/seed.ts
+docker compose exec api npx tsx prisma/seed.ts
 ```
-
-As migrações do Prisma são aplicadas automaticamente toda vez que o container da API inicia.
 
 ### Variáveis de ambiente para produção
 

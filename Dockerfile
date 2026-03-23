@@ -1,15 +1,17 @@
-FROM node:24-alpine
+FROM node:24-alpine AS builder
 WORKDIR /app
-
-# Copy manifests first — this layer is cached until deps change
 COPY package.json package-lock.json ./
 COPY prisma ./prisma/
+RUN npm ci
+COPY src ./src
+COPY tsconfig.json ./
+RUN npx prisma generate && npm run build
 
-# Install all deps (including devDependencies) and generate Prisma client
-RUN npm ci && npx prisma generate
-
-# Source code is provided via bind mounts (see docker-compose.yml)
-# node_modules is preserved via an anonymous volume
-
+FROM node:24-alpine
+WORKDIR /app
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/prisma ./prisma
+COPY package.json ./
 EXPOSE 8080
-CMD ["npm", "run", "dev"]
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/index.js"]
