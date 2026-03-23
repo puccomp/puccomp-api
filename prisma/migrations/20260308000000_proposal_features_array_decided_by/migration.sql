@@ -13,7 +13,7 @@ DROP TYPE "ProposalStatus_old";
 DO $$
 BEGIN
   IF (SELECT data_type FROM information_schema.columns
-      WHERE table_name='project_proposals' AND column_name='features') = 'text' THEN
+      WHERE table_schema=current_schema() AND table_name='project_proposals' AND column_name='features') = 'text' THEN
     ALTER TABLE project_proposals
       ALTER COLUMN features TYPE TEXT[] USING
         CASE WHEN features IS NULL THEN ARRAY[]::TEXT[] ELSE ARRAY[features] END;

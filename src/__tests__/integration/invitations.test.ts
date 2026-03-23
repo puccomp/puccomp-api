@@ -26,7 +26,9 @@ import prisma from '../../utils/prisma.js'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-const INVITE_BODY = { email: 'joao@sga.pucminas.br' }
+let testRoleId: number
+
+const INVITE_BODY = () => ({ email: 'joao@sga.pucminas.br', role_id: testRoleId })
 
 const ACCEPT_BODY = {
   name: 'Joao',
@@ -57,6 +59,11 @@ const createPendingMember = async (token = 'valid-token-abc123') => {
 beforeEach(async () => {
   await prisma.contributor.deleteMany()
   await prisma.member.deleteMany()
+  await prisma.role.deleteMany()
+  const role = await prisma.role.create({
+    data: { name: 'Dev', level: 1 },
+  })
+  testRoleId = role.id
 })
 
 afterAll(async () => {
@@ -69,7 +76,7 @@ describe('POST /api/auth/invite', () => {
   it('cria membro PENDING e retorna 201', async () => {
     const res = await request(app)
       .post('/api/auth/invite')
-      .send(INVITE_BODY)
+      .send(INVITE_BODY())
 
     expect(res.status).toBe(201)
     expect(res.body.message).toMatch(/joao@sga\.pucminas\.br/)
@@ -88,7 +95,7 @@ describe('POST /api/auth/invite', () => {
 
     const res = await request(app)
       .post('/api/auth/invite')
-      .send(INVITE_BODY)
+      .send(INVITE_BODY())
 
     expect(res.status).toBe(409)
   })
