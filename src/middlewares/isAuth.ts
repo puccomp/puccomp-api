@@ -1,5 +1,6 @@
 import { NextFunction, Request, Response } from 'express'
 import jwt from 'jsonwebtoken'
+import prisma from '../utils/prisma.js'
 
 interface TokenPayload {
   id: number
@@ -15,12 +16,16 @@ declare global {
   }
 }
 
-function isAuth(req: Request, res: Response, next: NextFunction): void {
+async function isAuth(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
   const authHeader = req.headers['authorization']
   const token = authHeader && authHeader.split(' ')[1]
 
   if (!token) {
-    res.status(401).json({ message: 'No token provided' })
+    res.status(401).json({ message: 'Nenhum token fornecido.' })
     return
   }
 
@@ -29,21 +34,28 @@ function isAuth(req: Request, res: Response, next: NextFunction): void {
       token,
       process.env.JWT_SECRET_KEY!
     ) as TokenPayload
-    if (!decoded.is_active) {
-      res.status(403).json({ message: 'Member is inactive' })
+
+    const member = await prisma.member.findUnique({
+      where: { id: decoded.id },
+      select: { status: true, isAdmin: true },
+    })
+
+    if (!member || member.status === 'INACTIVE') {
+      res.status(403).json({ message: 'Membro inativo.' })
       return
     }
-    req.user = decoded
+
+    req.user = { id: decoded.id, is_active: true, is_admin: member.isAdmin }
     next()
   } catch (error) {
     if (error instanceof jwt.TokenExpiredError)
-      res.status(401).json({ message: 'Token expired' })
+      res.status(401).json({ message: 'Token expirado.' })
     else if (error instanceof jwt.JsonWebTokenError)
-      res.status(401).json({ message: 'Invalid token' })
+      res.status(401).json({ message: 'Token inválido.' })
     else
       res
         .status(500)
-        .json({ message: 'Failed to authenticate due to a server error' })
+        .json({ message: 'Falha na autenticação devido a um erro no servidor.' })
   }
 }
 

@@ -61,7 +61,7 @@ router.post(
         })
 
         res.status(201).json({
-          message: 'Memory image uploaded successfully.',
+          message: 'Imagem de memória enviada com sucesso.',
           image_url: getS3URL(newMemory.key),
         })
       } catch (dbError) {
@@ -74,7 +74,7 @@ router.post(
       }
     } catch (err) {
       console.error(err)
-      res.status(500).json({ message: 'Failed to upload memory image.' })
+      res.status(500).json({ message: 'Falha ao enviar a imagem de memória.' })
     }
   }) as RequestHandler
 )
@@ -115,7 +115,7 @@ router.get('/', (async (req, res) => {
     })
   } catch (err) {
     console.error(err)
-    res.status(500).json({ message: 'Failed to fetch images.' })
+    res.status(500).json({ message: 'Falha ao buscar as imagens.' })
   }
 }) as RequestHandler)
 
@@ -132,7 +132,7 @@ router.patch('/:id', isAuth, isAdmin, (async (req, res) => {
     })
 
     res.json({
-      message: 'Memory updated successfully.',
+      message: 'Memória atualizada com sucesso.',
       id: updated.id,
     })
   } catch (err) {
@@ -140,11 +140,11 @@ router.patch('/:id', isAuth, isAdmin, (async (req, res) => {
       err instanceof Prisma.PrismaClientKnownRequestError &&
       err.code === 'P2025'
     ) {
-      res.status(404).json({ message: 'Image not found.' })
+      res.status(404).json({ message: 'Imagem não encontrada.' })
       return
     }
     console.error(err)
-    res.status(500).json({ message: 'Failed to update memory.' })
+    res.status(500).json({ message: 'Falha ao atualizar a memória.' })
   }
 }) as RequestHandler<{ id: string }>)
 
@@ -166,17 +166,17 @@ router.delete('/:id', isAuth, isAdmin, (async (req, res) => {
       )
     }
 
-    res.json({ id: memory.id, message: 'Image deleted successfully.' })
+    res.json({ id: memory.id, message: 'Imagem excluída com sucesso.' })
   } catch (err) {
     if (
       err instanceof Prisma.PrismaClientKnownRequestError &&
       err.code === 'P2025'
     ) {
-      res.status(404).json({ message: 'Image not found.' })
+      res.status(404).json({ message: 'Imagem não encontrada.' })
       return
     }
     console.error(err)
-    res.status(500).json({ message: 'Failed to delete memory image.' })
+    res.status(500).json({ message: 'Falha ao excluir a imagem de memória.' })
   }
 }) as RequestHandler<{ id: string }>)
 

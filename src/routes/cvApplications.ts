@@ -62,7 +62,7 @@ router.post(
         await deleteObjectFromS3(cvKey)
         throw dbError
       }
-      res.status(201).send({ message: 'CV uploaded successfully' })
+      res.status(201).send({ message: 'Currículo enviado com sucesso.' })
 
       try {
         const subject = `CV - Enviada por ${fullName}`
@@ -86,7 +86,7 @@ router.post(
       }
     } catch (err) {
       console.error('Error during CV submission process:', err)
-      res.status(500).send({ message: 'Error uploading CV' })
+      res.status(500).send({ message: 'Erro ao enviar o currículo.' })
     }
   }) as RequestHandler
 )
@@ -162,7 +162,7 @@ router.get('/', isAuth, isAdmin, (async (req, res) => {
     })
   } catch (error) {
     console.error('Error fetching CV applications:', error)
-    res.status(500).json({ message: 'Error retrieving CV applications' })
+    res.status(500).json({ message: 'Erro ao buscar as candidaturas.' })
   }
 }) as RequestHandler)
 

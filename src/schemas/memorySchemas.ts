@@ -9,7 +9,7 @@ export const MemoryQuerySchema = z.object({
 
 const dateField = z
   .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/, 'date must be in YYYY-MM-DD format.')
+  .regex(/^\d{4}-\d{2}-\d{2}$/, 'date deve estar no formato YYYY-MM-DD.')
   .optional()
 
 export const CreateMemorySchema = z.object({
@@ -25,7 +25,7 @@ export const UpdateMemorySchema = z
     date: dateField,
   })
   .refine((data) => Object.values(data).some((v) => v !== undefined), {
-    message: 'No fields to update.',
+    message: 'Nenhum campo para atualizar.',
   })
 
 export type MemoryQueryInput = z.infer<typeof MemoryQuerySchema>

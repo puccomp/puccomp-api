@@ -1,4 +1,7 @@
+import { setupZodLocale } from './utils/zodLocale.js'
 import express, { json } from 'express'
+
+setupZodLocale()
 import cors from 'cors'
 import path, { dirname } from 'path'
 import { fileURLToPath } from 'url'
@@ -50,7 +53,7 @@ app.use('/api/roles', rolesRoutes)
 app.use('/api/cv-applications', cvApplications)
 app.use('/api/memories', memoriesRoutes)
 
-if (process.env.NODE_ENV !== 'production')
+if (process.env.NODE_ENV !== 'test')
   app.listen(PORT, () => console.log(`API running on http://localhost:${PORT}`))
 
 // Export as serveless function (deployable to Vercel, Netlify, etc.)

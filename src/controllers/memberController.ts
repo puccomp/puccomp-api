@@ -8,6 +8,7 @@ import { validate, IdParamSchema } from '../utils/validate.js'
 import {
   CreateMemberSchema,
   UpdateMemberSchema,
+  MemberQuerySchema,
 } from '../schemas/memberSchemas.js'
 
 const memberController = {
@@ -37,24 +38,24 @@ const memberController = {
       })
 
       res.status(201).json({
-        message: 'Member created successfully.',
+        message: 'Membro criado com sucesso.',
         member_url: `${BASE_URL}/api/members/${newMember.id}`,
       })
     } catch (err) {
       if (err instanceof Prisma.PrismaClientKnownRequestError) {
         if (err.code === 'P2002') {
-          res.status(409).json({ message: `Email '${email}' already exists.` })
+          res.status(409).json({ message: `O e-mail '${email}' já está cadastrado.` })
           return
         }
         if (err.code === 'P2025') {
           res
             .status(400)
-            .json({ message: `Role with id '${role_id}' not found.` })
+            .json({ message: `Cargo com id '${role_id}' não encontrado.` })
           return
         }
       }
       console.error(err)
-      res.status(500).json({ message: 'Failed to create member.' })
+      res.status(500).json({ message: 'Falha ao criar o membro.' })
     }
   }) as RequestHandler,
 
@@ -69,24 +70,71 @@ const memberController = {
       })
 
       if (!member) {
-        res.status(404).json({ message: 'Member not found.' })
+        res.status(404).json({ message: 'Membro não encontrado.' })
         return
       }
 
       res.json(sanitizeMemberForResponse(member))
     } catch (error) {
       console.error(error)
-      res.status(500).json({ message: 'Failed to retrieve member.' })
+      res.status(500).json({ message: 'Falha ao buscar o membro.' })
     }
   }) as RequestHandler<{ id: string }>,
 
-  all: (async (_req, res) => {
+  all: (async (req, res) => {
+    const query = validate(MemberQuerySchema, req.query, res)
+    if (!query) return
+
+    const { status, role_id, is_admin, search, course, exclude_project, page, limit, sort_by, order } =
+      query
+
+    const where: Prisma.MemberWhereInput = {}
+    if (status) where.status = status
+    if (role_id !== undefined) where.roleId = role_id
+    if (is_admin !== undefined) where.isAdmin = is_admin
+    if (course) where.course = { contains: course, mode: 'insensitive' }
+    if (exclude_project !== undefined) {
+      where.NOT = { projects: { some: { project: { slug: exclude_project } } } }
+    }
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { surname: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } },
+      ]
+    }
+
+    const orderBy: Prisma.MemberOrderByWithRelationInput =
+      sort_by === 'entry_date'
+        ? { entryDate: order }
+        : sort_by === 'exit_date'
+          ? { exitDate: order }
+          : { name: order }
+
     try {
-      const members = await prisma.member.findMany({ include: { role: true } })
-      res.json(members.map(sanitizeMemberForResponse))
+      const [members, total] = await Promise.all([
+        prisma.member.findMany({
+          where,
+          include: { role: true },
+          orderBy,
+          skip: (page - 1) * limit,
+          take: limit,
+        }),
+        prisma.member.count({ where }),
+      ])
+
+      res.json({
+        data: members.map(sanitizeMemberForResponse),
+        pagination: {
+          total,
+          page,
+          limit,
+          total_pages: Math.ceil(total / limit),
+        },
+      })
     } catch (error) {
       console.error(error)
-      res.status(500).json({ message: 'Failed to retrieve members.' })
+      res.status(500).json({ message: 'Falha ao buscar os membros.' })
     }
   }) as RequestHandler,
 
@@ -96,6 +144,32 @@ const memberController = {
 
     const body = validate(UpdateMemberSchema, req.body, res)
     if (!body) return
+
+    const currentMember = await prisma.member.findUnique({
+      where: { id: params.id },
+    })
+
+    if (!currentMember) {
+      res.status(404).json({ message: 'Membro não encontrado.' })
+      return
+    }
+
+    const effectiveStatus = body.status ?? currentMember.status
+    const effectiveExitDate =
+      body.exit_date !== undefined ? body.exit_date : currentMember.exitDate
+
+    if (effectiveStatus === 'INACTIVE' && !effectiveExitDate) {
+      res
+        .status(422)
+        .json({ message: 'Membros inativos devem ter uma data de saída.' })
+      return
+    }
+    if (effectiveStatus !== 'INACTIVE' && effectiveExitDate) {
+      res.status(422).json({
+        message: 'Membros ativos ou pendentes não podem ter data de saída.',
+      })
+      return
+    }
 
     const { password, entry_date, exit_date, role_id, status, ...rest } = body
 
@@ -115,7 +189,8 @@ const memberController = {
 
       if (password) dataToUpdate.password = await bcrypt.hash(password, 10)
       if (entry_date) dataToUpdate.entryDate = new Date(entry_date)
-      if (exit_date) dataToUpdate.exitDate = new Date(exit_date)
+      if (exit_date !== undefined)
+        dataToUpdate.exitDate = exit_date ? new Date(exit_date) : null
       if (role_id) dataToUpdate.role = { connect: { id: role_id } }
 
       const updatedMember = await prisma.member.update({
@@ -125,7 +200,7 @@ const memberController = {
       })
 
       res.json({
-        message: 'Member updated successfully.',
+        message: 'Membro atualizado com sucesso.',
         member: sanitizeMemberForResponse(updatedMember),
       })
     } catch (error) {
@@ -133,11 +208,11 @@ const memberController = {
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === 'P2025'
       ) {
-        res.status(404).json({ message: 'Member not found.' })
+        res.status(404).json({ message: 'Membro não encontrado.' })
         return
       }
       console.error(error)
-      res.status(500).json({ message: 'Failed to update member.' })
+      res.status(500).json({ message: 'Falha ao atualizar o membro.' })
     }
   }) as RequestHandler<{ id: string }>,
 
@@ -151,7 +226,7 @@ const memberController = {
       })
 
       if (!member) {
-        res.status(404).json({ message: 'Member not found.' })
+        res.status(404).json({ message: 'Membro não encontrado.' })
         return
       }
 
@@ -162,7 +237,7 @@ const memberController = {
         if (adminCount === 1) {
           res
             .status(403)
-            .json({ message: 'Cannot delete the last admin member.' })
+            .json({ message: 'Não é possível excluir o último administrador.' })
           return
         }
       }
@@ -172,17 +247,17 @@ const memberController = {
         await tx.member.delete({ where: { id: params.id } })
       })
 
-      res.json({ message: 'Member deleted successfully.' })
+      res.json({ message: 'Membro excluído com sucesso.' })
     } catch (error) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === 'P2025'
       ) {
-        res.status(404).json({ message: 'Member not found.' })
+        res.status(404).json({ message: 'Membro não encontrado.' })
         return
       }
       console.error(error)
-      res.status(500).json({ message: 'Failed to delete member.' })
+      res.status(500).json({ message: 'Falha ao excluir o membro.' })
     }
   }) as RequestHandler<{ id: string }>,
 }

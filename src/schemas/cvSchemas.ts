@@ -1,14 +1,14 @@
 import { z } from 'zod'
 
 export const CVSubmissionSchema = z.object({
-  fullName: z.string().trim().min(1, 'fullName is required.'),
+  fullName: z.string().trim().min(1, 'fullName é obrigatório.'),
   phone: z
     .string()
     .trim()
-    .min(1, 'phone is required.')
-    .regex(/^\+?[\d\s\-().]{8,20}$/, 'phone must be a valid phone number.'),
-  course: z.string().trim().min(1, 'course is required.'),
-  period: z.string().trim().min(1, 'period is required.'),
+    .min(1, 'phone é obrigatório.')
+    .regex(/^\+?[\d\s\-().]{8,20}$/, 'phone deve ser um número de telefone válido.'),
+  course: z.string().trim().min(1, 'course é obrigatório.'),
+  period: z.string().trim().min(1, 'period é obrigatório.'),
   linkedIn: z.string().optional(),
   gitHub: z.string().optional(),
 })
@@ -25,12 +25,12 @@ export const CVQuerySchema = z.object({
     .string()
     .regex(
       /^\d{4}-\d{2}-\d{2}$/,
-      'submitted_from must be in YYYY-MM-DD format.'
+      'submitted_from deve estar no formato YYYY-MM-DD.'
     )
     .optional(),
   submitted_to: z
     .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, 'submitted_to must be in YYYY-MM-DD format.')
+    .regex(/^\d{4}-\d{2}-\d{2}$/, 'submitted_to deve estar no formato YYYY-MM-DD.')
     .optional(),
 })
 

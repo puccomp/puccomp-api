@@ -10,7 +10,8 @@ logs/
 debug.log
 
 # Environment Variables
-.env
+.env*
+!.env.example
 
 # Editor Config
 .vscode/
