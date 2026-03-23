@@ -55,6 +55,6 @@ jobs:
           script: |
             set -e
             cd ${{ secrets.VPS_APP_PATH }}
-            docker compose pull api
-            docker compose up -d --no-deps api
+            docker compose pull puccomp-api
+            docker compose up -d --no-deps puccomp-api
             docker image prune -f
