@@ -53,7 +53,7 @@ app.use('/api/roles', rolesRoutes)
 app.use('/api/cv-applications', cvApplications)
 app.use('/api/memories', memoriesRoutes)
 
-if (!['production', 'test'].includes(process.env.NODE_ENV ?? ''))
+if (process.env.NODE_ENV !== 'test')
   app.listen(PORT, () => console.log(`API running on http://localhost:${PORT}`))
 
 // Export as serveless function (deployable to Vercel, Netlify, etc.)
