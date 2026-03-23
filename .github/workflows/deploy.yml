@@ -52,9 +52,13 @@ jobs:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
+          envs: GHCR_PAT
           script: |
             set -e
+            echo "$GHCR_PAT" | docker login ghcr.io -u puccomp --password-stdin
             cd ${{ secrets.VPS_APP_PATH }}
             docker compose pull puccomp-api
             docker compose up -d --no-deps puccomp-api
             docker image prune -f
+        env:
+          GHCR_PAT: ${{ secrets.GHCR_PAT }}
