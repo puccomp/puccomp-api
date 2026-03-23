@@ -86,7 +86,7 @@ const authController = {
           status: MemberStatus.PENDING,
           inviteToken,
           inviteTokenExpiresAt,
-          ...(role_id ? { role: { connect: { id: role_id } } } : {}),
+          role: { connect: { id: role_id } },
         },
       })
 

@@ -10,7 +10,7 @@ export const InviteSchema = z.object({
     .string()
     .min(1, 'E-mail é obrigatório.')
     .endsWith('@sga.pucminas.br', 'O e-mail deve ser um endereço @sga.pucminas.br.'),
-  role_id: z.number({ error: 'role_id deve ser um número.' }).int().positive().optional(),
+  role_id: z.number({ error: 'role_id deve ser um número.' }).int().positive(),
   is_admin: z.boolean().optional(),
 })
 
