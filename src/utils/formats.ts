@@ -9,7 +9,7 @@ export const toSnakeCase = (str: string) =>
 export const keysToSnakeCase = (obj: any): any => {
   if (Array.isArray(obj)) {
     return obj.map((v) => keysToSnakeCase(v))
-  } else if (obj !== null && obj.constructor === Object) {
+  } else if (obj !== null && obj !== undefined && obj.constructor === Object) {
     return Object.keys(obj).reduce(
       (acc, key) => {
         acc[toSnakeCase(key)] = keysToSnakeCase(obj[key])
