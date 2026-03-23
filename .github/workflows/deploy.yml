@@ -9,8 +9,59 @@ env:
   IMAGE: ghcr.io/${{ github.repository }}
 
 jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: 123
+          POSTGRES_DB: puccomp
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        env:
+          DATABASE_URL: postgresql://postgres:123@localhost:5432/puccomp?schema=public
+          JWT_SECRET_KEY: test-secret
+          AWS_REGION: us-east-1
+          AWS_ACCESS_KEY_ID: test
+          AWS_SECRET_ACCESS_KEY: test
+          AWS_S3_BUCKET_NAME: test-bucket
+          EMAIL_HOST: localhost
+          EMAIL_PORT: 1025
+          EMAIL_USER: test
+          EMAIL_PASS: test
+          TARGET_EMAIL: test@example.com
+          DEFAULT_ADMIN_EMAIL: admin@example.com
+          DEFAULT_ADMIN_PASSWORD: admin123
+          FRONTEND_URLS: http://localhost:3000
+        run: npm test
+
   build:
     name: Build & Push Image
+    needs: test
     runs-on: ubuntu-latest
     permissions:
       contents: read

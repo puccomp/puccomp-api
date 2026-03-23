@@ -21,7 +21,7 @@ const sortMap: Record<string, string> = {
 }
 
 type ProposalWithDecidedBy = ProjectProposal & {
-  decidedBy?: { id: number; name: string; surname: string; avatarUrl: string | null } | null
+  decidedBy?: { id: number; name: string | null; surname: string | null; avatarUrl: string | null } | null
 }
 
 const formatProposal = (p: ProposalWithDecidedBy) => ({

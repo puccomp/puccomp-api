@@ -11,7 +11,6 @@ import { sanitizeFileName } from '../utils/uploads.js'
 
 // MIDDLEWARES
 import isAuth from '../middlewares/isAuth.js'
-import isAdmin from '../middlewares/isAdmin.js'
 import {
   fileRequiredMiddleware,
   validatePdfFileMiddleware,
