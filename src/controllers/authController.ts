@@ -12,6 +12,7 @@ import { sanitizeMemberForResponse } from './memberController.js'
 import {
   LoginSchema,
   InviteSchema,
+  ResendInviteSchema,
   AcceptInviteSchema,
   ForgotPasswordSchema,
   ResetPasswordSchema,
@@ -116,6 +117,46 @@ const authController = {
       }
       console.error(err)
       res.status(500).json({ message: 'Falha ao enviar o convite.' })
+    }
+  }) as RequestHandler,
+
+  resendInvite: (async (req, res) => {
+    const body = validate(ResendInviteSchema, req.body, res)
+    if (!body) return
+    const { email } = body
+
+    const newToken = randomBytes(32).toString('hex')
+    const newExpiresAt = new Date(
+      Date.now() + INVITE_EXPIRY_DAYS * 24 * 60 * 60 * 1000
+    )
+    const internalUrl = process.env.INTERNAL_URL || 'http://localhost:3000'
+
+    try {
+      const member = await prisma.member.findUnique({ where: { email } })
+
+      if (!member || member.status !== MemberStatus.PENDING) {
+        res
+          .status(404)
+          .json({ message: 'Nenhum convite pendente encontrado para este e-mail.' })
+        return
+      }
+
+      await prisma.member.update({
+        where: { id: member.id },
+        data: { inviteToken: newToken, inviteTokenExpiresAt: newExpiresAt },
+      })
+
+      const inviteLink = `${internalUrl}/convite?token=${newToken}`
+      await sendEmail(
+        email,
+        'Novo convite para o sistema de Gestão Interna COMP',
+        `Olá!\n\nSeu convite foi renovado.\n\nClique no link abaixo para preencher seus dados e ativar sua conta:\n\n${inviteLink}\n\nEste link expira em ${INVITE_EXPIRY_DAYS} dias.\n\nEquipe COMP`
+      )
+
+      res.json({ message: `Convite reenviado para ${email}.` })
+    } catch (err) {
+      console.error(err)
+      res.status(500).json({ message: 'Falha ao reenviar o convite.' })
     }
   }) as RequestHandler,
 

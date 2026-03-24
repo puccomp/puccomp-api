@@ -109,6 +109,86 @@ describe('POST /api/auth/invite', () => {
   })
 })
 
+// ─── POST /api/auth/resend-invite ────────────────────────────────────────────
+
+describe('POST /api/auth/resend-invite', () => {
+  it('gera novo token e retorna 200 para membro PENDING', async () => {
+    const member = await createPendingMember('old-token')
+
+    const res = await request(app)
+      .post('/api/auth/resend-invite')
+      .send({ email: 'joao@sga.pucminas.br' })
+
+    expect(res.status).toBe(200)
+    expect(res.body.message).toMatch(/joao@sga\.pucminas\.br/)
+
+    const updated = await prisma.member.findUnique({
+      where: { id: member.id },
+    })
+    expect(updated!.inviteToken).not.toBe('old-token')
+    expect(updated!.inviteTokenExpiresAt!.getTime()).toBeGreaterThan(Date.now())
+  })
+
+  it('retorna 200 mesmo quando token anterior estava expirado', async () => {
+    await prisma.member.create({
+      data: {
+        email: 'joao@sga.pucminas.br',
+        name: null,
+        surname: null,
+        course: null,
+        entryDate: null,
+        isAdmin: false,
+        status: 'PENDING',
+        inviteToken: 'expired-token',
+        inviteTokenExpiresAt: new Date(Date.now() - 1000),
+      },
+    })
+
+    const res = await request(app)
+      .post('/api/auth/resend-invite')
+      .send({ email: 'joao@sga.pucminas.br' })
+
+    expect(res.status).toBe(200)
+  })
+
+  it('retorna 404 se o e-mail não existe', async () => {
+    const res = await request(app)
+      .post('/api/auth/resend-invite')
+      .send({ email: 'naoexiste@sga.pucminas.br' })
+
+    expect(res.status).toBe(404)
+  })
+
+  it('retorna 404 se o membro já está ACTIVE', async () => {
+    await prisma.member.create({
+      data: {
+        email: 'joao@sga.pucminas.br',
+        name: 'Joao',
+        surname: 'Silva',
+        course: 'CC',
+        entryDate: new Date('2026-01-15'),
+        isAdmin: false,
+        status: 'ACTIVE',
+        password: 'hashed',
+      },
+    })
+
+    const res = await request(app)
+      .post('/api/auth/resend-invite')
+      .send({ email: 'joao@sga.pucminas.br' })
+
+    expect(res.status).toBe(404)
+  })
+
+  it('retorna 400 para e-mail fora do domínio @sga.pucminas.br', async () => {
+    const res = await request(app)
+      .post('/api/auth/resend-invite')
+      .send({ email: 'joao@gmail.com' })
+
+    expect(res.status).toBe(400)
+  })
+})
+
 // ─── GET /api/auth/invite/:token ──────────────────────────────────────────────
 
 describe('GET /api/auth/invite/:token', () => {

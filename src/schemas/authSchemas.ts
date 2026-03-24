@@ -39,6 +39,13 @@ export const AcceptInviteSchema = z.object({
   // TODO: adicionar avatar_url quando upload de imagem estiver implementado (PATCH /members/:id/avatar)
 })
 
+export const ResendInviteSchema = z.object({
+  email: z
+    .string()
+    .min(1, 'E-mail é obrigatório.')
+    .endsWith('@sga.pucminas.br', 'O e-mail deve ser um endereço @sga.pucminas.br.'),
+})
+
 export const ForgotPasswordSchema = z.object({
   email: z.string().email('E-mail inválido.'),
 })
@@ -51,5 +58,6 @@ export const ResetPasswordSchema = z.object({
 export type LoginInput = z.infer<typeof LoginSchema>
 export type InviteInput = z.infer<typeof InviteSchema>
 export type AcceptInviteInput = z.infer<typeof AcceptInviteSchema>
+export type ResendInviteInput = z.infer<typeof ResendInviteSchema>
 export type ForgotPasswordInput = z.infer<typeof ForgotPasswordSchema>
 export type ResetPasswordInput = z.infer<typeof ResetPasswordSchema>

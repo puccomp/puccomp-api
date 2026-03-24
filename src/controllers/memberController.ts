@@ -154,9 +154,28 @@ const memberController = {
       return
     }
 
+    if (currentMember.status === 'PENDING') {
+      res.status(422).json({
+        message:
+          'Não é possível editar um membro com convite pendente. Delete e convide novamente se necessário.',
+      })
+      return
+    }
+
+    if (body.status === 'PENDING') {
+      res.status(422).json({
+        message: 'Não é possível definir o status de um membro como PENDING manualmente.',
+      })
+      return
+    }
+
     const effectiveStatus = body.status ?? currentMember.status
     const effectiveExitDate =
-      body.exit_date !== undefined ? body.exit_date : currentMember.exitDate
+      body.exit_date !== undefined
+        ? body.exit_date
+        : body.status === 'ACTIVE'
+          ? null
+          : currentMember.exitDate
 
     if (effectiveStatus === 'INACTIVE' && !effectiveExitDate) {
       res
@@ -191,6 +210,8 @@ const memberController = {
       if (entry_date) dataToUpdate.entryDate = new Date(entry_date)
       if (exit_date !== undefined)
         dataToUpdate.exitDate = exit_date ? new Date(exit_date) : null
+      else if (status === 'ACTIVE')
+        dataToUpdate.exitDate = null
       if (role_id) dataToUpdate.role = { connect: { id: role_id } }
 
       const updatedMember = await prisma.member.update({

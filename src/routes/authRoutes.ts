@@ -7,6 +7,7 @@ const router: Router = express.Router()
 
 router.post('/login', authController.login)
 router.post('/invite', isAuth, isAdmin, authController.invite)
+router.post('/resend-invite', isAuth, isAdmin, authController.resendInvite)
 router.get('/invite/:token', authController.getInvite)
 router.post('/accept-invite', authController.acceptInvite)
 router.post('/forgot-password', authController.forgotPassword)
