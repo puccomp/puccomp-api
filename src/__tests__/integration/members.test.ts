@@ -174,3 +174,47 @@ describe('PATCH /api/members/:id — membro ACTIVE', () => {
     expect(res.body.member.status).toBe('INACTIVE')
   })
 })
+
+// ─── PATCH /api/members/:id — reativação de membro INACTIVE ──────────────────
+
+describe('PATCH /api/members/:id — reativar membro INACTIVE', () => {
+  const createInactiveMember = async () =>
+    prisma.member.create({
+      data: {
+        email: 'inativo@sga.pucminas.br',
+        name: 'Ana',
+        surname: 'Lima',
+        course: 'CC',
+        entryDate: new Date('2024-01-15'),
+        exitDate: new Date('2025-12-01'),
+        isAdmin: false,
+        status: 'INACTIVE',
+        password: 'hashed',
+        roleId: testRoleId,
+      },
+    })
+
+  it('reativa membro com apenas { status: "ACTIVE" } e limpa exit_date', async () => {
+    const member = await createInactiveMember()
+
+    const res = await request(app)
+      .patch(`/api/members/${member.id}`)
+      .send({ status: 'ACTIVE' })
+
+    expect(res.status).toBe(200)
+    expect(res.body.member.status).toBe('ACTIVE')
+    expect(res.body.member.exit_date).toBeNull()
+  })
+
+  it('limpa exit_date no banco ao reativar', async () => {
+    const member = await createInactiveMember()
+
+    await request(app)
+      .patch(`/api/members/${member.id}`)
+      .send({ status: 'ACTIVE' })
+
+    const updated = await prisma.member.findUnique({ where: { id: member.id } })
+    expect(updated!.exitDate).toBeNull()
+    expect(updated!.status).toBe('ACTIVE')
+  })
+})
