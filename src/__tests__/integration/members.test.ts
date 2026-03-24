@@ -81,7 +81,7 @@ describe('PATCH /api/members/:id — membro PENDING', () => {
 
     const res = await request(app)
       .patch(`/api/members/${member.id}`)
-      .send({ name: 'Novo Nome' })
+      .send({ name: 'NovoNome' })
 
     expect(res.status).toBe(422)
     expect(res.body.message).toMatch(/pendente/)
