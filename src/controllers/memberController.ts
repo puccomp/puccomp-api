@@ -154,6 +154,21 @@ const memberController = {
       return
     }
 
+    if (currentMember.status === 'PENDING') {
+      res.status(422).json({
+        message:
+          'Não é possível editar um membro com convite pendente. Delete e convide novamente se necessário.',
+      })
+      return
+    }
+
+    if (body.status === 'PENDING') {
+      res.status(422).json({
+        message: 'Não é possível definir o status de um membro como PENDING manualmente.',
+      })
+      return
+    }
+
     const effectiveStatus = body.status ?? currentMember.status
     const effectiveExitDate =
       body.exit_date !== undefined ? body.exit_date : currentMember.exitDate
