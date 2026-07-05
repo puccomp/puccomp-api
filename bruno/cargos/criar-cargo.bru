@@ -1,0 +1,36 @@
+meta {
+  name: Criar cargo
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{base_url}}/v1/roles
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{access_token}}
+}
+
+body:json {
+  {
+    "name": "{{role_name}}",
+    "description": "{{role_description}}",
+    "hierarchy_level": {{role_hierarchy_lvl}},
+    "max_seats": {{role_max_seats}}
+  }
+}
+
+vars:pre-request {
+  role_name: Diretor
+  role_description: Coordena uma diretoria
+  role_hierarchy_lvl: 3
+  role_max_seats: 4
+}
+
+script:post-response {
+  if (res.getStatus() === 201)
+    bru.setEnvVar("role_id", res.getBody().id);
+}

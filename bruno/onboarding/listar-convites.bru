@@ -1,0 +1,30 @@
+meta {
+  name: Listar convites
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{base_url}}/v1/invitations
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{access_token}}
+}
+
+params:query {
+  ~page: 0
+  ~size: 10
+}
+
+script:post-response {
+  if (res.getStatus() === 200 && res.getBody().content.length > 0)
+    bru.setEnvVar("invitation_id", res.getBody().content[0].id);
+}
+
+docs {
+  Convites em aberto (não aceitos) da EJ, cada um com status PENDING ou EXPIRED. Salva o id do
+  primeiro em invitation_id, para usar em "Reenviar convite" / "Revogar convite".
+}

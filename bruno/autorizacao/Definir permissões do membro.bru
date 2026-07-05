@@ -1,0 +1,21 @@
+meta {
+  name: Definir permissões do membro
+  type: http
+  seq: 7
+}
+
+put {
+  url: {{base_url}}/v1/authz/members/{{member_id}}/permissions
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{access_token}}
+}
+
+body:json {
+  {
+    "permissions": ["roles:read"]
+  }
+}

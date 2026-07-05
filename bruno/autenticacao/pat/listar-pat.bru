@@ -1,0 +1,15 @@
+meta {
+  name: Listar PATs
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{base_url}}/v1/auth/pat
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{access_token}}
+}

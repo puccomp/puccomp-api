@@ -1,0 +1,26 @@
+meta {
+  name: Identidade autenticada
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{base_url}}/v1/auth/me
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{access_token}}
+}
+
+script:post-response {
+  if (res.getStatus() === 200 && res.getBody().member)
+    bru.setEnvVar("member_id", res.getBody().member.id);
+}
+
+docs {
+  Retorna a conta (email) + a EJ ativa (tenant_id) + o perfil do membro aninhado:
+  { tenant_id, email, member: { id, name, course, role, department, standing } }.
+  Não expõe account_id: a API identifica a pessoa pelo member_id (capturado aqui pra usar nos grants).
+}

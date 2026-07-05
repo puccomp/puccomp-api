@@ -1,0 +1,25 @@
+meta {
+  name: Aceitar convite
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{base_url}}/v1/invitations/accept
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "token": "{{invite_token}}",
+    "password": "{{member_password}}",
+    "name": "{{member_name}}",
+    "course": "COMPUTER_SCIENCE"
+  }
+}
+
+script:post-response {
+  if (res.getStatus() === 200) 
+    bru.setEnvVar("access_token", res.getBody().access_token);
+}

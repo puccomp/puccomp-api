@@ -1,0 +1,24 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/puccomp
+    username: puccomp
+    password: puccomp
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: true
+  mail:
+    host: localhost
+    port: 1025
+
+puccomp:
+  security:
+    jwt:
+      secret: dev-secret-change-me-please-pelo-menos-32-bytes-0123456789
+  onboarding:
+    accept-url-base: http://localhost:8080/aceitar-convite
+
+management:
+  tracing:
+    sampling:
+      probability: 1.0

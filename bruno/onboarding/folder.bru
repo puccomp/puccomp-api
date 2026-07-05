@@ -1,0 +1,15 @@
+meta {
+  name: onboarding
+}
+
+docs {
+  Onboarding por convite. O admin convida (precisa de members:invite; OWNER/ADMIN têm); o convidado
+  aceita definindo senha + perfil, o que cria seu Member + Account ligados e já o autentica.
+
+  Fluxo para testar:
+  1. Login (dono) em /autenticacao  → access_token
+  2. (opcional) Criar cargo em /cargos → role_id, e definir permissões do cargo em /autorizacao
+  3. "Criar convite" (usa role_id como cargo)  → o email cai no Mailpit: http://localhost:8025
+  4. Copie o token (inv_...) do email para a variável de ambiente invite_token
+  5. "Aceitar convite"  → cria a conta e salva novato_token; o novato já herda as permissões do cargo
+}

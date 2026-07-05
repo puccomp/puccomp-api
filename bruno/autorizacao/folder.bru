@@ -1,0 +1,16 @@
+meta {
+  name: autorizacao
+}
+
+docs {
+  Autorização fine-grained por tenant. O OWNER/ADMIN (standing do membro) podem tudo (superpoder de
+  plataforma); os demais recebem permissões do cargo (organization.Role) + grants extras do membro.
+
+  Fluxo sugerido para testar a barreira de permissão (todos os requests de login/identidade
+  ficam em /autenticacao):
+  1. "Login Conta" (dono)        → salva access_token (pode tudo)
+  2. "Login Membro"              → salva member_token (começa sem nenhuma permissão)
+  3. "Identidade do membro"      → salva member_id (id do membro/vínculo)
+  4. "Definir permissões do membro" usa {{member_id}} para conceder grants extras
+  5. Relogue o membro e veja as rotas liberando conforme as permissões concedidas.
+}

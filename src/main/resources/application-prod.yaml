@@ -1,0 +1,13 @@
+logging:
+  structured:
+    format:
+      console: ecs
+
+spring:
+  jpa:
+    show-sql: false
+
+management:
+  tracing:
+    sampling:
+      probability: 0.1

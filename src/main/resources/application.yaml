@@ -1,0 +1,53 @@
+spring:
+  application:
+    name: puccomp-api
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+  jackson:
+    property-naming-strategy: SNAKE_CASE
+  jpa:
+    hibernate:
+      ddl-auto: validate
+      naming:
+        physical-strategy: org.hibernate.boot.model.naming.CamelCaseToUnderscoresNamingStrategy
+    open-in-view: false
+  flyway:
+    enabled: true
+  profiles:
+    active: dev
+  mail:
+    host: ${MAIL_HOST}
+    port: ${MAIL_PORT}
+
+puccomp:
+  security:
+    jwt:
+      secret: ${JWT_SECRET}
+      access-token-ttl: 8h
+  onboarding:
+    accept-url-base: ${ONBOARDING_ACCEPT_URL}
+    from-address: ${ONBOARDING_FROM:nao-responda@puccomp.dev}
+    invitation-ttl: 72h
+
+server:
+  error:
+    include-stacktrace: never
+    include-exception: false
+    include-message: never
+    include-binding-errors: never
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, metrics, prometheus
+  otlp:
+    metrics:
+      export:
+        enabled: false
+
+springdoc:
+  swagger-ui:
+    path: /docs

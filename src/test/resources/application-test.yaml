@@ -1,0 +1,21 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/test
+    username: test
+    password: test
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+  flyway:
+    enabled: true
+  mail:
+    host: localhost
+    port: 1025
+
+puccomp:
+  security:
+    jwt:
+      secret: test-secret-pelo-menos-32-bytes-para-hs256-0123456789
+  onboarding:
+    accept-url-base: http://localhost/aceitar-convite

@@ -1,0 +1,15 @@
+meta {
+  name: Buscar membro por ID
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{base_url}}/v1/members/{{member_id}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{access_token}}
+}

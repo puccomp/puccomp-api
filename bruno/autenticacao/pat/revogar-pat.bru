@@ -1,0 +1,15 @@
+meta {
+  name: Revogar PAT
+  type: http
+  seq: 4
+}
+
+delete {
+  url: {{base_url}}/v1/auth/pat/{{pat_id}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{access_token}}
+}

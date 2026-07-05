@@ -1,0 +1,30 @@
+meta {
+  name: Criar PAT
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{base_url}}/v1/auth/pat
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{access_token}}
+}
+
+body:json {
+  {
+    "name": "{{pat_name}}",
+    "scopes": null,
+    "expires_at": null
+  }
+}
+
+script:post-response {
+  // O valor do token só aparece uma vez; salva para reutilizar nos testes.
+  if (res.getStatus() === 201) {
+    bru.setEnvVar("pat_token", res.getBody().token);
+  }
+}

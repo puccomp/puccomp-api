@@ -1,0 +1,20 @@
+meta {
+  name: Listar cargos
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{base_url}}/v1/roles
+  body: none
+  auth: bearer
+}
+
+params:query {
+  ~page: 0
+  ~size: 10
+}
+
+auth:bearer {
+  token: {{access_token}}
+}

@@ -1,0 +1,23 @@
+meta {
+  name: Login Membro
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{base_url}}/v1/auth/login
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "email": "{{member_email}}",
+    "password": "{{member_password}}"
+  }
+}
+
+script:post-response {
+  if (res.getStatus() === 200) 
+    bru.setEnvVar("access_token", res.getBody().access_token);
+}

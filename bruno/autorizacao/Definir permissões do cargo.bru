@@ -1,0 +1,21 @@
+meta {
+  name: Definir permissões do cargo
+  type: http
+  seq: 5
+}
+
+put {
+  url: {{base_url}}/v1/authz/roles/{{role_id}}/permissions
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{access_token}}
+}
+
+body:json {
+  {
+    "permissions": ["members:read", "members:write"]
+  }
+}

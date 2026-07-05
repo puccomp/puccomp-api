@@ -1,0 +1,31 @@
+meta {
+  name: Criar convite
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{base_url}}/v1/invitations
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{access_token}}
+}
+
+body:json {
+  {
+    "email": "novato@ejcomp.dev",
+    "standing": "STAFF",
+    "role_id": "{{role_id}}"
+  }
+}
+
+docs {
+  standing é opcional (default STAFF). Só quem é OWNER/ADMIN pode convidar com standing OWNER ou ADMIN
+  (senão 403). Não dá pra convidar quem já é membro desta EJ, nem a si mesmo (409).
+
+  O token cru NÃO volta na resposta — vai por email. Veja em http://localhost:8025 e copie o
+  inv_... para a variável de ambiente invite_token antes de "Aceitar convite".
+}
