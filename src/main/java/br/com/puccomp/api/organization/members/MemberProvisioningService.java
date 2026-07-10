@@ -1,8 +1,8 @@
 package br.com.puccomp.api.organization.members;
 
 import br.com.puccomp.api.organization.MemberProvisioning;
+import br.com.puccomp.api.organization.courses.Course;
 import br.com.puccomp.api.organization.roles.Role;
-import br.com.puccomp.api.shared.reference.Course;
 import br.com.puccomp.api.shared.reference.Standing;
 import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
@@ -26,11 +26,11 @@ class MemberProvisioningService implements MemberProvisioning {
 
     @Override
     @Transactional
-    public UUID createMember(UUID accountId, String name, Course course, UUID roleId, Standing standing) {
+    public UUID createMember(UUID accountId, String name, UUID courseId, UUID roleId, Standing standing) {
         var member = Member.builder()
                 .accountId(accountId)
                 .name(name)
-                .course(course)
+                .course(entityManager.getReference(Course.class, courseId))
                 .standing(standing)
                 .status(MemberStatus.ACTIVE)
                 .role(roleId != null ? entityManager.getReference(Role.class, roleId) : null)

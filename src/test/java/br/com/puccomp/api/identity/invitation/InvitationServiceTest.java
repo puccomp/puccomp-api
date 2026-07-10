@@ -2,13 +2,14 @@ package br.com.puccomp.api.identity.invitation;
 
 import br.com.puccomp.api.identity.account.*;
 import br.com.puccomp.api.identity.notification.Mailer;
+import br.com.puccomp.api.identity.tenant.TenantRepository;
 import br.com.puccomp.api.identity.token.JwtService;
+import br.com.puccomp.api.organization.CourseCatalog;
 import br.com.puccomp.api.organization.MemberDirectory;
 import br.com.puccomp.api.organization.MemberDirectory.Membership;
 import br.com.puccomp.api.organization.MemberProvisioning;
 import br.com.puccomp.api.shared.exception.ConflictException;
 import br.com.puccomp.api.shared.exception.ResourceNotFoundException;
-import br.com.puccomp.api.shared.reference.Course;
 import br.com.puccomp.api.shared.reference.Standing;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -38,8 +39,10 @@ class InvitationServiceTest {
 
     @Mock private InvitationRepository repository;
     @Mock private AccountRepository accounts;
+    @Mock private TenantRepository tenants;
     @Mock private MemberProvisioning memberProvisioning;
     @Mock private MemberDirectory memberDirectory;
+    @Mock private CourseCatalog courseCatalog;
     @Mock private InvitationAcceptor acceptor;
     @Mock private JwtService jwtService;
     @Mock private Mailer mailer;
@@ -185,7 +188,7 @@ class InvitationServiceTest {
         when(jwtService.accessTokenTtlSeconds()).thenReturn(28800L);
 
         LoginResponse response = service.accept(
-                new AcceptInvitationRequest("inv_token", "senha123", "Novato", Course.COMPUTER_SCIENCE));
+                new AcceptInvitationRequest("inv_token", "senha123", "Novato", UUID.randomUUID()));
 
         assertThat(response.accessToken()).isEqualTo("jwt-token");
         verify(acceptor).provision(any(), any());
@@ -197,7 +200,7 @@ class InvitationServiceTest {
         when(repository.findByTokenHash(any())).thenReturn(Optional.of(invitation(Instant.now().minusSeconds(3600))));
 
         assertThatThrownBy(() -> service.accept(
-                new AcceptInvitationRequest("inv_token", "senha123", "Novato", Course.COMPUTER_SCIENCE)))
+                new AcceptInvitationRequest("inv_token", "senha123", "Novato", UUID.randomUUID())))
                 .isInstanceOf(IllegalArgumentException.class);
         verify(acceptor, never()).provision(any(), any());
     }

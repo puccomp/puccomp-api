@@ -6,9 +6,9 @@ import br.com.puccomp.api.identity.account.AccountStatus;
 import br.com.puccomp.api.identity.tenant.Tenant;
 import br.com.puccomp.api.identity.tenant.TenantRepository;
 import br.com.puccomp.api.identity.tenant.TenantStatus;
+import br.com.puccomp.api.organization.CourseProvisioning;
 import br.com.puccomp.api.organization.MemberProvisioning;
 import br.com.puccomp.api.organization.RoleProvisioning;
-import br.com.puccomp.api.shared.reference.Course;
 import br.com.puccomp.api.shared.reference.Standing;
 import br.com.puccomp.api.shared.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
@@ -38,6 +38,7 @@ class DevDataSeeder implements ApplicationRunner {
     private final AccountRepository accounts;
     private final PasswordEncoder passwordEncoder;
     private final RoleProvisioning roleProvisioning;
+    private final CourseProvisioning courseProvisioning;
     private final MemberProvisioning memberProvisioning;
 
     @Override
@@ -57,10 +58,15 @@ class DevDataSeeder implements ApplicationRunner {
         try {
             UUID presidenteRoleId = roleProvisioning.createRole(
                     "Presidente", "Cargo de presidência da EJ", 0);
+            UUID cienciaComputacaoId = courseProvisioning.createCourse("Ciência da Computação");
+            courseProvisioning.createCourse("Ciência de Dados");
+            courseProvisioning.createCourse("Engenharia de Software");
+            courseProvisioning.createCourse("Engenharia de Computação");
+            courseProvisioning.createCourse("Sistemas de Informação");
             memberProvisioning.createMember(
-                    owner.getId(), OWNER_NAME, Course.COMPUTER_SCIENCE, presidenteRoleId, Standing.OWNER);
+                    owner.getId(), OWNER_NAME, cienciaComputacaoId, presidenteRoleId, Standing.OWNER);
             memberProvisioning.createMember(
-                    member.getId(), MEMBER_NAME, Course.COMPUTER_SCIENCE, null, Standing.STAFF);
+                    member.getId(), MEMBER_NAME, cienciaComputacaoId, null, Standing.STAFF);
         } finally {
             TenantContext.clear();
         }

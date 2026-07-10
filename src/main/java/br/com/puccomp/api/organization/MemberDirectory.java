@@ -1,6 +1,5 @@
 package br.com.puccomp.api.organization;
 
-import br.com.puccomp.api.shared.reference.Course;
 import br.com.puccomp.api.shared.reference.Standing;
 
 import java.util.List;
@@ -21,5 +20,5 @@ public interface MemberDirectory {
 
     record Membership(UUID memberId, UUID tenantId, Standing standing) { }
 
-    record MemberProfile(UUID id, String name, Course course, String role, String department) { }
+    record MemberProfile(UUID id, String name, String course, String role, String department) { }
 }

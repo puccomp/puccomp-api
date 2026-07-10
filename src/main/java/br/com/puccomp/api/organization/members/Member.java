@@ -1,8 +1,8 @@
 package br.com.puccomp.api.organization.members;
 
+import br.com.puccomp.api.organization.courses.Course;
 import br.com.puccomp.api.organization.departments.Department;
 import br.com.puccomp.api.organization.roles.Role;
-import br.com.puccomp.api.shared.reference.Course;
 import br.com.puccomp.api.shared.reference.Standing;
 import jakarta.persistence.*;
 import lombok.*;
@@ -40,8 +40,8 @@ public class Member {
     @Column(nullable = false)
     private MemberStatus status;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "course_id", nullable = false)
     private Course course;
 
     @ManyToOne(fetch = FetchType.LAZY)

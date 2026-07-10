@@ -1,0 +1,25 @@
+meta {
+  name: Prévia do convite
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{base_url}}/v1/invitations/accept?token={{invite_token}}
+  body: none
+  auth: none
+}
+
+params:query {
+  token: {{invite_token}}
+}
+
+docs {
+  Prévia pública do convite (autenticada apenas pelo token): retorna o nome da EJ e os
+  cursos disponíveis para preencher o aceite. Guarda o primeiro curso em `course_id`.
+}
+
+script:post-response {
+  if (res.getStatus() === 200 && res.getBody().courses.length > 0)
+    bru.setEnvVar("course_id", res.getBody().courses[0].id);
+}
