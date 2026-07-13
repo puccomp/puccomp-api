@@ -1,12 +1,12 @@
 package br.com.puccomp.api.identity.invitation;
 
 import br.com.puccomp.api.identity.account.*;
+import br.com.puccomp.api.organization.CourseCatalog;
 import br.com.puccomp.api.organization.MemberDirectory;
 import br.com.puccomp.api.organization.MemberDirectory.Membership;
 import br.com.puccomp.api.organization.MemberProvisioning;
 import br.com.puccomp.api.shared.exception.ConflictException;
 import br.com.puccomp.api.shared.exception.UnauthorizedException;
-import br.com.puccomp.api.shared.reference.Course;
 import br.com.puccomp.api.shared.reference.Standing;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -33,6 +33,7 @@ class InvitationAcceptorTest {
     @Mock private AccountRepository accounts;
     @Mock private MemberProvisioning memberProvisioning;
     @Mock private MemberDirectory memberDirectory;
+    @Mock private CourseCatalog courseCatalog;
     @Mock private PasswordEncoder passwordEncoder;
     @InjectMocks private InvitationAcceptor acceptor;
 
@@ -64,17 +65,19 @@ class InvitationAcceptorTest {
         UUID invId = UUID.randomUUID();
         UUID tenant = UUID.randomUUID();
         UUID cargo = UUID.randomUUID();
+        UUID course = UUID.randomUUID();
         UUID memberId = UUID.randomUUID();
         Invitation invitation = invitation(tenant, cargo);
         when(repository.findById(invId)).thenReturn(Optional.of(invitation));
         when(accounts.findByEmailIgnoreCase("novato@ej.dev")).thenReturn(Optional.empty());
         when(passwordEncoder.encode("senha123")).thenReturn("hash");
         when(accounts.save(any())).thenAnswer(inv -> inv.getArgument(0));
-        when(memberProvisioning.createMember(any(), eq("Novato"), eq(Course.COMPUTER_SCIENCE), eq(cargo),
+        when(courseCatalog.isAssignable(course)).thenReturn(true);
+        when(memberProvisioning.createMember(any(), eq("Novato"), eq(course), eq(cargo),
                 eq(Standing.STAFF))).thenReturn(memberId);
 
         InvitationAcceptor.Provisioned result = acceptor.provision(invId,
-                new AcceptInvitationRequest("inv_token", "senha123", "Novato", Course.COMPUTER_SCIENCE));
+                new AcceptInvitationRequest("inv_token", "senha123", "Novato", course));
 
         assertThat(invitation.getAcceptedAt()).isNotNull();
         assertThat(result.memberId()).isEqualTo(memberId);
@@ -90,17 +93,19 @@ class InvitationAcceptorTest {
     void shouldLinkExistingAccountToNewTenant() {
         UUID invId = UUID.randomUUID();
         UUID tenant = UUID.randomUUID();
+        UUID course = UUID.randomUUID();
         UUID memberId = UUID.randomUUID();
         Account existing = existingAccount();
         when(repository.findById(invId)).thenReturn(Optional.of(invitation(tenant, null)));
         when(accounts.findByEmailIgnoreCase("novato@ej.dev")).thenReturn(Optional.of(existing));
         when(passwordEncoder.matches("senha123", "hash")).thenReturn(true);
         when(memberDirectory.findMembership(existing.getId(), tenant)).thenReturn(Optional.empty());
-        when(memberProvisioning.createMember(eq(existing.getId()), eq("Novato"), eq(Course.COMPUTER_SCIENCE),
+        when(courseCatalog.isAssignable(course)).thenReturn(true);
+        when(memberProvisioning.createMember(eq(existing.getId()), eq("Novato"), eq(course),
                 isNull(), eq(Standing.STAFF))).thenReturn(memberId);
 
         InvitationAcceptor.Provisioned result = acceptor.provision(invId,
-                new AcceptInvitationRequest("inv_token", "senha123", "Novato", Course.COMPUTER_SCIENCE));
+                new AcceptInvitationRequest("inv_token", "senha123", "Novato", course));
 
         assertThat(result.memberId()).isEqualTo(memberId);
         verify(accounts, never()).save(any());
@@ -119,7 +124,7 @@ class InvitationAcceptorTest {
                 .thenReturn(Optional.of(new Membership(UUID.randomUUID(), tenant, Standing.STAFF)));
 
         assertThatThrownBy(() -> acceptor.provision(invId,
-                new AcceptInvitationRequest("inv_token", "senha123", "Novato", Course.COMPUTER_SCIENCE)))
+                new AcceptInvitationRequest("inv_token", "senha123", "Novato", UUID.randomUUID())))
                 .isInstanceOf(ConflictException.class);
         verify(memberProvisioning, never()).createMember(any(), any(), any(), any(), any());
         verify(accounts, never()).save(any());
@@ -135,7 +140,7 @@ class InvitationAcceptorTest {
         when(passwordEncoder.matches("senha123", "hash")).thenReturn(false);
 
         assertThatThrownBy(() -> acceptor.provision(invId,
-                new AcceptInvitationRequest("inv_token", "senha123", "Novato", Course.COMPUTER_SCIENCE)))
+                new AcceptInvitationRequest("inv_token", "senha123", "Novato", UUID.randomUUID())))
                 .isInstanceOf(UnauthorizedException.class);
         verify(memberProvisioning, never()).createMember(any(), any(), any(), any(), any());
         verify(accounts, never()).save(any());

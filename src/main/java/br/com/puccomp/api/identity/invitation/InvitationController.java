@@ -70,6 +70,14 @@ public class InvitationController {
         return service.resend(admin.tenantId(), id);
     }
 
+    @Operation(summary = "Prévia pública do convite: nome da EJ e cursos disponíveis para preencher o aceite")
+    @ApiResponse(responseCode = "400", description = "Convite inválido ou expirado",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    @GetMapping("/accept")
+    public InvitationPreviewResponse preview(@RequestParam String token) {
+        return service.preview(token);
+    }
+
     @Operation(summary = "Aceita um convite: define senha + perfil, cria a conta e já autentica")
     @ApiResponse(responseCode = "400", description = "Convite inválido ou expirado",
             content = @Content(schema = @Schema(implementation = ErrorResponse.class)))

@@ -48,7 +48,7 @@ class MemberDirectoryService implements MemberDirectory {
         return members.findById(memberId).map(m -> new MemberProfile(
                 m.getId(),
                 m.getName(),
-                m.getCourse(),
+                m.getCourse().getName(),
                 m.getRole() != null ? m.getRole().getName() : null,
                 m.getDepartment() != null ? m.getDepartment().getName() : null));
     }

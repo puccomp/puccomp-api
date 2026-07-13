@@ -33,7 +33,6 @@ class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/v1/auth/login").permitAll()
                         .requestMatchers("/v1/invitations/accept").permitAll()
-                        .requestMatchers("/v1/courses").permitAll()
                         .requestMatchers("/docs/**", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
                         .requestMatchers("/actuator/health").permitAll()
                         .requestMatchers("/error").permitAll()

@@ -7,5 +7,14 @@ meta {
 get {
   url: {{base_url}}/v1/courses
   body: none
-  auth: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{access_token}}
+}
+
+script:post-response {
+  if (res.getStatus() === 200 && res.getBody().length > 0)
+    bru.setEnvVar("course_id", res.getBody()[0].id);
 }
