@@ -2,6 +2,7 @@ package br.com.puccomp.api.organization.courses;
 
 import br.com.puccomp.api.organization.CourseCatalog;
 import br.com.puccomp.api.organization.CourseProvisioning;
+import br.com.puccomp.api.shared.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -19,6 +20,13 @@ class CourseService implements CourseCatalog, CourseProvisioning {
     @Transactional(readOnly = true)
     List<CourseResponse> findAll() {
         return repository.findAll(Sort.by("name")).stream().map(CourseResponse::from).toList();
+    }
+
+    @Transactional(readOnly = true)
+    CourseResponse findById(UUID id) {
+        return repository.findById(id)
+                .map(CourseResponse::from)
+                .orElseThrow(() -> new ResourceNotFoundException("Curso não encontrado"));
     }
 
     @Override
