@@ -7,6 +7,9 @@ A PUC COMP API é uma plataforma ERP SaaS multi-tenant e AI-first voltada para E
 Abaixo, segue alguns arquivos que em determinados momentos podem ser úteis para consultas:
 
 - [CONTRIBUTING.md](CONTRIBUTING.md): Define o fluxo de trabalho, padrões de código e convenções do projeto.
+- [docs/](docs/README.md): Índice e estratégia da documentação técnica e de arquitetura.
+- [docs/architecture/c4.md](docs/architecture/c4.md): Abordagem de arquitetura (C4 Model); Nível 3 gerado pelo Spring Modulith.
+- [docs/adr/](docs/adr/README.md): Architecture Decision Records — o "porquê" das decisões técnicas.
 
 ## Instruções
 
