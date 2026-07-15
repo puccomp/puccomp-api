@@ -1,6 +1,6 @@
 package br.com.puccomp.api.organization.courses;
 
-import br.com.puccomp.api.identity.token.PatRepository;
+//import br.com.puccomp.api.identity.token.PatRepository;
 import br.com.puccomp.api.organization.CourseCatalog;
 import br.com.puccomp.api.organization.CourseProvisioning;
 import br.com.puccomp.api.shared.exception.ConflictException;
@@ -8,7 +8,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import br.com.puccomp.api.shared.exception.ConflictException;
 
 import java.util.List;
 import java.util.UUID;
@@ -17,13 +16,8 @@ import java.util.UUID;
 @RequiredArgsConstructor
 class CourseService implements CourseCatalog, CourseProvisioning {
 
-    private final PatRepository patRepository;
     private final CourseRepository repository;
-
-    CourseService(PatRepository patRepository) {
-        this.patRepository = patRepository;
-    }
-
+    
     @Transactional(readOnly = true)
     List<CourseResponse> findAll() {
         return repository.findAll(Sort.by("name")).stream().map(CourseResponse::from).toList();
@@ -50,11 +44,11 @@ class CourseService implements CourseCatalog, CourseProvisioning {
     }
 
     @Transactional
-    CourseResponse creat(CourseRequest request){
+    CourseResponse create(CourseRequest request){
         String name = request.name().trim();
         if(repository.existsByNameIgnoreCase(name)){
             throw new ConflictException("Já existe um curso com esse nome");
         }
-        return CourseResponse.from(repository.save(Course.builder().name().build()));
+        return CourseResponse.from(repository.save(Course.builder().name(name).build()));
     }
 }
