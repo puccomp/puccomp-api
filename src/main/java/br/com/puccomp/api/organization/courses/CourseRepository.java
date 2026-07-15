@@ -10,4 +10,5 @@ interface CourseRepository extends JpaRepository<Course, UUID> {
     List<Course> findByActiveTrueOrderByNameAsc();
 
     boolean existsByIdAndActiveTrue(UUID id);
+    boolean existsByNameIgnoreCase(String name);
 }
