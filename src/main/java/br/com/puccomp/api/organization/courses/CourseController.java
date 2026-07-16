@@ -3,9 +3,13 @@ package br.com.puccomp.api.organization.courses;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 import br.com.puccomp.api.shared.exception.ErrorResponse;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -35,5 +39,16 @@ public class CourseController {
     @GetMapping("/{id}")
     public CourseResponse getById(@PathVariable UUID id) {
         return service.findById(id);
+    }
+
+    @Operation(summary = "Atualiza um curso (renomeia e/ou ativa/desativa)")
+    @ApiResponse(responseCode = "404", description = "Curso não encontrado",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    @ApiResponse(responseCode = "409", description = "Já existe um curso com esse nome",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    @PreAuthorize("hasAuthority('courses:write')")
+    @PatchMapping("/{id}")
+    public CourseResponse update(@PathVariable UUID id, @RequestBody @Valid CourseUpdateRequest request) {
+        return service.update(id, request);
     }
 }

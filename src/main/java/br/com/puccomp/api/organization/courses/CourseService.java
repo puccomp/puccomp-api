@@ -2,6 +2,7 @@ package br.com.puccomp.api.organization.courses;
 
 import br.com.puccomp.api.organization.CourseCatalog;
 import br.com.puccomp.api.organization.CourseProvisioning;
+import br.com.puccomp.api.shared.exception.ConflictException;
 import br.com.puccomp.api.shared.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Sort;
@@ -27,6 +28,24 @@ class CourseService implements CourseCatalog, CourseProvisioning {
         return repository.findById(id)
                 .map(CourseResponse::from)
                 .orElseThrow(() -> new ResourceNotFoundException("Curso não encontrado"));
+    }
+
+    @Transactional
+    CourseResponse update(UUID id, CourseUpdateRequest request) {
+        Course course = repository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Curso não encontrado"));
+
+        if (request.name() != null && !request.name().isBlank()) {
+            String name = request.name().trim();
+            if (repository.existsByNameIgnoreCaseAndIdNot(name, id))
+                throw new ConflictException("Já existe um curso com esse nome");
+            course.rename(name);
+        }
+
+        if (request.active() != null)
+            course.changeActive(request.active());
+
+        return CourseResponse.from(repository.save(course));
     }
 
     @Override
