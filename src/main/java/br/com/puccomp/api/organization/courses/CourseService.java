@@ -1,9 +1,9 @@
 package br.com.puccomp.api.organization.courses;
 
-//import br.com.puccomp.api.identity.token.PatRepository;
 import br.com.puccomp.api.organization.CourseCatalog;
 import br.com.puccomp.api.organization.CourseProvisioning;
 import br.com.puccomp.api.shared.exception.ConflictException;
+import br.com.puccomp.api.shared.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -21,6 +21,13 @@ class CourseService implements CourseCatalog, CourseProvisioning {
     @Transactional(readOnly = true)
     List<CourseResponse> findAll() {
         return repository.findAll(Sort.by("name")).stream().map(CourseResponse::from).toList();
+    }
+
+    @Transactional(readOnly = true)
+    CourseResponse findById(UUID id) {
+        return repository.findById(id)
+                .map(CourseResponse::from)
+                .orElseThrow(() -> new ResourceNotFoundException("Curso não encontrado"));
     }
 
     @Override
@@ -44,9 +51,9 @@ class CourseService implements CourseCatalog, CourseProvisioning {
     }
 
     @Transactional
-    CourseResponse create(CourseRequest request){
+    CourseResponse create(CourseRequest request) {
         String name = request.name().trim();
-        if(repository.existsByNameIgnoreCase(name)){
+        if (repository.existsByNameIgnoreCase(name)) {
             throw new ConflictException("Já existe um curso com esse nome");
         }
         return CourseResponse.from(repository.save(Course.builder().name(name).build()));
