@@ -1,0 +1,21 @@
+meta {
+    name: criar curso
+    type: http
+    seq: 3
+}
+
+post {
+    url: {{base_url}}/v1/courses
+    body: json
+    auth: bearer
+}
+
+auth:bearer {
+    token: {{acess_token}}
+}
+
+body:json {
+    {
+        "name": "Engenharia Elétrica"
+    }
+}
