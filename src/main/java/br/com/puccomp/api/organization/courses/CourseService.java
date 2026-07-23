@@ -17,7 +17,7 @@ import java.util.UUID;
 class CourseService implements CourseCatalog, CourseProvisioning {
 
     private final CourseRepository repository;
-
+    
     @Transactional(readOnly = true)
     List<CourseResponse> findAll() {
         return repository.findAll(Sort.by("name")).stream().map(CourseResponse::from).toList();
@@ -66,5 +66,14 @@ class CourseService implements CourseCatalog, CourseProvisioning {
     @Transactional
     public UUID createCourse(String name) {
         return repository.save(Course.builder().name(name.trim()).build()).getId();
+    }
+
+    @Transactional
+    CourseResponse create(CourseRequest request) {
+        String name = request.name().trim();
+        if (repository.existsByNameIgnoreCase(name)) {
+            throw new ConflictException("Já existe um curso com esse nome");
+        }
+        return CourseResponse.from(repository.save(Course.builder().name(name).build()));
     }
 }
