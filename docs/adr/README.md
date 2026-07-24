@@ -36,3 +36,4 @@ decisão antiga, crie um novo ADR e marque o antigo como `substituído por NNNN`
 | # | Título | Status |
 |---|---|---|
 | [0001](0001-monolito-modular-com-spring-modulith.md) | Monólito modular com Spring Modulith | aceito |
+| [0002](0002-armazenamento-s3.md) | Arquitetura de armazenamento de arquivos (S3) | proposto |
