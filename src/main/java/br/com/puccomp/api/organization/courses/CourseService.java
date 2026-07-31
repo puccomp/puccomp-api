@@ -30,6 +30,24 @@ class CourseService implements CourseCatalog, CourseProvisioning {
                 .orElseThrow(() -> new ResourceNotFoundException("Curso não encontrado"));
     }
 
+    @Transactional
+    CourseResponse update(UUID id, CourseUpdateRequest request) {
+        Course course = repository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Curso não encontrado"));
+
+        if (request.name() != null && !request.name().isBlank()) {
+            String name = request.name().trim();
+            if (repository.existsByNameIgnoreCaseAndIdNot(name, id))
+                throw new ConflictException("Já existe um curso com esse nome");
+            course.rename(name);
+        }
+
+        if (request.active() != null)
+            course.changeActive(request.active());
+
+        return CourseResponse.from(repository.save(course));
+    }
+
     @Override
     @Transactional(readOnly = true)
     public List<CourseOption> listActive() {

@@ -30,4 +30,12 @@ public class Course extends Auditable {
     @Builder.Default
     @Column(nullable = false)
     private boolean active = true;
+
+    void rename(String name) {
+        this.name = name;
+    }
+
+    void changeActive(boolean active) {
+        this.active = active;
+    }
 }
