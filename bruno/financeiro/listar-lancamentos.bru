@@ -1,0 +1,21 @@
+meta {
+  name: Listar lançamentos
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{base_url}}/v1/financial/entries?from=2026-07-01&to=2026-07-31&type=INCOME
+  body: none
+  auth: bearer
+}
+
+params:query {
+  from: 2026-07-01
+  to: 2026-07-31
+  type: INCOME
+}
+
+auth:bearer {
+  token: {{access_token}}
+}

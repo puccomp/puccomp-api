@@ -76,6 +76,6 @@ class PermissionServiceTest {
         assertThat(service.allAuthorities())
                 .containsExactlyInAnyOrder("members:read", "members:write", "members:invite",
                         "roles:read", "roles:write", "departments:read", "departments:write",
-                        "courses:write", "permissions:manage");
+                        "courses:write", "financial:read", "financial:write", "permissions:manage");
     }
 }

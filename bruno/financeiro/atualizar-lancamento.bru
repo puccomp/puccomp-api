@@ -1,0 +1,23 @@
+meta {
+  name: Atualizar lançamento
+  type: http
+  seq: 4
+}
+
+patch {
+  url: {{base_url}}/v1/financial/entries/{{financial_entry_id}}
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{access_token}}
+}
+
+body:json {
+  {
+    "value": 500.00,
+    "category": "Parcerias",
+    "receipt_url": ""
+  }
+}
