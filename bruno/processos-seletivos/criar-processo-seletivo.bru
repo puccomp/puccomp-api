@@ -1,0 +1,24 @@
+meta {
+  name: criar processo seletivo
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{base_url}}/v1/selection-processes
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{acess_token}}
+}
+
+body:json {
+  {
+    "title": "Processo Seletivo 2026.1",
+    "description": "Processo seletivo para novos membros da EJ COMP 2026.1",
+    "start_date": "2026-08-01T00:00:00Z",
+    "end_date": "2026-08-31T23:59:59Z"
+  }
+}

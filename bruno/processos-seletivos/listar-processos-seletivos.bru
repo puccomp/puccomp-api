@@ -1,0 +1,15 @@
+meta {
+  name: listar processos seletivos
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{base_url}}/v1/selection-processes
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{acess_token}}
+}

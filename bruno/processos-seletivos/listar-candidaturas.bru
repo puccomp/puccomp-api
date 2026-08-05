@@ -1,0 +1,15 @@
+meta {
+  name: Listar Candidaturas
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{baseUrl}}/v1/recruitment/processes/{{processId}}/applications?page=0&size=20&sort=submittedAt,desc
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
