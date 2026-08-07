@@ -121,10 +121,11 @@ Copie `local.bru` como `local.secrets.bru` e preencha os segredos necessários. 
 ## Pull Requests
 
 1. PR aponta para `develop` (ou `main` em hotfixes)
-2. Mínimo **1 aprovação** para mergear
-3. Merge via **squash** — todos os commits da branch viram 1 no destino
-4. Merge feito preferencialmente pelo techlead, mas qualquer aprovador pode mergear se necessário
-5. Ao abrir o PR, mova o card para **Aguardando revisão**
+2. CI precisa estar verde antes da revisão
+3. Mínimo **1 aprovação** para mergear
+4. Merge via **squash** — todos os commits da branch viram 1 no destino
+5. Merge feito preferencialmente pelo techlead, mas qualquer aprovador pode mergear se necessário
+6. Ao abrir o PR, mova o card para **Aguardando revisão**
 
 ## Padrões de Código
 
