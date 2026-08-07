@@ -1,7 +1,7 @@
 -- Dados de exemplo (cargos, departamentos e membros) para a EJ de desenvolvimento.
 -- Pressupõe que o tenant 'ej-comp' já exista — ele é criado no primeiro `bootRun` (DevDataSeeder).
 -- Tudo é escopado a esse tenant e idempotente: rodar de novo não duplica.
--- Os membros nascem sem conta vinculada (account_id NULL) e com standing STAFF; o dono continua
+-- Os membros nascem sem conta vinculada (account_id NULL) e com standing MEMBER; o dono continua
 -- sendo a conta OWNER criada pelo DevDataSeeder.
 
 -- cargos
@@ -46,7 +46,7 @@ ON CONFLICT (tenant_id, name) DO NOTHING;
 -- membros (course_id resolvido pelo nome do curso)
 WITH t AS (SELECT id FROM tenants WHERE slug = 'ej-comp')
 INSERT INTO members (id, tenant_id, account_id, name, standing, status, course_id, role_id, department_id)
-SELECT gen_random_uuid(), t.id, NULL, m.name, 'STAFF', m.status,
+SELECT gen_random_uuid(), t.id, NULL, m.name, 'MEMBER', m.status,
        (SELECT id FROM courses     WHERE tenant_id = t.id AND name = m.course),
        (SELECT id FROM roles       WHERE tenant_id = t.id AND name = m.role),
        (SELECT id FROM departments WHERE tenant_id = t.id AND name = m.department)

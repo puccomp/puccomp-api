@@ -100,13 +100,13 @@ class BearerAuthenticationFilter extends OncePerRequestFilter {
     private Set<String> effectivePermissions(AuthPrincipal principal) {
         if (principal.memberId() != null && memberDirectory.isReadOnly(principal.memberId()))
             return permissionResolver.readOnlyAuthorities();
-        if (isPlatformAdmin(principal.standing()))
+        if (hasOwnerStanding(principal.standing()))
             return permissionResolver.allAuthorities();
         return permissionResolver.resolveAuthorities(principal.memberId(), roleId(principal));
     }
 
-    private boolean isPlatformAdmin(Standing standing) {
-        return standing == Standing.OWNER || standing == Standing.ADMIN;
+    private boolean hasOwnerStanding(Standing standing) {
+        return standing == Standing.OWNER;
     }
 
     private UUID roleId(AuthPrincipal principal) {

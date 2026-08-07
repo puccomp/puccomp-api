@@ -52,9 +52,9 @@ class InvitationService {
                     throw new ConflictException("Essa pessoa já é membro desta EJ");
                 });
 
-        Standing standing = request.standing() == null ? Standing.STAFF : request.standing();
+        Standing standing = request.standing() == null ? Standing.MEMBER : request.standing();
         if (isPrivileged(standing) && !isPrivileged(admin.standing()))
-            throw new AccessDeniedException("Apenas OWNER ou ADMIN podem convidar com esse standing");
+            throw new AccessDeniedException("Apenas OWNER pode convidar com esse standing");
 
         if (request.roleId() != null && !memberProvisioning.roleExists(request.roleId()))
             throw new ResourceNotFoundException("Cargo não encontrado");
@@ -108,7 +108,7 @@ class InvitationService {
     }
 
     private static boolean isPrivileged(Standing standing) {
-        return standing == Standing.OWNER || standing == Standing.ADMIN;
+        return standing == Standing.OWNER;
     }
 
     private Invitation findOwned(UUID tenantId, UUID invitationId) {

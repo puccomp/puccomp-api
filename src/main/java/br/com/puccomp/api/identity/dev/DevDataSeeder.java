@@ -66,13 +66,13 @@ class DevDataSeeder implements ApplicationRunner {
             memberProvisioning.createMember(
                     owner.getId(), OWNER_NAME, cienciaComputacaoId, presidenteRoleId, Standing.OWNER);
             memberProvisioning.createMember(
-                    member.getId(), MEMBER_NAME, cienciaComputacaoId, null, Standing.STAFF);
+                    member.getId(), MEMBER_NAME, cienciaComputacaoId, null, Standing.MEMBER);
         } finally {
             TenantContext.clear();
         }
 
         log.info("[dev seed] Tenant '{}' criado. Contas: dono '{}' (senha {}, standing OWNER, cargo Presidente) "
-                + "e membro '{}' (senha {}, standing STAFF, sem cargo)",
+                + "e membro '{}' (senha {}, standing MEMBER, sem cargo)",
                 ej.getSlug(), OWNER_EMAIL, OWNER_PASSWORD, MEMBER_EMAIL, MEMBER_PASSWORD);
     }
 

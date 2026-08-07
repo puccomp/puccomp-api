@@ -120,7 +120,7 @@ class FinancialEntryIntegrationTest extends AbstractIntegrationTest {
     void shouldSeparateReadAndWritePermissions() {
         UUID tenant = seeder.seedTenant("EJ Permissões Financeiras", "ej-permissoes-fin");
         seeder.seedAccount(tenant, "dono-permissoes-fin@ej.dev", "senha123", Standing.OWNER);
-        UUID memberId = seeder.seedAccount(tenant, "membro-permissoes-fin@ej.dev", "senha123", Standing.STAFF);
+        UUID memberId = seeder.seedAccount(tenant, "membro-permissoes-fin@ej.dev", "senha123", Standing.MEMBER);
         String owner = login("dono-permissoes-fin@ej.dev", "senha123");
         String member = login("membro-permissoes-fin@ej.dev", "senha123");
 
