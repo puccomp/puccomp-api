@@ -17,13 +17,13 @@ auth:bearer {
 body:json {
   {
     "email": "novato@ejcomp.dev",
-    "standing": "STAFF",
+    "standing": "MEMBER",
     "role_id": "{{role_id}}"
   }
 }
 
 docs {
-  standing é opcional (default STAFF). Só quem é OWNER/ADMIN pode convidar com standing OWNER ou ADMIN
+  standing é opcional (default MEMBER). Só quem é OWNER pode convidar com standing OWNER
   (senão 403). Não dá pra convidar quem já é membro desta EJ, nem a si mesmo (409).
 
   O token cru NÃO volta na resposta — vai por email. Veja em http://localhost:8025 e copie o

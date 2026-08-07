@@ -41,12 +41,12 @@ class JwtServiceTest {
         UUID member = UUID.randomUUID();
         JwtService jwt = serviceWith(SECRET, Duration.ofHours(1));
 
-        Jwt decoded = jwt.decode(jwt.generateAccessToken(account(id), tenant, member, Standing.ADMIN));
+        Jwt decoded = jwt.decode(jwt.generateAccessToken(account(id), tenant, member, Standing.OWNER));
 
         assertThat(decoded.getSubject()).isEqualTo(id.toString());
         assertThat(decoded.getClaimAsString("tenant_id")).isEqualTo(tenant.toString());
         assertThat(decoded.getClaimAsString("email")).isEqualTo("dono@ej.dev");
-        assertThat(decoded.getClaimAsString("standing")).isEqualTo("ADMIN");
+        assertThat(decoded.getClaimAsString("standing")).isEqualTo("OWNER");
         assertThat(decoded.getClaimAsString("member_id")).isEqualTo(member.toString());
     }
 
@@ -56,7 +56,7 @@ class JwtServiceTest {
         Clock twoHoursAgo = Clock.fixed(Clock.systemUTC().instant().minusSeconds(7200), ZoneOffset.UTC);
         JwtService jwt = new JwtService(new JwtProperties(SECRET, Duration.ofHours(1)), twoHoursAgo);
         String token = jwt.generateAccessToken(account(UUID.randomUUID()), UUID.randomUUID(),
-                UUID.randomUUID(), Standing.STAFF);
+                UUID.randomUUID(), Standing.MEMBER);
 
         assertThatThrownBy(() -> jwt.decode(token)).isInstanceOf(JwtException.class);
     }
@@ -66,7 +66,7 @@ class JwtServiceTest {
     void shouldRejectTamperedSignature() {
         String token = serviceWith(SECRET, Duration.ofHours(1))
                 .generateAccessToken(account(UUID.randomUUID()), UUID.randomUUID(), UUID.randomUUID(),
-                        Standing.STAFF);
+                        Standing.MEMBER);
         JwtService other = serviceWith("outro-secret-com-pelo-menos-32-bytes-0987654321", Duration.ofHours(1));
 
         assertThatThrownBy(() -> other.decode(token)).isInstanceOf(JwtException.class);

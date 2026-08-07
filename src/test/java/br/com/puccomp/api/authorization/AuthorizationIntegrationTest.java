@@ -48,7 +48,7 @@ class AuthorizationIntegrationTest extends AbstractIntegrationTest {
     void shouldEnforcePermissionBarrier() {
         UUID tenant = seeder.seedTenant("EJ C", "ej-c");
         seeder.seedAccount(tenant, "dono-c@ej.dev", "senha123", Standing.OWNER);
-        UUID membroMemberId = seeder.seedAccount(tenant, "membro-c@ej.dev", "senha123", Standing.STAFF);
+        UUID membroMemberId = seeder.seedAccount(tenant, "membro-c@ej.dev", "senha123", Standing.MEMBER);
 
         String membro = login("membro-c@ej.dev", "senha123");
         String owner = login("dono-c@ej.dev", "senha123");
