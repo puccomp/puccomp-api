@@ -120,6 +120,8 @@ Copie `local.bru` como `local.secrets.bru` e preencha os segredos necessários. 
 
 ## Pull Requests
 
+Ao abrir a PR, a descrição já vem preenchida pelo [template padrão](.github/pull_request_template.md); preencha as seções antes de pedir revisão.
+
 1. PR aponta para `develop` (ou `main` em hotfixes)
 2. CI precisa estar verde antes da revisão
 3. Mínimo **1 aprovação** para mergear
