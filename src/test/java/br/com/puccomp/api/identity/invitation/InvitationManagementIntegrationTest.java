@@ -82,22 +82,22 @@ class InvitationManagementIntegrationTest extends AbstractIntegrationTest {
                 new HttpEntity<>(Map.of("email", "x@enum.dev", "standing", "BANANA"), headers), String.class);
 
         assertThat(res.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-        assertThat(res.getBody()).contains("STAFF").doesNotContain("br.com.puccomp");
+        assertThat(res.getBody()).contains("MEMBER").doesNotContain("br.com.puccomp");
     }
 
     @Test
-    @DisplayName("STAFF com members:invite não pode convidar com standing privilegiado: 403")
-    void shouldForbidStaffFromInvitingPrivilegedStanding() {
+    @DisplayName("MEMBER com members:invite não pode convidar com standing OWNER: 403")
+    void shouldForbidMemberFromInvitingOwnerStanding() {
         UUID tenant = seeder.seedTenant("EJ Escala", "ej-escala");
         seeder.seedAccount(tenant, "dono@escala.dev", "senha123", Standing.OWNER);
-        UUID staffId = seeder.seedAccount(tenant, "staff@escala.dev", "senha123", Standing.STAFF);
+        UUID memberId = seeder.seedAccount(tenant, "member@escala.dev", "senha123", Standing.MEMBER);
         String owner = login("dono@escala.dev", "senha123");
-        grant(owner, staffId, "members:invite");
+        grant(owner, memberId, "members:invite");
 
-        HttpHeaders headers = bearer(login("staff@escala.dev", "senha123"));
+        HttpHeaders headers = bearer(login("member@escala.dev", "senha123"));
         headers.setContentType(MediaType.APPLICATION_JSON);
         ResponseEntity<String> res = rest.exchange("/v1/invitations", HttpMethod.POST,
-                new HttpEntity<>(Map.of("email", "novo@escala.dev", "standing", "ADMIN"), headers), String.class);
+                new HttpEntity<>(Map.of("email", "novo@escala.dev", "standing", "OWNER"), headers), String.class);
 
         assertThat(res.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
     }
@@ -114,7 +114,7 @@ class InvitationManagementIntegrationTest extends AbstractIntegrationTest {
         HttpHeaders headers = bearer(ownerToken);
         headers.setContentType(MediaType.APPLICATION_JSON);
         ResponseEntity<Map<String, Object>> res = rest.exchange("/v1/invitations", HttpMethod.POST,
-                new HttpEntity<>(Map.of("email", email, "standing", "STAFF"), headers), map());
+                new HttpEntity<>(Map.of("email", email, "standing", "MEMBER"), headers), map());
         assertThat(res.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         return (String) res.getBody().get("id");
     }
