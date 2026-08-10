@@ -1,5 +1,6 @@
 package br.com.puccomp.api.financial;
 
+import br.com.puccomp.api.shared.exception.ErrorResponse;
 import br.com.puccomp.api.shared.reference.Standing;
 import br.com.puccomp.api.support.AbstractIntegrationTest;
 import br.com.puccomp.api.support.TestSeeder;
@@ -7,16 +8,11 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Import;
-import org.springframework.core.ParameterizedTypeReference;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 
 import java.math.BigDecimal;
-import java.util.LinkedHashMap;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -26,23 +22,29 @@ import static org.assertj.core.api.Assertions.assertThat;
 @Import(TestSeeder.class)
 class FinancialEntryIntegrationTest extends AbstractIntegrationTest {
 
+    private static final String ENTRIES = "/v1/financial/entries";
+
     @Autowired
     private TestSeeder seeder;
+
+    /** Só o que a listagem precisa devolver; o resto do envelope de paginação é ignorado pelo Jackson. */
+    private record EntryPage(List<FinancialEntryResponse> content) {
+    }
 
     @Test
     @DisplayName("a listagem filtra por período e por tipo de lançamento")
     void shouldFilterEntriesByPeriodAndType() {
         String owner = ownerOf("EJ Filtros", "ej-filtros-fin", "dono-filtros@ej.dev");
 
-        createEntry(owner, entry("2026-01-15", "420.00", "Patrocínio Empresa Beta", "INCOME", "Patrocínios"));
-        createEntry(owner, entry("2026-01-20", "85.50", "Coffee break", "EXPENSE", "Eventos"));
-        createEntry(owner, entry("2026-02-01", "300.00", "Mensalidades", "INCOME", "Mensalidades"));
+        createEntry(owner, entry("2026-01-15", "420.00", "Patrocínio Empresa Beta", FinancialEntryType.INCOME));
+        createEntry(owner, entry("2026-01-20", "85.50", "Coffee break", FinancialEntryType.EXPENSE));
+        createEntry(owner, entry("2026-02-01", "300.00", "Mensalidades", FinancialEntryType.INCOME));
 
-        assertThat(descriptions(list(owner, "?from=2026-01-01&to=2026-01-31")))
+        assertThat(descriptions(owner, "?from=2026-01-01&to=2026-01-31"))
                 .containsExactlyInAnyOrder("Patrocínio Empresa Beta", "Coffee break");
-        assertThat(descriptions(list(owner, "?type=INCOME")))
+        assertThat(descriptions(owner, "?type=INCOME"))
                 .containsExactlyInAnyOrder("Patrocínio Empresa Beta", "Mensalidades");
-        assertThat(descriptions(list(owner, "?from=2026-01-01&to=2026-01-31&type=INCOME")))
+        assertThat(descriptions(owner, "?from=2026-01-01&to=2026-01-31&type=INCOME"))
                 .containsExactly("Patrocínio Empresa Beta");
     }
 
@@ -51,8 +53,7 @@ class FinancialEntryIntegrationTest extends AbstractIntegrationTest {
     void shouldRejectPeriodStartingAfterItEnds() {
         String owner = ownerOf("EJ Período", "ej-periodo-fin", "dono-periodo@ej.dev");
 
-        ResponseEntity<Map<String, Object>> res = exchange(owner, HttpMethod.GET,
-                "/v1/financial/entries?from=2026-02-01&to=2026-01-01", null);
+        ResponseEntity<ErrorResponse> res = get(ENTRIES + "?from=2026-02-01&to=2026-01-01", owner, ErrorResponse.class);
 
         assertThat(res.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     }
@@ -62,11 +63,11 @@ class FinancialEntryIntegrationTest extends AbstractIntegrationTest {
     void shouldListNewestEntriesFirstByDefault() {
         String owner = ownerOf("EJ Extrato", "ej-extrato-fin", "dono-extrato@ej.dev");
 
-        createEntry(owner, entry("2026-05-10", "100.00", "Mais antigo", "INCOME", "Vendas"));
-        createEntry(owner, entry("2026-05-20", "100.00", "Mesmo dia, registrado antes", "INCOME", "Vendas"));
-        createEntry(owner, entry("2026-05-20", "100.00", "Mesmo dia, registrado depois", "INCOME", "Vendas"));
+        createEntry(owner, entry("2026-05-10", "100.00", "Mais antigo", FinancialEntryType.INCOME));
+        createEntry(owner, entry("2026-05-20", "100.00", "Mesmo dia, registrado antes", FinancialEntryType.INCOME));
+        createEntry(owner, entry("2026-05-20", "100.00", "Mesmo dia, registrado depois", FinancialEntryType.INCOME));
 
-        assertThat(descriptions(list(owner, "")))
+        assertThat(descriptions(owner, ""))
                 .containsExactly("Mesmo dia, registrado depois", "Mesmo dia, registrado antes", "Mais antigo");
     }
 
@@ -74,22 +75,24 @@ class FinancialEntryIntegrationTest extends AbstractIntegrationTest {
     @DisplayName("a atualização altera apenas os campos enviados e limpa o comprovante quando vem em branco")
     void shouldApplyOnlySentFieldsOnUpdate() {
         String owner = ownerOf("EJ Edição", "ej-edicao-fin", "dono-edicao@ej.dev");
-        Map<String, Object> created = createEntry(owner, entryWithReceipt("2026-06-01", "420.00",
-                "Patrocínio Empresa Beta", "INCOME", "Patrocínios", "https://example.com/recibos/beta"));
+        FinancialEntryResponse created = createEntry(owner, new FinancialEntryRequest(
+                LocalDate.parse("2026-06-01"), new BigDecimal("420.00"), "Patrocínio Empresa Beta",
+                FinancialEntryType.INCOME, "Patrocínios", "https://example.com/recibos/beta"));
 
-        ResponseEntity<Map<String, Object>> res = exchange(owner, HttpMethod.PATCH,
-                "/v1/financial/entries/" + created.get("id"),
-                Map.of("amount", new BigDecimal("500.00"), "category", "Parcerias", "receipt_url", ""));
+        FinancialEntryUpdateRequest onlyAmountAndCategory = new FinancialEntryUpdateRequest(
+                null, new BigDecimal("500.00"), null, null, "Parcerias", "");
+        ResponseEntity<FinancialEntryResponse> res = patch(ENTRIES + "/" + created.id(),
+                onlyAmountAndCategory, owner, FinancialEntryResponse.class);
 
         assertThat(res.getStatusCode()).isEqualTo(HttpStatus.OK);
-        Map<String, Object> updated = res.getBody();
-        assertThat(amountOf(updated)).isEqualTo("500.00");
-        assertThat(updated.get("category")).isEqualTo("Parcerias");
-        assertThat(updated.get("receipt_url")).isNull();
-        assertThat(updated.get("description")).isEqualTo(created.get("description"));
-        assertThat(updated.get("occurred_on")).isEqualTo(created.get("occurred_on"));
-        assertThat(updated.get("type")).isEqualTo(created.get("type"));
-        assertThat(updated.get("updated_at")).isNotEqualTo(created.get("updated_at"));
+        FinancialEntryResponse updated = res.getBody();
+        assertThat(updated.amount()).isEqualByComparingTo("500.00");
+        assertThat(updated.category()).isEqualTo("Parcerias");
+        assertThat(updated.receiptUrl()).isNull();
+        assertThat(updated.description()).isEqualTo(created.description());
+        assertThat(updated.occurredOn()).isEqualTo(created.occurredOn());
+        assertThat(updated.type()).isEqualTo(created.type());
+        assertThat(updated.updatedAt()).isAfter(created.updatedAt());
     }
 
     @Test
@@ -98,19 +101,18 @@ class FinancialEntryIntegrationTest extends AbstractIntegrationTest {
         String alfa = ownerOf("EJ Alfa", "ej-alfa-fin", "dono-alfa-fin@ej.dev");
         String beta = ownerOf("EJ Beta", "ej-beta-fin", "dono-beta-fin@ej.dev");
 
-        createEntry(alfa, entry("2026-03-01", "100.00", "Entrada Alfa", "INCOME", "Vendas"));
-        Map<String, Object> betaEntry = createEntry(beta, entry("2026-03-02", "200.00", "Entrada Beta", "INCOME", "Vendas"));
-        String betaEntryId = (String) betaEntry.get("id");
+        createEntry(alfa, entry("2026-03-01", "100.00", "Entrada Alfa", FinancialEntryType.INCOME));
+        UUID betaEntryId = createEntry(beta, entry("2026-03-02", "200.00", "Entrada Beta", FinancialEntryType.INCOME)).id();
 
-        assertThat(descriptions(list(alfa, ""))).containsExactly("Entrada Alfa");
-        assertThat(getWithToken("/v1/financial/entries/" + betaEntryId, alfa).getStatusCode())
+        assertThat(descriptions(alfa, "")).containsExactly("Entrada Alfa");
+        assertThat(get(ENTRIES + "/" + betaEntryId, alfa, ErrorResponse.class).getStatusCode())
                 .isEqualTo(HttpStatus.NOT_FOUND);
 
-        assertThat(exchange(alfa, HttpMethod.DELETE, "/v1/financial/entries/" + betaEntryId, null).getStatusCode())
+        assertThat(delete(ENTRIES + "/" + betaEntryId, alfa, ErrorResponse.class).getStatusCode())
                 .isEqualTo(HttpStatus.NOT_FOUND);
-        assertThat(exchange(beta, HttpMethod.DELETE, "/v1/financial/entries/" + betaEntryId, null).getStatusCode())
+        assertThat(delete(ENTRIES + "/" + betaEntryId, beta, Void.class).getStatusCode())
                 .isEqualTo(HttpStatus.NO_CONTENT);
-        assertThat(descriptions(list(beta, ""))).isEmpty();
+        assertThat(descriptions(beta, "")).isEmpty();
     }
 
     @Test
@@ -122,14 +124,13 @@ class FinancialEntryIntegrationTest extends AbstractIntegrationTest {
         String owner = login("dono-permissoes-fin@ej.dev", "senha123");
         String member = login("membro-permissoes-fin@ej.dev", "senha123");
 
-        assertThat(getWithToken("/v1/financial/entries", member).getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(get(ENTRIES, member, ErrorResponse.class).getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
 
         grantMemberPermissions(owner, memberId, List.of("financial:read"));
 
-        assertThat(getWithToken("/v1/financial/entries", member).getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(exchange(member, HttpMethod.POST, "/v1/financial/entries",
-                entry("2026-04-02", "50.00", "Nova venda", "INCOME", "Vendas")).getStatusCode())
-                .isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(get(ENTRIES, member, EntryPage.class).getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(post(ENTRIES, entry("2026-04-02", "50.00", "Nova venda", FinancialEntryType.INCOME),
+                member, ErrorResponse.class).getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
     }
 
     private String ownerOf(String tenantName, String slug, String email) {
@@ -138,59 +139,27 @@ class FinancialEntryIntegrationTest extends AbstractIntegrationTest {
         return login(email, "senha123");
     }
 
-    private Map<String, Object> createEntry(String token, Map<String, Object> body) {
-        ResponseEntity<Map<String, Object>> res = exchange(token, HttpMethod.POST, "/v1/financial/entries", body);
+    private FinancialEntryResponse createEntry(String token, FinancialEntryRequest request) {
+        ResponseEntity<FinancialEntryResponse> res = post(ENTRIES, request, token, FinancialEntryResponse.class);
         assertThat(res.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         return res.getBody();
     }
 
-    private ResponseEntity<Map<String, Object>> list(String token, String query) {
-        ResponseEntity<Map<String, Object>> res = exchange(token, HttpMethod.GET,
-                "/v1/financial/entries" + query, null);
+    private static FinancialEntryRequest entry(String occurredOn, String amount, String description,
+                                               FinancialEntryType type) {
+        return new FinancialEntryRequest(LocalDate.parse(occurredOn), new BigDecimal(amount),
+                description, type, "Vendas", null);
+    }
+
+    private List<String> descriptions(String token, String query) {
+        ResponseEntity<EntryPage> res = get(ENTRIES + query, token, EntryPage.class);
         assertThat(res.getStatusCode()).isEqualTo(HttpStatus.OK);
-        return res;
-    }
-
-    private static Map<String, Object> entry(String occurredOn, String amount, String description,
-                                             String type, String category) {
-        return entryWithReceipt(occurredOn, amount, description, type, category, null);
-    }
-
-    private static Map<String, Object> entryWithReceipt(String occurredOn, String amount, String description,
-                                                        String type, String category, String receiptUrl) {
-        Map<String, Object> body = new LinkedHashMap<>();
-        body.put("occurred_on", occurredOn);
-        body.put("amount", new BigDecimal(amount));
-        body.put("description", description);
-        body.put("type", type);
-        body.put("category", category);
-        body.put("receipt_url", receiptUrl);
-        return body;
+        return res.getBody().content().stream().map(FinancialEntryResponse::description).toList();
     }
 
     private void grantMemberPermissions(String ownerToken, UUID memberId, List<String> permissions) {
-        ResponseEntity<Map<String, Object>> res = exchange(ownerToken, HttpMethod.PUT,
-                "/v1/authz/members/" + memberId + "/permissions", Map.of("permissions", permissions));
+        ResponseEntity<String> res = put("/v1/authz/members/" + memberId + "/permissions",
+                Map.of("permissions", permissions), ownerToken, String.class);
         assertThat(res.getStatusCode()).isEqualTo(HttpStatus.OK);
-    }
-
-    private ResponseEntity<Map<String, Object>> exchange(String token, HttpMethod method,
-                                                         String path, Map<String, Object> body) {
-        HttpHeaders headers = new HttpHeaders();
-        headers.setBearerAuth(token);
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        return rest.exchange(path, method, new HttpEntity<>(body, headers),
-                new ParameterizedTypeReference<Map<String, Object>>() {});
-    }
-
-    @SuppressWarnings("unchecked")
-    private static List<String> descriptions(ResponseEntity<Map<String, Object>> page) {
-        return ((List<Map<String, Object>>) page.getBody().get("content")).stream()
-                .map(entry -> (String) entry.get("description"))
-                .toList();
-    }
-
-    private static String amountOf(Map<String, Object> entry) {
-        return new BigDecimal(entry.get("amount").toString()).setScale(2).toPlainString();
     }
 }
