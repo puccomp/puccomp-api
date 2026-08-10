@@ -11,9 +11,11 @@ get {
 }
 
 params:query {
-  from: 2026-07-01
-  to: 2026-07-31
-  type: INCOME
+  ~from: 2026-07-01
+  ~to: 2026-07-31
+  ~type: INCOME
+  ~page: 0
+  ~size: 10
 }
 
 auth:bearer {

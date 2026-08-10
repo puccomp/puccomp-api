@@ -30,88 +30,112 @@ class FinancialEntryIntegrationTest extends AbstractIntegrationTest {
     private TestSeeder seeder;
 
     @Test
-    @DisplayName("CRUD de lançamentos respeita filtros por período e tipo")
-    void shouldManageEntriesWithPeriodAndTypeFilters() {
-        UUID tenant = seeder.seedTenant("EJ Financeira", "ej-financeira");
-        seeder.seedAccount(tenant, "dono-financeiro@ej.dev", "senha123", Standing.OWNER);
-        String owner = login("dono-financeiro@ej.dev", "senha123");
+    @DisplayName("a listagem filtra por período e por tipo de lançamento")
+    void shouldFilterEntriesByPeriodAndType() {
+        String owner = ownerOf("EJ Filtros", "ej-filtros-fin", "dono-filtros@ej.dev");
 
-        Map<String, Object> income = createEntry(owner, entry("2026-01-15", "420.00",
-                "Patrocínio Empresa Beta", "INCOME", "Patrocínios", "https://example.com/recibos/beta"));
-        createEntry(owner, entry("2026-01-20", "85.50",
-                "Coffee break", "OUTCOME", "Eventos", null));
-        createEntry(owner, entry("2026-02-01", "300.00",
-                "Mensalidades", "INCOME", "Mensalidades", null));
+        createEntry(owner, entry("2026-01-15", "420.00", "Patrocínio Empresa Beta", "INCOME", "Patrocínios"));
+        createEntry(owner, entry("2026-01-20", "85.50", "Coffee break", "EXPENSE", "Eventos"));
+        createEntry(owner, entry("2026-02-01", "300.00", "Mensalidades", "INCOME", "Mensalidades"));
 
-        ResponseEntity<Map<String, Object>> filtered = exchange(owner, HttpMethod.GET,
-                "/v1/financial/entries?from=2026-01-01&to=2026-01-31&type=INCOME", null);
+        assertThat(descriptions(list(owner, "?from=2026-01-01&to=2026-01-31")))
+                .containsExactlyInAnyOrder("Patrocínio Empresa Beta", "Coffee break");
+        assertThat(descriptions(list(owner, "?type=INCOME")))
+                .containsExactlyInAnyOrder("Patrocínio Empresa Beta", "Mensalidades");
+        assertThat(descriptions(list(owner, "?from=2026-01-01&to=2026-01-31&type=INCOME")))
+                .containsExactly("Patrocínio Empresa Beta");
+    }
 
-        assertThat(filtered.getStatusCode()).isEqualTo(HttpStatus.OK);
-        List<Map<String, Object>> content = content(filtered);
-        assertThat(content).hasSize(1);
-        assertThat(content.getFirst().get("description")).isEqualTo("Patrocínio Empresa Beta");
+    @Test
+    @DisplayName("período com início depois do fim é recusado")
+    void shouldRejectPeriodStartingAfterItEnds() {
+        String owner = ownerOf("EJ Período", "ej-periodo-fin", "dono-periodo@ej.dev");
 
-        String id = (String) income.get("id");
-        ResponseEntity<Map<String, Object>> updated = exchange(owner, HttpMethod.PATCH,
-                "/v1/financial/entries/" + id,
-                Map.of("value", "500.00", "category", "Parcerias", "receipt_url", ""));
-
-        assertThat(updated.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(((Number) updated.getBody().get("value")).doubleValue()).isEqualTo(500.00);
-        assertThat(updated.getBody().get("category")).isEqualTo("Parcerias");
-        assertThat(updated.getBody().get("receipt_url")).isNull();
-
-        ResponseEntity<Map<String, Object>> invalidPeriod = exchange(owner, HttpMethod.GET,
+        ResponseEntity<Map<String, Object>> res = exchange(owner, HttpMethod.GET,
                 "/v1/financial/entries?from=2026-02-01&to=2026-01-01", null);
-        assertThat(invalidPeriod.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
 
-        ResponseEntity<Map<String, Object>> deleted = exchange(owner, HttpMethod.DELETE,
-                "/v1/financial/entries/" + id, null);
-        assertThat(deleted.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
-        assertThat(getWithToken("/v1/financial/entries/" + id, owner).getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(res.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     }
 
     @Test
-    @DisplayName("lançamentos financeiros são isolados entre tenants")
+    @DisplayName("sem ordenação explícita, o extrato vem do lançamento mais recente para o mais antigo")
+    void shouldListNewestEntriesFirstByDefault() {
+        String owner = ownerOf("EJ Extrato", "ej-extrato-fin", "dono-extrato@ej.dev");
+
+        createEntry(owner, entry("2026-05-10", "100.00", "Mais antigo", "INCOME", "Vendas"));
+        createEntry(owner, entry("2026-05-20", "100.00", "Mesmo dia, registrado antes", "INCOME", "Vendas"));
+        createEntry(owner, entry("2026-05-20", "100.00", "Mesmo dia, registrado depois", "INCOME", "Vendas"));
+
+        assertThat(descriptions(list(owner, "")))
+                .containsExactly("Mesmo dia, registrado depois", "Mesmo dia, registrado antes", "Mais antigo");
+    }
+
+    @Test
+    @DisplayName("a atualização altera apenas os campos enviados e limpa o comprovante quando vem em branco")
+    void shouldApplyOnlySentFieldsOnUpdate() {
+        String owner = ownerOf("EJ Edição", "ej-edicao-fin", "dono-edicao@ej.dev");
+        Map<String, Object> created = createEntry(owner, entryWithReceipt("2026-06-01", "420.00",
+                "Patrocínio Empresa Beta", "INCOME", "Patrocínios", "https://example.com/recibos/beta"));
+
+        ResponseEntity<Map<String, Object>> res = exchange(owner, HttpMethod.PATCH,
+                "/v1/financial/entries/" + created.get("id"),
+                Map.of("amount", new BigDecimal("500.00"), "category", "Parcerias", "receipt_url", ""));
+
+        assertThat(res.getStatusCode()).isEqualTo(HttpStatus.OK);
+        Map<String, Object> updated = res.getBody();
+        assertThat(amountOf(updated)).isEqualTo("500.00");
+        assertThat(updated.get("category")).isEqualTo("Parcerias");
+        assertThat(updated.get("receipt_url")).isNull();
+        assertThat(updated.get("description")).isEqualTo(created.get("description"));
+        assertThat(updated.get("occurred_on")).isEqualTo(created.get("occurred_on"));
+        assertThat(updated.get("type")).isEqualTo(created.get("type"));
+        assertThat(updated.get("updated_at")).isNotEqualTo(created.get("updated_at"));
+    }
+
+    @Test
+    @DisplayName("lançamentos financeiros são isolados entre EJs, inclusive na exclusão")
     void shouldIsolateEntriesBetweenTenants() {
-        UUID tenantA = seeder.seedTenant("EJ Alfa", "ej-alfa-fin");
-        UUID tenantB = seeder.seedTenant("EJ Beta", "ej-beta-fin");
-        seeder.seedAccount(tenantA, "dono-alfa-fin@ej.dev", "senha123", Standing.OWNER);
-        seeder.seedAccount(tenantB, "dono-beta-fin@ej.dev", "senha123", Standing.OWNER);
-        String tokenA = login("dono-alfa-fin@ej.dev", "senha123");
-        String tokenB = login("dono-beta-fin@ej.dev", "senha123");
+        String alfa = ownerOf("EJ Alfa", "ej-alfa-fin", "dono-alfa-fin@ej.dev");
+        String beta = ownerOf("EJ Beta", "ej-beta-fin", "dono-beta-fin@ej.dev");
 
-        createEntry(tokenA, entry("2026-03-01", "100.00", "Entrada Alfa", "INCOME", "Vendas", null));
-        Map<String, Object> betaEntry = createEntry(tokenB,
-                entry("2026-03-02", "200.00", "Entrada Beta", "INCOME", "Vendas", null));
+        createEntry(alfa, entry("2026-03-01", "100.00", "Entrada Alfa", "INCOME", "Vendas"));
+        Map<String, Object> betaEntry = createEntry(beta, entry("2026-03-02", "200.00", "Entrada Beta", "INCOME", "Vendas"));
+        String betaEntryId = (String) betaEntry.get("id");
 
-        ResponseEntity<String> listA = getWithToken("/v1/financial/entries", tokenA);
-
-        assertThat(listA.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(listA.getBody()).contains("Entrada Alfa").doesNotContain("Entrada Beta");
-        assertThat(getWithToken("/v1/financial/entries/" + betaEntry.get("id"), tokenA).getStatusCode())
+        assertThat(descriptions(list(alfa, ""))).containsExactly("Entrada Alfa");
+        assertThat(getWithToken("/v1/financial/entries/" + betaEntryId, alfa).getStatusCode())
                 .isEqualTo(HttpStatus.NOT_FOUND);
+
+        assertThat(exchange(alfa, HttpMethod.DELETE, "/v1/financial/entries/" + betaEntryId, null).getStatusCode())
+                .isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(exchange(beta, HttpMethod.DELETE, "/v1/financial/entries/" + betaEntryId, null).getStatusCode())
+                .isEqualTo(HttpStatus.NO_CONTENT);
+        assertThat(descriptions(list(beta, ""))).isEmpty();
     }
 
     @Test
-    @DisplayName("permissões financeiras separam leitura e escrita")
-    void shouldEnforceFinancialPermissions() {
+    @DisplayName("ler o financeiro não dá direito de lançar")
+    void shouldSeparateReadAndWritePermissions() {
         UUID tenant = seeder.seedTenant("EJ Permissões Financeiras", "ej-permissoes-fin");
         seeder.seedAccount(tenant, "dono-permissoes-fin@ej.dev", "senha123", Standing.OWNER);
         UUID memberId = seeder.seedAccount(tenant, "membro-permissoes-fin@ej.dev", "senha123", Standing.STAFF);
         String owner = login("dono-permissoes-fin@ej.dev", "senha123");
         String member = login("membro-permissoes-fin@ej.dev", "senha123");
-        createEntry(owner, entry("2026-04-01", "150.00", "Venda", "INCOME", "Vendas", null));
 
         assertThat(getWithToken("/v1/financial/entries", member).getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
 
         grantMemberPermissions(owner, memberId, List.of("financial:read"));
-        assertThat(getWithToken("/v1/financial/entries", member).getStatusCode()).isEqualTo(HttpStatus.OK);
 
-        ResponseEntity<Map<String, Object>> forbiddenWrite = exchange(member, HttpMethod.POST,
-                "/v1/financial/entries",
-                entry("2026-04-02", "50.00", "Nova venda", "INCOME", "Vendas", null));
-        assertThat(forbiddenWrite.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(getWithToken("/v1/financial/entries", member).getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(exchange(member, HttpMethod.POST, "/v1/financial/entries",
+                entry("2026-04-02", "50.00", "Nova venda", "INCOME", "Vendas")).getStatusCode())
+                .isEqualTo(HttpStatus.FORBIDDEN);
+    }
+
+    private String ownerOf(String tenantName, String slug, String email) {
+        UUID tenant = seeder.seedTenant(tenantName, slug);
+        seeder.seedAccount(tenant, email, "senha123", Standing.OWNER);
+        return login(email, "senha123");
     }
 
     private Map<String, Object> createEntry(String token, Map<String, Object> body) {
@@ -120,11 +144,23 @@ class FinancialEntryIntegrationTest extends AbstractIntegrationTest {
         return res.getBody();
     }
 
-    private static Map<String, Object> entry(String date, String value, String description,
-                                            String type, String category, String receiptUrl) {
+    private ResponseEntity<Map<String, Object>> list(String token, String query) {
+        ResponseEntity<Map<String, Object>> res = exchange(token, HttpMethod.GET,
+                "/v1/financial/entries" + query, null);
+        assertThat(res.getStatusCode()).isEqualTo(HttpStatus.OK);
+        return res;
+    }
+
+    private static Map<String, Object> entry(String occurredOn, String amount, String description,
+                                             String type, String category) {
+        return entryWithReceipt(occurredOn, amount, description, type, category, null);
+    }
+
+    private static Map<String, Object> entryWithReceipt(String occurredOn, String amount, String description,
+                                                        String type, String category, String receiptUrl) {
         Map<String, Object> body = new LinkedHashMap<>();
-        body.put("date", date);
-        body.put("value", new BigDecimal(value));
+        body.put("occurred_on", occurredOn);
+        body.put("amount", new BigDecimal(amount));
         body.put("description", description);
         body.put("type", type);
         body.put("category", category);
@@ -139,7 +175,7 @@ class FinancialEntryIntegrationTest extends AbstractIntegrationTest {
     }
 
     private ResponseEntity<Map<String, Object>> exchange(String token, HttpMethod method,
-                                                        String path, Map<String, Object> body) {
+                                                         String path, Map<String, Object> body) {
         HttpHeaders headers = new HttpHeaders();
         headers.setBearerAuth(token);
         headers.setContentType(MediaType.APPLICATION_JSON);
@@ -148,7 +184,13 @@ class FinancialEntryIntegrationTest extends AbstractIntegrationTest {
     }
 
     @SuppressWarnings("unchecked")
-    private static List<Map<String, Object>> content(ResponseEntity<Map<String, Object>> page) {
-        return (List<Map<String, Object>>) page.getBody().get("content");
+    private static List<String> descriptions(ResponseEntity<Map<String, Object>> page) {
+        return ((List<Map<String, Object>>) page.getBody().get("content")).stream()
+                .map(entry -> (String) entry.get("description"))
+                .toList();
+    }
+
+    private static String amountOf(Map<String, Object> entry) {
+        return new BigDecimal(entry.get("amount").toString()).setScale(2).toPlainString();
     }
 }

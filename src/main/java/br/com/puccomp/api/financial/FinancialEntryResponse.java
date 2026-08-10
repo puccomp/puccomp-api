@@ -7,8 +7,8 @@ import java.util.UUID;
 
 public record FinancialEntryResponse(
         UUID id,
-        LocalDate date,
-        BigDecimal value,
+        LocalDate occurredOn,
+        BigDecimal amount,
         String description,
         FinancialEntryType type,
         String category,
@@ -19,8 +19,8 @@ public record FinancialEntryResponse(
     static FinancialEntryResponse from(FinancialEntry entry) {
         return new FinancialEntryResponse(
                 entry.getId(),
-                entry.getDate(),
-                entry.getValue(),
+                entry.getOccurredOn(),
+                entry.getAmount(),
                 entry.getDescription(),
                 entry.getType(),
                 entry.getCategory(),

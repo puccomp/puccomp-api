@@ -36,31 +36,32 @@ public class FinancialEntry extends Auditable {
     @Column(name = "tenant_id", nullable = false, updatable = false)
     private UUID tenantId;
 
+    /** Data em que o dinheiro entrou ou saiu — não se confunde com a data de registro ({@code createdAt}). */
     @Column(nullable = false)
-    private LocalDate date;
+    private LocalDate occurredOn;
 
     @Column(nullable = false, precision = 14, scale = 2)
-    private BigDecimal value;
+    private BigDecimal amount;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 255)
     private String description;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(nullable = false, length = 20)
     private FinancialEntryType type;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 120)
     private String category;
 
-    @Column(name = "receipt_url")
+    @Column(name = "receipt_url", length = 500)
     private String receiptUrl;
 
-    void changeDate(LocalDate date) {
-        this.date = date;
+    void changeOccurredOn(LocalDate occurredOn) {
+        this.occurredOn = occurredOn;
     }
 
-    void changeValue(BigDecimal value) {
-        this.value = value;
+    void changeAmount(BigDecimal amount) {
+        this.amount = amount;
     }
 
     void changeDescription(String description) {
