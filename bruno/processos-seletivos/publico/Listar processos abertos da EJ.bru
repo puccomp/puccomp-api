@@ -1,0 +1,21 @@
+meta {
+  name: Listar processos abertos da EJ
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{base_url}}/v1/public/{{ej_slug}}/processes
+  body: none
+  auth: none
+}
+
+script:post-response {
+  if (res.getStatus() === 200 && res.getBody().length > 0)
+    bru.setEnvVar("process_id", res.getBody()[0].id);
+}
+
+docs {
+  Superfície anônima — sem Authorization. O tenant vem do slug da EJ na URL,
+  resolvido pelo PublicTenantFilter. Só processos OPEN aparecem aqui.
+}

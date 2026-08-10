@@ -20,6 +20,9 @@ public enum Permission {
 
     COURSES_WRITE("courses:write"),
 
+    RECRUITMENT_READ("recruitment:read"),
+    RECRUITMENT_WRITE("recruitment:write"),
+
     FINANCIAL_READ("financial:read"),
     FINANCIAL_WRITE("financial:write"),
 

@@ -26,10 +26,12 @@ alter table role_permissions drop constraint role_permissions_permission_check;
 alter table role_permissions add constraint role_permissions_permission_check
     check (permission in ('MEMBERS_READ','MEMBERS_WRITE','MEMBERS_INVITE',
         'ROLES_READ','ROLES_WRITE','DEPARTMENTS_READ','DEPARTMENTS_WRITE',
-        'PERMISSIONS_MANAGE','COURSES_WRITE','FINANCIAL_READ','FINANCIAL_WRITE'));
+        'PERMISSIONS_MANAGE','COURSES_WRITE','RECRUITMENT_READ','RECRUITMENT_WRITE',
+        'FINANCIAL_READ','FINANCIAL_WRITE'));
 
 alter table member_permissions drop constraint member_permissions_permission_check;
 alter table member_permissions add constraint member_permissions_permission_check
     check (permission in ('MEMBERS_READ','MEMBERS_WRITE','MEMBERS_INVITE',
         'ROLES_READ','ROLES_WRITE','DEPARTMENTS_READ','DEPARTMENTS_WRITE',
-        'PERMISSIONS_MANAGE','COURSES_WRITE','FINANCIAL_READ','FINANCIAL_WRITE'));
+        'PERMISSIONS_MANAGE','COURSES_WRITE','RECRUITMENT_READ','RECRUITMENT_WRITE',
+        'FINANCIAL_READ','FINANCIAL_WRITE'));
