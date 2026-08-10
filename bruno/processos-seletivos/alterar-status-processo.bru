@@ -1,0 +1,28 @@
+meta {
+  name: Alterar status do processo
+  type: http
+  seq: 5
+}
+
+patch {
+  url: {{base_url}}/v1/recruitment/processes/{{process_id}}/status
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{access_token}}
+}
+
+body:json {
+  {
+    "status": "OPEN"
+  }
+}
+
+docs {
+  Transições válidas: DRAFT → OPEN → CLOSED → FINISHED.
+  CANCELLED é alcançável de qualquer estado não-final.
+
+  Só um processo OPEN aparece na superfície pública e aceita inscrições.
+}

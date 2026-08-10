@@ -8,8 +8,8 @@ public record SelectionProcessResponse(
         String title,
         String description,
         SelectionProcessStatus status,
-        Instant startDate,
-        Instant endDate,
+        Instant opensAt,
+        Instant closesAt,
         Instant createdAt,
         Instant updatedAt
 ) {
@@ -19,8 +19,8 @@ public record SelectionProcessResponse(
                 process.getTitle(),
                 process.getDescription(),
                 process.getStatus(),
-                process.getStartDate(),
-                process.getEndDate(),
+                process.getOpensAt(),
+                process.getClosesAt(),
                 process.getCreatedAt(),
                 process.getUpdatedAt()
         );

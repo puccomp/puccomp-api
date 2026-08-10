@@ -23,6 +23,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 class SecurityConfig {
 
     private final BearerAuthenticationFilter bearerAuthenticationFilter;
+    private final PublicTenantFilter publicTenantFilter;
     private final RestAuthenticationEntryPoint authenticationEntryPoint;
     private final RestAccessDeniedHandler accessDeniedHandler;
 
@@ -34,7 +35,7 @@ class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/v1/auth/login").permitAll()
                         .requestMatchers("/v1/invitations/accept").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/v1/recruitment/processes/*/applications").permitAll()
+                        .requestMatchers("/v1/public/**").permitAll()
                         .requestMatchers("/docs/**", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
                         .requestMatchers("/actuator/health").permitAll()
                         .requestMatchers("/error").permitAll()
@@ -43,6 +44,7 @@ class SecurityConfig {
                         .authenticationEntryPoint(authenticationEntryPoint)
                         .accessDeniedHandler(accessDeniedHandler))
                 .addFilterBefore(bearerAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(publicTenantFilter, BearerAuthenticationFilter.class)
                 .build();
     }
 

@@ -1,13 +1,13 @@
 create table selection_processes (
     created_at timestamp(6) with time zone not null,
     updated_at timestamp(6) with time zone not null,
-    start_date timestamp(6) with time zone,
-    end_date timestamp(6) with time zone,
+    opens_at timestamp(6) with time zone,
+    closes_at timestamp(6) with time zone,
     id uuid not null,
     tenant_id uuid not null,
     title varchar(255) not null,
     description text,
-    status varchar(255) not null check (status in ('DRAFT','OPEN','IN_PROGRESS','COMPLETED','CANCELLED')),
+    status varchar(255) not null check (status in ('DRAFT','OPEN','CLOSED','FINISHED','CANCELLED')),
     primary key (id)
 );
 

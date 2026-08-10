@@ -1,6 +1,7 @@
 package br.com.puccomp.api.recruitment.processes;
 
 import br.com.puccomp.api.shared.audit.Auditable;
+import br.com.puccomp.api.shared.exception.ConflictException;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.TenantId;
@@ -34,21 +35,30 @@ public class SelectionProcess extends Auditable {
     @Column(nullable = false)
     private SelectionProcessStatus status;
 
-    @Column(name = "start_date")
-    private Instant startDate;
+    @Column(name = "opens_at")
+    private Instant opensAt;
 
-    @Column(name = "end_date")
-    private Instant endDate;
+    @Column(name = "closes_at")
+    private Instant closesAt;
 
-    public void update(String title, String description, Instant startDate, Instant endDate) {
+    public void update(String title, String description, Instant opensAt, Instant closesAt) {
         this.title = title;
         this.description = description;
-        this.startDate = startDate;
-        this.endDate = endDate;
+        this.opensAt = opensAt;
+        this.closesAt = closesAt;
     }
 
-    public void changeStatus(SelectionProcessStatus status) {
-        this.status = status;
+    public void changeStatusTo(SelectionProcessStatus target) {
+        if (status == target)
+            return;
+        if (!status.canTransitionTo(target))
+            throw new ConflictException("Não é possível mudar o processo de %s para %s".formatted(status, target));
+        this.status = target;
     }
 
+    /** Data nula significa "sem limite": aí só o status decide. */
+    public boolean acceptsCandidaciesAt(Instant now) {
+        return (opensAt == null || !now.isBefore(opensAt))
+                && (closesAt == null || now.isBefore(closesAt));
+    }
 }

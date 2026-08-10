@@ -1,30 +1,19 @@
 package br.com.puccomp.api.recruitment.processes;
 
-import br.com.puccomp.api.recruitment.applications.Application;
-import br.com.puccomp.api.recruitment.applications.ApplicationRepository;
-import br.com.puccomp.api.recruitment.applications.ApplicationResponse;
-import br.com.puccomp.api.recruitment.applications.ApplicationStatus;
-import br.com.puccomp.api.recruitment.applications.CreateApplicationRequest;
-import br.com.puccomp.api.shared.exception.ConflictException;
 import br.com.puccomp.api.shared.exception.ResourceNotFoundException;
-import br.com.puccomp.api.shared.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
-class SelectionProcessService {
+class SelectionProcessService implements ProcessDirectory {
 
     private final SelectionProcessRepository repository;
-    private final ApplicationRepository applicationRepository;
-    private final TransactionTemplate transactionTemplate;
 
     @Transactional(readOnly = true)
     List<SelectionProcessResponse> findAll() {
@@ -35,19 +24,17 @@ class SelectionProcessService {
 
     @Transactional(readOnly = true)
     SelectionProcessResponse findById(UUID id) {
-        return repository.findById(id)
-                .map(SelectionProcessResponse::from)
-                .orElseThrow(() -> new ResourceNotFoundException("Processo seletivo não encontrado"));
+        return SelectionProcessResponse.from(findOwned(id));
     }
 
     @Transactional
     SelectionProcessResponse create(SelectionProcessRequest request) {
         SelectionProcess process = SelectionProcess.builder()
                 .title(request.title().trim())
-                .description(request.description() != null ? request.description().trim() : null)
+                .description(trimmed(request.description()))
                 .status(SelectionProcessStatus.DRAFT)
-                .startDate(request.startDate())
-                .endDate(request.endDate())
+                .opensAt(request.opensAt())
+                .closesAt(request.closesAt())
                 .build();
 
         return SelectionProcessResponse.from(repository.save(process));
@@ -55,67 +42,55 @@ class SelectionProcessService {
 
     @Transactional
     SelectionProcessResponse update(UUID id, SelectionProcessRequest request) {
-        SelectionProcess process = repository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Processo seletivo não encontrado"));
-
+        SelectionProcess process = findOwned(id);
         process.update(
                 request.title().trim(),
-                request.description() != null ? request.description().trim() : null,
-                request.startDate(),
-                request.endDate());
+                trimmed(request.description()),
+                request.opensAt(),
+                request.closesAt());
 
         return SelectionProcessResponse.from(process);
     }
 
     @Transactional
     SelectionProcessResponse changeStatus(UUID id, SelectionProcessStatus status) {
-        SelectionProcess process = repository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Processo seletivo não encontrado"));
-
-        process.changeStatus(status);
+        SelectionProcess process = findOwned(id);
+        process.changeStatusTo(status);
         return SelectionProcessResponse.from(process);
     }
 
-    ApplicationResponse submitApplications(UUID processId, CreateApplicationRequest request) {
-        SelectionProcess process = repository.findByIdWithoutTenant(processId)
-                .orElseThrow(() -> new ResourceNotFoundException("Processo seletivo não encontrado"));
-
-        if (process.getStatus() != SelectionProcessStatus.OPEN) {
-            throw new IllegalArgumentException("Este processo seletivo não está aceitando candidaturas no momento");
-        }
-
-        TenantContext.set(process.getTenantId());
-
-        return transactionTemplate.execute(status -> {
-            if (applicationRepository.existsBySelectionProcessIdAndEmailIgnoreCase(processId, request.email())) {
-                throw new ConflictException("Você já enviou uma candidatura para este processo seletivo");
-            }
-
-            Application application = Application.builder()
-                    .tenantId(process.getTenantId())
-                    .selectionProcess(process)
-                    .fullName(request.fullName())
-                    .email(request.email())
-                    .phone(request.phone())
-                    .university(request.university())
-                    .course(request.course())
-                    .currentTerm(request.currentTerm())
-                    .linkedinUrl(request.linkedinUrl())
-                    .portfolioUrl(request.portfolioUrl())
-                    .status(ApplicationStatus.SUBMITTED)
-                    .privacyConsent(request.privacyConsent())
-                    .build();
-
-            return ApplicationResponse.from(applicationRepository.save(application));
-        });
+    @Transactional(readOnly = true)
+    List<PublicProcessResponse> listOpen() {
+        return repository.findByStatusOrderByCreatedAtDesc(SelectionProcessStatus.OPEN).stream()
+                .map(PublicProcessResponse::from)
+                .toList();
     }
 
     @Transactional(readOnly = true)
-    Page<ApplicationResponse> listApplications(UUID processId, Pageable pageable) {
-        repository.findById(processId)
+    PublicProcessResponse findOpenById(UUID id) {
+        return findOpen(id)
+                .map(PublicProcessResponse::from)
                 .orElseThrow(() -> new ResourceNotFoundException("Processo seletivo não encontrado"));
+    }
 
-        return applicationRepository.findBySelectionProcessId(processId, pageable)
-                .map(ApplicationResponse::from);
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<SelectionProcess> findOpen(UUID processId) {
+        return repository.findByIdAndStatus(processId, SelectionProcessStatus.OPEN);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean exists(UUID processId) {
+        return repository.existsById(processId);
+    }
+
+    private SelectionProcess findOwned(UUID id) {
+        return repository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Processo seletivo não encontrado"));
+    }
+
+    private static String trimmed(String value) {
+        return value == null ? null : value.trim();
     }
 }

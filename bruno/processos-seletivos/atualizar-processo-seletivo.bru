@@ -1,28 +1,24 @@
 meta {
-  name: atualizar processo seletivo
+  name: Atualizar processo seletivo
   type: http
   seq: 4
 }
 
 put {
-  url: {{base_url}}/v1/selection-processes/:id
+  url: {{base_url}}/v1/recruitment/processes/{{process_id}}
   body: json
   auth: bearer
 }
 
 auth:bearer {
-  token: {{acess_token}}
-}
-
-params:path {
-  id: 00000000-0000-0000-0000-000000000000
+  token: {{access_token}}
 }
 
 body:json {
   {
     "title": "Processo Seletivo 2026.1 (Atualizado)",
     "description": "Edital atualizado do processo seletivo",
-    "start_date": "2026-08-01T00:00:00Z",
-    "end_date": "2026-09-15T23:59:59Z"
+    "opens_at": "2026-08-01T00:00:00Z",
+    "closes_at": "2026-09-15T23:59:59Z"
   }
 }

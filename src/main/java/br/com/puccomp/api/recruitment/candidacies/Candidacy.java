@@ -1,4 +1,4 @@
-package br.com.puccomp.api.recruitment.applications;
+package br.com.puccomp.api.recruitment.candidacies;
 
 import br.com.puccomp.api.recruitment.processes.SelectionProcess;
 import br.com.puccomp.api.shared.audit.Auditable;
@@ -6,15 +6,16 @@ import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.TenantId;
 
+import java.time.Instant;
 import java.util.UUID;
 
 @Entity
-@Table(name = "applications")
+@Table(name = "candidacies")
 @Getter
 @Builder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
-public class Application extends Auditable {
+public class Candidacy extends Auditable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -26,7 +27,7 @@ public class Application extends Auditable {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "process_id", nullable = false)
-    private SelectionProcess selectionProcess;
+    private SelectionProcess process;
 
     @Column(name = "full_name", nullable = false)
     private String fullName;
@@ -34,16 +35,13 @@ public class Application extends Auditable {
     @Column(nullable = false)
     private String email;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 50)
     private String phone;
-
-    @Column(nullable = false)
-    private String university;
 
     @Column(nullable = false)
     private String course;
 
-    @Column(name = "current_term", nullable = false)
+    @Column(name = "current_term", nullable = false, length = 50)
     private String currentTerm;
 
     @Column(name = "linkedin_url")
@@ -53,9 +51,10 @@ public class Application extends Auditable {
     private String portfolioUrl;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private ApplicationStatus status;
+    @Column(nullable = false, length = 50)
+    private CandidacyStatus status;
 
-    @Column(name = "privacy_consent", nullable = false)
-    private boolean privacyConsent;
+    /** Instante do aceite, não um booleano: é ele que comprova o consentimento LGPD. */
+    @Column(name = "privacy_consent_at", nullable = false, updatable = false)
+    private Instant privacyConsentAt;
 }

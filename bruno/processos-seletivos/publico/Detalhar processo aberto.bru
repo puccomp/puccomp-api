@@ -1,0 +1,16 @@
+meta {
+  name: Detalhar processo aberto
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{base_url}}/v1/public/{{ej_slug}}/processes/{{process_id}}
+  body: none
+  auth: none
+}
+
+docs {
+  É o que o candidato vê antes de se inscrever. Um processo em DRAFT responde
+  404 aqui — indistinguível de inexistente para quem está de fora.
+}

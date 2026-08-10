@@ -1,8 +1,10 @@
 package br.com.puccomp.api.recruitment;
 
+import br.com.puccomp.api.recruitment.processes.ChangeStatusRequest;
 import br.com.puccomp.api.recruitment.processes.SelectionProcessRequest;
 import br.com.puccomp.api.recruitment.processes.SelectionProcessResponse;
 import br.com.puccomp.api.recruitment.processes.SelectionProcessStatus;
+import br.com.puccomp.api.shared.exception.ErrorResponse;
 import br.com.puccomp.api.shared.reference.Standing;
 import br.com.puccomp.api.support.AbstractIntegrationTest;
 import br.com.puccomp.api.support.TestSeeder;
@@ -11,9 +13,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Import;
 import org.springframework.core.ParameterizedTypeReference;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
@@ -30,72 +29,85 @@ class SelectionProcessIntegrationTest extends AbstractIntegrationTest {
     private TestSeeder seeder;
 
     @Test
-    @DisplayName("deve criar e listar processos seletivos para a EJ logada")
+    @DisplayName("deve criar processo em DRAFT e devolvê-lo na listagem da EJ")
     void shouldCreateAndListSelectionProcesses() {
-        UUID tenantId = seeder.seedTenant("EJ Recrutamento", "ej-recrutamento");
-        seeder.seedAccount(tenantId, "dono@recrutamento.dev", "senha123", Standing.OWNER);
+        String token = ownerOf("EJ Recrutamento", "ej-recrutamento", "dono@recrutamento.dev");
 
-        String token = login("dono@recrutamento.dev", "senha123");
-
-        SelectionProcessRequest request = new SelectionProcessRequest(
+        var request = new SelectionProcessRequest(
                 "Processo Seletivo 2026.1",
                 "Descrição do processo 2026.1",
                 Instant.now(),
-                Instant.now().plusSeconds(86400)
-        );
+                Instant.now().plusSeconds(86_400));
 
-        ResponseEntity<SelectionProcessResponse> createResponse = post("/v1/recruitment/processes", request, token, SelectionProcessResponse.class);
-        assertThat(createResponse.getStatusCode()).isEqualTo(HttpStatus.CREATED);
-        assertThat(createResponse.getBody()).isNotNull();
-        assertThat(createResponse.getBody().title()).isEqualTo("Processo Seletivo 2026.1");
-        assertThat(createResponse.getBody().status()).isEqualTo(SelectionProcessStatus.DRAFT);
+        ResponseEntity<SelectionProcessResponse> created =
+                post("/v1/recruitment/processes", request, token, SelectionProcessResponse.class);
+        assertThat(created.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        assertThat(created.getBody().title()).isEqualTo("Processo Seletivo 2026.1");
+        assertThat(created.getBody().status()).isEqualTo(SelectionProcessStatus.DRAFT);
 
-        UUID processId = createResponse.getBody().id();
-
-        ResponseEntity<SelectionProcessResponse> getResponse = getWithToken("/v1/recruitment/processes/" + processId, token, SelectionProcessResponse.class);
-        assertThat(getResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(getResponse.getBody()).isNotNull();
-        assertThat(getResponse.getBody().id()).isEqualTo(processId);
-
-        ResponseEntity<List<SelectionProcessResponse>> listResponse = getListWithToken("/v1/recruitment/processes", token);
-        assertThat(listResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(listResponse.getBody()).hasSize(1);
+        ResponseEntity<List<SelectionProcessResponse>> list = get("/v1/recruitment/processes", token,
+                new ParameterizedTypeReference<List<SelectionProcessResponse>>() { });
+        assertThat(list.getBody()).hasSize(1);
     }
 
     @Test
     @DisplayName("deve isolar processos seletivos entre empresas juniores diferentes")
     void shouldIsolateSelectionProcessesBetweenTenants() {
-        UUID tenantA = seeder.seedTenant("EJ Alpha", "ej-alpha");
-        seeder.seedAccount(tenantA, "dono@alpha.dev", "senha123", Standing.OWNER);
-        String tokenA = login("dono@alpha.dev", "senha123");
+        String tokenA = ownerOf("EJ Alpha", "ej-alpha", "dono@alpha.dev");
+        String tokenB = ownerOf("EJ Beta", "ej-beta", "dono@beta.dev");
 
-        UUID tenantB = seeder.seedTenant("EJ Beta", "ej-beta");
-        seeder.seedAccount(tenantB, "dono@beta.dev", "senha123", Standing.OWNER);
-        String tokenB = login("dono@beta.dev", "senha123");
+        UUID processId = createProcess(tokenA, "Processo Alpha");
 
-        SelectionProcessRequest requestA = new SelectionProcessRequest("Processo Alpha", "Edital A", null, null);
-        post("/v1/recruitment/processes", requestA, tokenA, SelectionProcessResponse.class);
-
-        ResponseEntity<List<SelectionProcessResponse>> listB = getListWithToken("/v1/recruitment/processes", tokenB);
-        assertThat(listB.getStatusCode()).isEqualTo(HttpStatus.OK);
+        ResponseEntity<List<SelectionProcessResponse>> listB = get("/v1/recruitment/processes", tokenB,
+                new ParameterizedTypeReference<List<SelectionProcessResponse>>() { });
         assertThat(listB.getBody()).isEmpty();
+
+        ResponseEntity<String> readB = getWithToken("/v1/recruitment/processes/" + processId, tokenB);
+        assertThat(readB.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
     }
 
-    private <T> ResponseEntity<T> post(String path, Object body, String bearerToken, Class<T> responseType) {
-        HttpHeaders headers = new HttpHeaders();
-        headers.setBearerAuth(bearerToken);
-        return rest.exchange(path, HttpMethod.POST, new HttpEntity<>(body, headers), responseType);
+    @Test
+    @DisplayName("deve recusar transição de status inválida")
+    void shouldRejectInvalidStatusTransition() {
+        String token = ownerOf("EJ Transicao", "ej-transicao", "dono@transicao.dev");
+        UUID processId = createProcess(token, "Processo");
+
+        ResponseEntity<ErrorResponse> jump = patch("/v1/recruitment/processes/" + processId + "/status",
+                new ChangeStatusRequest(SelectionProcessStatus.FINISHED), token, ErrorResponse.class);
+        assertThat(jump.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(jump.getBody().message()).contains("Não é possível mudar o processo de DRAFT para FINISHED");
+
+        assertThat(patch("/v1/recruitment/processes/" + processId + "/status",
+                new ChangeStatusRequest(SelectionProcessStatus.CANCELLED), token, SelectionProcessResponse.class)
+                .getBody().status()).isEqualTo(SelectionProcessStatus.CANCELLED);
+
+        ResponseEntity<ErrorResponse> reopen = patch("/v1/recruitment/processes/" + processId + "/status",
+                new ChangeStatusRequest(SelectionProcessStatus.OPEN), token, ErrorResponse.class);
+        assertThat(reopen.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
     }
 
-    private <T> ResponseEntity<T> getWithToken(String path, String bearerToken, Class<T> responseType) {
-        HttpHeaders headers = new HttpHeaders();
-        headers.setBearerAuth(bearerToken);
-        return rest.exchange(path, HttpMethod.GET, new HttpEntity<>(headers), responseType);
+    @Test
+    @DisplayName("deve recusar processo cuja data de término precede a de início")
+    void shouldRejectInvertedPeriod() {
+        String token = ownerOf("EJ Datas", "ej-datas", "dono@datas.dev");
+
+        Instant start = Instant.now();
+        ResponseEntity<ErrorResponse> response = post("/v1/recruitment/processes",
+                new SelectionProcessRequest("Processo", null, start, start.minusSeconds(3_600)),
+                token, ErrorResponse.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getBody().message()).contains("data de término deve ser posterior");
     }
 
-    private ResponseEntity<List<SelectionProcessResponse>> getListWithToken(String path, String bearerToken) {
-        HttpHeaders headers = new HttpHeaders();
-        headers.setBearerAuth(bearerToken);
-        return rest.exchange(path, HttpMethod.GET, new HttpEntity<>(headers), new ParameterizedTypeReference<List<SelectionProcessResponse>>() {});
+    private String ownerOf(String ejName, String slug, String email) {
+        UUID tenantId = seeder.seedTenant(ejName, slug);
+        seeder.seedAccount(tenantId, email, "senha123", Standing.OWNER);
+        return login(email, "senha123");
+    }
+
+    private UUID createProcess(String token, String title) {
+        return post("/v1/recruitment/processes", new SelectionProcessRequest(title, null, null, null),
+                token, SelectionProcessResponse.class).getBody().id();
     }
 }

@@ -1,6 +1,8 @@
 package br.com.puccomp.api.recruitment.processes;
 
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotBlank;
+
 import java.time.Instant;
 
 public record SelectionProcessRequest(
@@ -9,7 +11,12 @@ public record SelectionProcessRequest(
 
         String description,
 
-        Instant startDate,
+        Instant opensAt,
 
-        Instant endDate
-) { }
+        Instant closesAt
+) {
+    @AssertTrue(message = "A data de término deve ser posterior à de início")
+    public boolean isPeriodConsistent() {
+        return opensAt == null || closesAt == null || closesAt.isAfter(opensAt);
+    }
+}
