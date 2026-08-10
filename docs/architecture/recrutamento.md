@@ -4,7 +4,7 @@ Cobre o ciclo de entrada de novos membros: a EJ publica um processo seletivo e
 recebe inscrições por uma superfície pública.
 
 É o único módulo com **escrita anônima** — o porquê do desenho está na
-[ADR 0002](../adr/0002-superficie-publica-de-recrutamento.md). Não depende de
+[ADR 0003](../adr/0003-superficie-publica-de-recrutamento.md). Não depende de
 nenhum outro módulo de negócio, só de `shared`.
 
 ## Entidades
@@ -98,8 +98,10 @@ Se a resposta for "o service de outro pacote", falta uma porta ali.
 
 ## Pendências conhecidas
 
-- **Anexo de currículo** — aguarda a definição do módulo de arquivos. Até lá a
-  inscrição carrega só `linkedinUrl` e `portfolioUrl`.
-- **Campos de formulário por EJ** — hoje a ficha é fixa. Ver ADR 0002.
+- **Anexo de currículo** — depende do módulo de arquivos
+  ([ADR 0002](../adr/0002-armazenamento-s3.md)). Até lá a inscrição carrega só
+  `linkedinUrl` e `portfolioUrl`. Atenção: o upload aqui é **anônimo**, então
+  não cabe em URL pré-assinada emitida para um usuário autenticado.
+- **Campos de formulário por EJ** — hoje a ficha é fixa. Ver ADR 0003.
 - **Triagem** — mover inscrição entre etapas, com nota e parecer.
 - **`Candidate` como entidade** — histórico da pessoa entre processos.

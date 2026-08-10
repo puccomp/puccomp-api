@@ -12,13 +12,13 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.bind.annotation.RequestBody;
-
 
 import java.util.List;
 import java.util.UUID;
@@ -55,5 +55,16 @@ public class CourseController {
     @GetMapping("/{id}")
     public CourseResponse getById(@PathVariable UUID id) {
         return service.findById(id);
+    }
+
+    @Operation(summary = "Atualiza um curso (renomeia e/ou ativa/desativa)")
+    @ApiResponse(responseCode = "404", description = "Curso não encontrado",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    @ApiResponse(responseCode = "409", description = "Já existe um curso com esse nome",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    @PreAuthorize("hasAuthority('courses:write')")
+    @PatchMapping("/{id}")
+    public CourseResponse update(@PathVariable UUID id, @RequestBody @Valid CourseUpdateRequest request) {
+        return service.update(id, request);
     }
 }
