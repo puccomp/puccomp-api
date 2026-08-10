@@ -64,7 +64,9 @@ class FinancialEntryService {
         if (request.receiptUrl() != null)
             entry.changeReceiptUrl(blankToNull(request.receiptUrl()));
 
-        return FinancialEntryResponse.from(repository.save(entry));
+        // Sem o flush, a auditoria só escreve o updatedAt no commit — depois desta linha ler a
+        // entidade — e a resposta sai com o timestamp da criação.
+        return FinancialEntryResponse.from(repository.saveAndFlush(entry));
     }
 
     @Transactional
