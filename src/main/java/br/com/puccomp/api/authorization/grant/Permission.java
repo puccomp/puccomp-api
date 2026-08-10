@@ -23,6 +23,9 @@ public enum Permission {
     RECRUITMENT_READ("recruitment:read"),
     RECRUITMENT_WRITE("recruitment:write"),
 
+    FINANCIAL_READ("financial:read"),
+    FINANCIAL_WRITE("financial:write"),
+
     PERMISSIONS_MANAGE("permissions:manage");
 
     private static final Map<String, Permission> BY_CODE = Arrays.stream(values())

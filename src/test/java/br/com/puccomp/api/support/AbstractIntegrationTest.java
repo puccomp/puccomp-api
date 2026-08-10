@@ -54,6 +54,14 @@ public abstract class AbstractIntegrationTest {
         return rest.exchange(path, HttpMethod.PATCH, new HttpEntity<>(body, headers(bearerToken)), responseType);
     }
 
+    protected <T> ResponseEntity<T> put(String path, Object body, String bearerToken, Class<T> responseType) {
+        return rest.exchange(path, HttpMethod.PUT, new HttpEntity<>(body, headers(bearerToken)), responseType);
+    }
+
+    protected <T> ResponseEntity<T> delete(String path, String bearerToken, Class<T> responseType) {
+        return rest.exchange(path, HttpMethod.DELETE, new HttpEntity<>(headers(bearerToken)), responseType);
+    }
+
     /** {@code bearerToken} nulo monta uma requisição anônima — usado nos endpoints públicos. */
     private static HttpHeaders headers(String bearerToken) {
         HttpHeaders headers = new HttpHeaders();
