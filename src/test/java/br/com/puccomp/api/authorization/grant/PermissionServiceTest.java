@@ -75,7 +75,7 @@ class PermissionServiceTest {
     void shouldReturnFullCatalog() {
         assertThat(service.allAuthorities())
                 .containsExactlyInAnyOrder("members:read", "members:write", "members:invite",
-                        "roles:read", "roles:write", "departments:read", "departments:write",
-                        "courses:write", "permissions:manage");
+                        "roles:read", "roles:write", "departments:read", "departments:write", "courses:write",
+                        "recruitment:read", "recruitment:write", "permissions:manage");
     }
 }

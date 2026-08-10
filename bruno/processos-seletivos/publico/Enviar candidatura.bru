@@ -1,0 +1,29 @@
+meta {
+  name: Enviar candidatura
+  type: http
+  seq: 9
+}
+
+post {
+  url: {{base_url}}/v1/public/{{ej_slug}}/processes/{{process_id}}/candidacies
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "full_name": "Ana Souza",
+    "email": "ana@example.com",
+    "phone": "+55 31 99999-9999",
+    "course": "Ciência da Computação",
+    "current_term": "5º",
+    "linkedin_url": "https://www.linkedin.com/in/ana",
+    "portfolio_url": null,
+    "privacy_consent": true
+  }
+}
+
+docs {
+  Superfície anônima — sem Authorization. A resposta é só um comprovante
+  (id, status, data): não ecoa a PII enviada.
+}

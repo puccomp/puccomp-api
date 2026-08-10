@@ -35,8 +35,30 @@ public abstract class AbstractIntegrationTest {
     }
 
     protected ResponseEntity<String> getWithToken(String path, String bearerToken) {
+        return get(path, bearerToken, String.class);
+    }
+
+    protected <T> ResponseEntity<T> get(String path, String bearerToken, Class<T> responseType) {
+        return rest.exchange(path, HttpMethod.GET, new HttpEntity<>(headers(bearerToken)), responseType);
+    }
+
+    protected <T> ResponseEntity<T> get(String path, String bearerToken, ParameterizedTypeReference<T> responseType) {
+        return rest.exchange(path, HttpMethod.GET, new HttpEntity<>(headers(bearerToken)), responseType);
+    }
+
+    protected <T> ResponseEntity<T> post(String path, Object body, String bearerToken, Class<T> responseType) {
+        return rest.exchange(path, HttpMethod.POST, new HttpEntity<>(body, headers(bearerToken)), responseType);
+    }
+
+    protected <T> ResponseEntity<T> patch(String path, Object body, String bearerToken, Class<T> responseType) {
+        return rest.exchange(path, HttpMethod.PATCH, new HttpEntity<>(body, headers(bearerToken)), responseType);
+    }
+
+    /** {@code bearerToken} nulo monta uma requisição anônima — usado nos endpoints públicos. */
+    private static HttpHeaders headers(String bearerToken) {
         HttpHeaders headers = new HttpHeaders();
-        headers.setBearerAuth(bearerToken);
-        return rest.exchange(path, HttpMethod.GET, new HttpEntity<>(headers), String.class);
+        if (bearerToken != null)
+            headers.setBearerAuth(bearerToken);
+        return headers;
     }
 }
