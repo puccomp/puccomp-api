@@ -1,5 +1,6 @@
 package br.com.puccomp.api.organization.roles;
 
+import br.com.puccomp.api.organization.departments.Department;
 import br.com.puccomp.api.shared.audit.Auditable;
 import jakarta.persistence.*;
 import lombok.*;
@@ -32,6 +33,10 @@ public class Role extends Auditable {
 
     @Column
     private Integer maxSeats;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "department_id")
+    private Department department;
 
     @Builder.Default
     @Column(nullable = false)

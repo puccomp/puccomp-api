@@ -2,6 +2,7 @@ package br.com.puccomp.api.organization.roles;
 
 import br.com.puccomp.api.shared.exception.ErrorResponse;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -27,6 +28,8 @@ public class RoleController {
     @Operation(summary = "Cria um novo cargo")
     @ApiResponse(responseCode = "400", description = "Dados inválidos",
             content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    @ApiResponse(responseCode = "404", description = "Departamento não encontrado",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     @ApiResponse(responseCode = "409", description = "Já existe um cargo com esse nome",
             content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     @ResponseStatus(HttpStatus.CREATED)
@@ -39,8 +42,11 @@ public class RoleController {
     @Operation(summary = "Lista todos os cargos paginados")
     @PreAuthorize("hasAuthority('roles:read')")
     @GetMapping
-    public Page<RoleResponse> getAll(Pageable pageable) {
-        return service.findAll(pageable);
+    public Page<RoleResponse> getAll(
+            @Parameter(description = "Filtra os cargos de uma diretoria; id desconhecido devolve página vazia")
+            @RequestParam(required = false) UUID departmentId,
+            Pageable pageable) {
+        return service.findAll(departmentId, pageable);
     }
 
     @Operation(summary = "Busca cargo por ID")
