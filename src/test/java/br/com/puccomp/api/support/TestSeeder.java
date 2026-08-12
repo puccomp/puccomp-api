@@ -74,7 +74,7 @@ public class TestSeeder {
     public UUID seedCargo(UUID tenantId, String name) {
         TenantContext.set(tenantId);
         try {
-            return roleProvisioning.createRole(name, name, 0);
+            return roleProvisioning.createRole(name, name);
         } finally {
             TenantContext.clear();
         }

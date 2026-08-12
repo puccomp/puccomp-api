@@ -23,7 +23,6 @@ class RoleService {
         var role = Role.builder()
                 .name(name)
                 .description(request.description())
-                .hierarchyLevel(request.hierarchyLevel())
                 .maxSeats(request.maxSeats())
                 .build();
         return RoleResponse.from(repository.save(role));

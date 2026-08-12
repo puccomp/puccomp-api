@@ -4,5 +4,5 @@ import java.util.UUID;
 
 public interface RoleProvisioning {
 
-    UUID createRole(String name, String description, int hierarchyLevel);
+    UUID createRole(String name, String description);
 }

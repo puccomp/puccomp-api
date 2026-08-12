@@ -57,7 +57,7 @@ class DevDataSeeder implements ApplicationRunner {
         TenantContext.set(ej.getId());
         try {
             UUID presidenteRoleId = roleProvisioning.createRole(
-                    "Presidente", "Cargo de presidência da EJ", 0);
+                    "Presidente", "Cargo de presidência da EJ");
             UUID cienciaComputacaoId = courseProvisioning.createCourse("Ciência da Computação");
             courseProvisioning.createCourse("Ciência de Dados");
             courseProvisioning.createCourse("Engenharia de Software");

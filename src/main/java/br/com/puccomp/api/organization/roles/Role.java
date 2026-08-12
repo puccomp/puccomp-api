@@ -30,9 +30,6 @@ public class Role extends Auditable {
     @Column(nullable = false)
     private String description;
 
-    @Column(nullable = false)
-    private int hierarchyLevel;
-
     @Column
     private Integer maxSeats;
 

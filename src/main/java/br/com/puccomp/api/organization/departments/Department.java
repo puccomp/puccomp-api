@@ -1,6 +1,5 @@
 package br.com.puccomp.api.organization.departments;
 
-import br.com.puccomp.api.organization.roles.Role;
 import br.com.puccomp.api.shared.audit.Auditable;
 import jakarta.persistence.*;
 import lombok.*;
@@ -9,10 +8,8 @@ import org.hibernate.annotations.TenantId;
 import java.util.UUID;
 
 @Entity
-@Table(name = "departments", uniqueConstraints = {
-        @UniqueConstraint(name = "uk_departments_tenant_name", columnNames = {"tenant_id", "name"}),
-        @UniqueConstraint(name = "uk_departments_tenant_slug", columnNames = {"tenant_id", "slug"})
-})
+@Table(name = "departments", uniqueConstraints =
+        @UniqueConstraint(name = "uk_departments_tenant_name", columnNames = {"tenant_id", "name"}))
 @Getter
 @Builder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -31,14 +28,7 @@ public class Department extends Auditable {
     private String name;
 
     @Column(nullable = false)
-    private String slug;
-
-    @Column(nullable = false)
     private String description;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "lead_role_id")
-    private Role leadRole;
 
     @Builder.Default
     @Column(nullable = false)
