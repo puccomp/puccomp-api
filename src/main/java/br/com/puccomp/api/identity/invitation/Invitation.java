@@ -48,7 +48,7 @@ public class Invitation extends Auditable {
     @Column(name = "revoked_at")
     private Instant revokedAt;
 
-    @Column(name = "created_by_account_id", nullable = false)
+    @Column(name = "created_by_account_id")
     private UUID createdByAccountId;
 
     public boolean isUsable(Instant now) {

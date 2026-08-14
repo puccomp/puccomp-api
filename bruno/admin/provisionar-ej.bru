@@ -1,0 +1,52 @@
+meta {
+  name: Provisionar EJ
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{base_url}}/v1/admin/tenants
+  body: json
+  auth: none
+}
+
+headers {
+  x-puccomp-key: {{puccomp_admin_key}}
+}
+
+body:json {
+  {
+    "name": "{{tenant_name}}",
+    "slug": "{{tenant_slug}}",
+    "owner_email": "{{owner_email}}",
+    "courses": [
+      "Computacao",
+      "Administracao"
+    ]
+  }
+}
+
+vars:pre-request {
+  tenant_name: EJ Nova
+  tenant_slug: ej-nova
+  owner_email: owner@ejnova.dev
+}
+
+script:post-response {
+  if (res.getStatus() === 201) {
+    const body = res.getBody();
+    bru.setEnvVar("tenant_id", body.tenant_id);
+    bru.setEnvVar("invitation_id", body.invitation.id);
+
+    const acceptUrl = body.invitation.accept_url;
+    const match = acceptUrl.match(/[?&]token=([^&]+)/);
+    if (match) {
+      bru.setEnvVar("invite_token", decodeURIComponent(match[1]));
+    }
+  }
+}
+
+docs {
+  Requer PUCCOMP_ADMIN_KEY configurado no backend e a mesma chave em puccomp_admin_key.
+  A resposta encadeia tenant_id, invitation_id e invite_token para aceitar o convite.
+}
