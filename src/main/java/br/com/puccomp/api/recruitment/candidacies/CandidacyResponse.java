@@ -10,27 +10,25 @@ public record CandidacyResponse(
         String email,
         String phone,
         String course,
-        String currentTerm,
+        int currentTerm,
         String linkedinUrl,
         String portfolioUrl,
         CandidacyStatus status,
         Instant privacyConsentAt,
-        Instant submittedAt
-) {
+        Instant submittedAt) {
     public static CandidacyResponse from(Candidacy candidacy) {
         return new CandidacyResponse(
                 candidacy.getId(),
                 candidacy.getProcess().getId(),
-                candidacy.getFullName(),
-                candidacy.getEmail(),
-                candidacy.getPhone(),
+                candidacy.getCandidate().getFullName(),
+                candidacy.getCandidate().getEmail(),
+                candidacy.getCandidate().getPhone(),
                 candidacy.getCourse(),
                 candidacy.getCurrentTerm(),
-                candidacy.getLinkedinUrl(),
-                candidacy.getPortfolioUrl(),
+                candidacy.getCandidate().getLinkedinUrl(),
+                candidacy.getCandidate().getPortfolioUrl(),
                 candidacy.getStatus(),
                 candidacy.getPrivacyConsentAt(),
-                candidacy.getCreatedAt()
-        );
+                candidacy.getCreatedAt());
     }
 }
