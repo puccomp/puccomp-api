@@ -46,6 +46,10 @@ public class TestSeeder {
     }
 
     public UUID seedAccount(UUID tenantId, String email, String rawPassword, Standing standing) {
+        return seedAccount(tenantId, email, rawPassword, standing, null);
+    }
+
+    public UUID seedAccount(UUID tenantId, String email, String rawPassword, Standing standing, UUID roleId) {
         UUID accountId = accounts.save(Account.builder()
                 .email(email)
                 .passwordHash(passwordEncoder.encode(rawPassword))
@@ -56,7 +60,7 @@ public class TestSeeder {
             UUID courseId = courseCatalog.listActive().stream().findFirst()
                     .map(CourseCatalog.CourseOption::id)
                     .orElseGet(() -> courseProvisioning.createCourse("Ciência da Computação"));
-            return memberProvisioning.createMember(accountId, email, courseId, null, standing);
+            return memberProvisioning.createMember(accountId, email, courseId, roleId, standing);
         } finally {
             TenantContext.clear();
         }
