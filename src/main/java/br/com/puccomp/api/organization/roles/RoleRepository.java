@@ -12,6 +12,8 @@ interface RoleRepository extends JpaRepository<Role, UUID> {
 
     boolean existsByNameIgnoreCase(String name);
 
+    boolean existsByNameIgnoreCaseAndIdNot(String name, UUID id);
+
     @EntityGraph(attributePaths = "department")
     Page<Role> findAll(Pageable pageable);
 

@@ -46,8 +46,28 @@ class RoleService {
 
     @Transactional(readOnly = true)
     RoleResponse findById(UUID id) {
+        return RoleResponse.from(findRole(id));
+    }
+
+    @Transactional
+    RoleResponse update(UUID id, RoleUpdateRequest request) {
+        Role role = findRole(id);
+
+        String name = request.name().trim();
+        if (repository.existsByNameIgnoreCaseAndIdNot(name, id))
+            throw new ConflictException("Já existe um cargo com esse nome");
+
+        role.rename(name);
+        role.changeDescription(request.description());
+        role.changeDepartment(resolveDepartment(request.departmentId()));
+        role.changeMaxSeats(request.maxSeats());
+        role.changeActive(request.active());
+
+        return RoleResponse.from(repository.save(role));
+    }
+
+    private Role findRole(UUID id) {
         return repository.findById(id)
-                .map(RoleResponse::from)
                 .orElseThrow(() -> new ResourceNotFoundException("Cargo não encontrado"));
     }
 

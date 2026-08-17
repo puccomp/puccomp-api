@@ -41,4 +41,24 @@ public class Role extends Auditable {
     @Builder.Default
     @Column(nullable = false)
     private boolean active = true;
+
+    void rename(String name) {
+        this.name = name;
+    }
+
+    void changeDescription(String description) {
+        this.description = description;
+    }
+
+    void changeDepartment(Department department) {
+        this.department = department;
+    }
+
+    void changeMaxSeats(Integer maxSeats) {
+        this.maxSeats = maxSeats;
+    }
+
+    void changeActive(boolean active) {
+        this.active = active;
+    }
 }
