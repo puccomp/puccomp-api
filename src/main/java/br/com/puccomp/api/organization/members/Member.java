@@ -55,4 +55,9 @@ public class Member {
     public void changeStatus(MemberStatus status) {
         this.status = status;
     }
+
+    void assign(Role role, Department department) {
+        this.role = role;
+        this.department = department;
+    }
 }
