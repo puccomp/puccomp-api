@@ -10,7 +10,9 @@ Abaixo, segue alguns arquivos que em determinados momentos podem ser úteis para
 - [docs/](docs/README.md): Índice e estratégia da documentação técnica e de arquitetura.
 - [docs/architecture/c4.md](docs/architecture/c4.md): Abordagem de arquitetura (C4 Model); Nível 3 gerado pelo Spring Modulith.
 - [docs/adr/](docs/adr/README.md): Architecture Decision Records — o "porquê" das decisões técnicas.
+- [agents/skills/INDEX.md](agents/skills/INDEX.md): Registro das skills versionadas do projeto, origem, comandos de setup e estrategia de sincronizacao.
 
 ## Instruções
 
+- As skills adotadas pelo projeto ficam em [agents/skills/](agents/skills/) como fonte unica e neutra para Claude, Codex, Gemini e outros agentes.
 - Sempre que modificar o contrato da API, altere a [collection](./bruno) para refletir as mudanças.
