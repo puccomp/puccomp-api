@@ -44,7 +44,7 @@ jobs:
       - name: Configurar Credenciais AWS
         uses: aws-actions/configure-aws-credentials@v2
         with:
-          role-to-assume: arn:aws:iam::191018124550:role/github-actions-role
+          role-to-assume: arn:aws:iam::191018124550:role/GitHubActionsDeployRole
           aws-region: us-east-1
 
       # 5. Entra na EC2 via SSM e roda os comandos via AWS CLI
