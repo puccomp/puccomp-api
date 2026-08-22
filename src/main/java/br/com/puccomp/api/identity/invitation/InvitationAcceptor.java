@@ -3,9 +3,11 @@ package br.com.puccomp.api.identity.invitation;
 import br.com.puccomp.api.identity.account.Account;
 import br.com.puccomp.api.identity.account.AccountRepository;
 import br.com.puccomp.api.identity.account.AccountStatus;
+import br.com.puccomp.api.organization.CourseCatalog;
 import br.com.puccomp.api.organization.MemberDirectory;
 import br.com.puccomp.api.organization.MemberProvisioning;
 import br.com.puccomp.api.shared.exception.ConflictException;
+import br.com.puccomp.api.shared.exception.ResourceNotFoundException;
 import br.com.puccomp.api.shared.exception.UnauthorizedException;
 import br.com.puccomp.api.shared.reference.Standing;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +26,7 @@ class InvitationAcceptor {
     private final AccountRepository accounts;
     private final MemberProvisioning memberProvisioning;
     private final MemberDirectory memberDirectory;
+    private final CourseCatalog courseCatalog;
     private final PasswordEncoder passwordEncoder;
 
     @Transactional
@@ -40,8 +43,11 @@ class InvitationAcceptor {
                         .status(AccountStatus.ACTIVE)
                         .build()));
 
+        if (!courseCatalog.isAssignable(request.courseId()))
+            throw new ResourceNotFoundException("Curso não encontrado");
+
         var memberId = memberProvisioning.createMember(
-                account.getId(), request.name().trim(), request.course(), invitation.getRoleId(),
+                account.getId(), request.name().trim(), request.courseId(), invitation.getRoleId(),
                 invitation.getStanding());
 
         invitation.markAccepted(Instant.now());

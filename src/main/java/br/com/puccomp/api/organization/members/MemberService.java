@@ -15,10 +15,12 @@ class MemberService {
 
     private final MemberRepository repository;
 
+    @Transactional(readOnly = true)
     Page<MemberResponse> findAll(Pageable pageable) {
         return repository.findAll(pageable).map(MemberResponse::from);
     }
 
+    @Transactional(readOnly = true)
     MemberResponse findById(UUID id) {
         return repository.findById(id)
                 .map(MemberResponse::from)

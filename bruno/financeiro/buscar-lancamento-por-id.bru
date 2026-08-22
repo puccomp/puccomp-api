@@ -1,0 +1,15 @@
+meta {
+  name: Buscar lançamento por ID
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{base_url}}/v1/financial/entries/{{financial_entry_id}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{access_token}}
+}

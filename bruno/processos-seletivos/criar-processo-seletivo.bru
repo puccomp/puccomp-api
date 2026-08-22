@@ -1,0 +1,29 @@
+meta {
+  name: Criar processo seletivo
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{base_url}}/v1/recruitment/processes
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{access_token}}
+}
+
+body:json {
+  {
+    "title": "Processo Seletivo 2026.1",
+    "description": "Processo seletivo para novos membros da EJ COMP 2026.1",
+    "opens_at": "2026-08-01T00:00:00Z",
+    "closes_at": "2026-08-31T23:59:59Z"
+  }
+}
+
+script:post-response {
+  if (res.getStatus() === 201)
+    bru.setEnvVar("process_id", res.getBody().id);
+}

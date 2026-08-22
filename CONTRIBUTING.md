@@ -121,10 +121,11 @@ Copie `local.bru` como `local.secrets.bru` e preencha os segredos necessários. 
 ## Pull Requests
 
 1. PR aponta para `develop` (ou `main` em hotfixes)
-2. Mínimo **1 aprovação** para mergear
-3. Merge via **squash** — todos os commits da branch viram 1 no destino
-4. Merge feito preferencialmente pelo techlead, mas qualquer aprovador pode mergear se necessário
-5. Ao abrir o PR, mova o card para **Aguardando revisão**
+2. CI precisa estar verde antes da revisão
+3. Mínimo **1 aprovação** para mergear
+4. Merge via **squash** — todos os commits da branch viram 1 no destino
+5. Merge feito preferencialmente pelo techlead, mas qualquer aprovador pode mergear se necessário
+6. Ao abrir o PR, mova o card para **Aguardando revisão**
 
 ## Padrões de Código
 
@@ -137,15 +138,14 @@ A regra é simples: **tudo que é estrutura é inglês; tudo que é prosa para h
 | Classes, métodos, variáveis | Inglês | `camelCase` |
 | Entidades e colunas do banco | Inglês | `snake_case` |
 | Campos JSON (chaves de request/response) | Inglês | `snake_case` |
-| URLs / endpoints | Inglês | `/v1/members`, `/v1/roles` |
-| **Valor** das mensagens de erro | Português | `"Membro não encontrado"` |
-| **Valor** de enum (contrato/banco) | Inglês | `COMPUTER_SCIENCE` |
-| **Label** de exibição de enum | Português | `"Ciência da Computação"` |
+| Endpoints | Inglês | `/v1/members`, `/v1/roles` |
+| Valor das mensagens de erro | Português | `"Membro não encontrado"` |
+| Valor de enum | Inglês | `OWNER`, `ACTIVE` |
+| Label de exibição de enum | Português | `"Dono"`, `"Ativo"` |
 | Comentários, Javadoc, documentação OAS | Português | — |
 
 O Jackson e o Hibernate estão configurados para `snake_case` automaticamente — um campo Java `createdAt` vira `created_at` no JSON e no banco sem anotação manual.
 
-**Enums de referência (valor vs. label).** O valor do enum é estrutura — fica em inglês e **nunca** é traduzido no contrato (`"course": "COMPUTER_SCIENCE"`). O texto em português é prosa de exibição: mora num `label` no próprio enum e é entregue à UI por um endpoint de referência (`GET /v1/courses` → `[{ "value": "COMPUTER_SCIENCE", "label": "Ciência da Computação" }]`). O front cacheia essa lista e resolve `value → label` na tela — fonte única da verdade, sem string traduzida duplicada no código do front nem embutida em cada resposta.
 
 ### Legibilidade
 
@@ -184,7 +184,7 @@ com.puccomp.api
 
 **Visibilidade dentro do módulo.** Público apenas o que é contrato: `controller` (porta de entrada) e DTOs de request/response. Implementação — `service`, `repository` — é *package-private*.
 
-**Spring Modulith valida isso.** `ModularityTests.verify()` quebra o build se um módulo acessar o interno de outro, e gera diagramas dos módulos em `build/spring-modulith-docs`. `shared` e `config` são módulos `OPEN` (transversais, sem encapsulamento — todos podem usar). Ex.: `Course` vive em `shared/reference/` por ser usado por mais de um módulo; `MemberStatus` é exclusivo de membros e fica em `organization/members/`.
+**Spring Modulith valida isso.** `ModularityTests.verify()` quebra o build se um módulo acessar o interno de outro, e gera diagramas dos módulos em `build/spring-modulith-docs`. `shared` e `config` são módulos `OPEN` (transversais, sem encapsulamento — todos podem usar). Ex.: `Standing` vive em `shared/reference/` por ser usado por mais de um módulo; `MemberStatus` é exclusivo de membros e fica em `organization/members/`.
 
 ### Java
 
@@ -247,7 +247,7 @@ No primeiro boot com o banco vazio, o `DevDataSeeder` cria a EJ `ej-comp` e duas
 | Conta | Email | Senha | Standing | Cargo |
 |---|---|---|---|---|
 | Dono | `dono@ejcomp.dev` | `dono123` | `OWNER` | Presidente |
-| Membro | `membro@ejcomp.dev` | `membro123` | `STAFF` | — |
+| Membro | `membro@ejcomp.dev` | `membro123` | `MEMBER` | — |
 
 **Serviços e portas:**
 

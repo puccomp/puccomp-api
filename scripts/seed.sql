@@ -1,7 +1,7 @@
 -- Dados de exemplo (cargos, departamentos e membros) para a EJ de desenvolvimento.
 -- Pressupõe que o tenant 'ej-comp' já exista — ele é criado no primeiro `bootRun` (DevDataSeeder).
 -- Tudo é escopado a esse tenant e idempotente: rodar de novo não duplica.
--- Os membros nascem sem conta vinculada (account_id NULL) e com standing STAFF; o dono continua
+-- Os membros nascem sem conta vinculada (account_id NULL) e com standing MEMBER; o dono continua
 -- sendo a conta OWNER criada pelo DevDataSeeder.
 
 -- cargos
@@ -30,22 +30,36 @@ FROM t, (VALUES
 ) AS d(name, slug, description, lead_role)
 ON CONFLICT (tenant_id, name) DO NOTHING;
 
--- membros
+-- cursos aceitos pela EJ (mesmo catálogo criado pelo DevDataSeeder no primeiro boot)
 WITH t AS (SELECT id FROM tenants WHERE slug = 'ej-comp')
-INSERT INTO members (id, tenant_id, account_id, name, standing, status, course, role_id, department_id)
-SELECT gen_random_uuid(), t.id, NULL, m.name, 'STAFF', m.status, m.course,
+INSERT INTO courses (id, tenant_id, name, active, created_at, updated_at)
+SELECT gen_random_uuid(), t.id, c.name, true, now(), now()
+FROM t, (VALUES
+    ('Ciência da Computação'),
+    ('Ciência de Dados'),
+    ('Engenharia de Software'),
+    ('Engenharia de Computação'),
+    ('Sistemas de Informação')
+) AS c(name)
+ON CONFLICT (tenant_id, name) DO NOTHING;
+
+-- membros (course_id resolvido pelo nome do curso)
+WITH t AS (SELECT id FROM tenants WHERE slug = 'ej-comp')
+INSERT INTO members (id, tenant_id, account_id, name, standing, status, course_id, role_id, department_id)
+SELECT gen_random_uuid(), t.id, NULL, m.name, 'MEMBER', m.status,
+       (SELECT id FROM courses     WHERE tenant_id = t.id AND name = m.course),
        (SELECT id FROM roles       WHERE tenant_id = t.id AND name = m.role),
        (SELECT id FROM departments WHERE tenant_id = t.id AND name = m.department)
 FROM t, (VALUES
-    ('Ana Lima',         'ACTIVE',   'SOFTWARE_ENGINEERING', 'Presidente',      'Presidência'),
-    ('Bruno Carvalho',   'ACTIVE',   'COMPUTER_SCIENCE',     'Vice-Presidente', 'Presidência'),
-    ('Carla Mendes',     'ACTIVE',   'INFORMATION_SYSTEMS',  'Diretor',         'Comercial'),
-    ('Diego Souza',      'ACTIVE',   'COMPUTER_ENGINEERING', 'Diretor',         'Tecnologia'),
-    ('Eduarda Ferreira', 'ACTIVE',   'DATA_SCIENCE',         'Diretor',         'Marketing'),
-    ('Felipe Rocha',     'ACTIVE',   'COMPUTER_SCIENCE',     'Trainee',         'Tecnologia'),
-    ('Gabriela Costa',   'ACTIVE',   'SOFTWARE_ENGINEERING', 'Trainee',         'Projetos'),
-    ('Henrique Alves',   'PENDING',  'INFORMATION_SYSTEMS',  'Trainee',         'Comercial'),
-    ('Isabela Nunes',    'PENDING',  'COMPUTER_SCIENCE',     'Trainee',         'Marketing'),
-    ('João Pereira',     'INACTIVE', 'SOFTWARE_ENGINEERING', 'Trainee',         'Projetos')
+    ('Ana Lima',         'ACTIVE',   'Engenharia de Software',   'Presidente',      'Presidência'),
+    ('Bruno Carvalho',   'ACTIVE',   'Ciência da Computação',    'Vice-Presidente', 'Presidência'),
+    ('Carla Mendes',     'ACTIVE',   'Sistemas de Informação',   'Diretor',         'Comercial'),
+    ('Diego Souza',      'ACTIVE',   'Engenharia de Computação', 'Diretor',         'Tecnologia'),
+    ('Eduarda Ferreira', 'ACTIVE',   'Ciência de Dados',         'Diretor',         'Marketing'),
+    ('Felipe Rocha',     'ACTIVE',   'Ciência da Computação',    'Trainee',         'Tecnologia'),
+    ('Gabriela Costa',   'ACTIVE',   'Engenharia de Software',   'Trainee',         'Projetos'),
+    ('Henrique Alves',   'PENDING',  'Sistemas de Informação',   'Trainee',         'Comercial'),
+    ('Isabela Nunes',    'PENDING',  'Ciência da Computação',    'Trainee',         'Marketing'),
+    ('João Pereira',     'INACTIVE', 'Engenharia de Software',   'Trainee',         'Projetos')
 ) AS m(name, status, course, role, department)
 WHERE NOT EXISTS (SELECT 1 FROM members ex WHERE ex.tenant_id = t.id AND ex.name = m.name);

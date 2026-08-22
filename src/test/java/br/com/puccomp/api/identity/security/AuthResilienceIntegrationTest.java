@@ -29,7 +29,7 @@ class AuthResilienceIntegrationTest extends AbstractIntegrationTest {
     @Test
     @DisplayName("rota pública é acessível sem token")
     void shouldAllowPublicRouteWithoutToken() {
-        ResponseEntity<String> res = rest.getForEntity("/v1/courses", String.class);
+        ResponseEntity<String> res = rest.getForEntity("/v3/api-docs", String.class);
         assertThat(res.getStatusCode()).isEqualTo(HttpStatus.OK);
     }
 

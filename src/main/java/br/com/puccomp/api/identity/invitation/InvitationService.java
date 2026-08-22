@@ -4,7 +4,10 @@ import br.com.puccomp.api.identity.account.AccountRepository;
 import br.com.puccomp.api.identity.account.AuthPrincipal;
 import br.com.puccomp.api.identity.account.LoginResponse;
 import br.com.puccomp.api.identity.notification.Mailer;
+import br.com.puccomp.api.identity.tenant.Tenant;
+import br.com.puccomp.api.identity.tenant.TenantRepository;
 import br.com.puccomp.api.identity.token.JwtService;
+import br.com.puccomp.api.organization.CourseCatalog;
 import br.com.puccomp.api.organization.MemberDirectory;
 import br.com.puccomp.api.organization.MemberProvisioning;
 import br.com.puccomp.api.shared.exception.ConflictException;
@@ -31,8 +34,10 @@ class InvitationService {
 
     private final InvitationRepository repository;
     private final AccountRepository accounts;
+    private final TenantRepository tenants;
     private final MemberProvisioning memberProvisioning;
     private final MemberDirectory memberDirectory;
+    private final CourseCatalog courseCatalog;
     private final InvitationAcceptor acceptor;
     private final JwtService jwtService;
     private final Mailer mailer;
@@ -47,9 +52,9 @@ class InvitationService {
                     throw new ConflictException("Essa pessoa já é membro desta EJ");
                 });
 
-        Standing standing = request.standing() == null ? Standing.STAFF : request.standing();
+        Standing standing = request.standing() == null ? Standing.MEMBER : request.standing();
         if (isPrivileged(standing) && !isPrivileged(admin.standing()))
-            throw new AccessDeniedException("Apenas OWNER ou ADMIN podem convidar com esse standing");
+            throw new AccessDeniedException("Apenas OWNER pode convidar com esse standing");
 
         if (request.roleId() != null && !memberProvisioning.roleExists(request.roleId()))
             throw new ResourceNotFoundException("Cargo não encontrado");
@@ -103,7 +108,7 @@ class InvitationService {
     }
 
     private static boolean isPrivileged(Standing standing) {
-        return standing == Standing.OWNER || standing == Standing.ADMIN;
+        return standing == Standing.OWNER;
     }
 
     private Invitation findOwned(UUID tenantId, UUID invitationId) {
@@ -118,6 +123,16 @@ class InvitationService {
     }
 
     private record IssuedToken(String raw, String hash, String prefix) { }
+
+    InvitationPreviewResponse preview(String token) {
+        Invitation invitation = repository.findByTokenHash(TokenSecrets.sha256Hex(token.trim()))
+                .filter(i -> i.isUsable(Instant.now()))
+                .orElseThrow(() -> new IllegalArgumentException("Convite inválido ou expirado"));
+
+        TenantContext.set(invitation.getTenantId());
+        String ejName = tenants.findById(invitation.getTenantId()).map(Tenant::getName).orElse(null);
+        return new InvitationPreviewResponse(ejName, invitation.getEmail(), courseCatalog.listActive());
+    }
 
     LoginResponse accept(AcceptInvitationRequest request) {
         Invitation invitation = repository.findByTokenHash(TokenSecrets.sha256Hex(request.token().trim()))

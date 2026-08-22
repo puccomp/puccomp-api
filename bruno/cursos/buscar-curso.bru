@@ -1,0 +1,15 @@
+meta {
+  name: Buscar curso por ID
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{base_url}}/v1/courses/{{course_id}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{access_token}}
+}

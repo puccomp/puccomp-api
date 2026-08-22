@@ -1,0 +1,65 @@
+version: '3.8'
+
+services:
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80" # Única porta exposta para o mundo HTTP
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - api
+      - grafana
+
+  api:
+    image: ghcr.io/puccomp/puccomp-api-v2:latest # Ajuste para o repo da COMP
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/puccomp
+      - SPRING_DATASOURCE_USERNAME=${DB_USER}
+      - SPRING_DATASOURCE_PASSWORD=${DB_PASS}
+      - SPRING_PROFILES_ACTIVE=prod
+      # O SES funciona automático se a Role da EC2 tiver a permissão SES:SendEmail
+    depends_on:
+      - db
+
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASS}
+      POSTGRES_DB: puccomp
+    volumes:
+      - pgdata:/var/lib/postgresql/data # Garante que os dados não somem
+    # O Flyway vai rodar automaticamente quando a API do Spring Boot iniciar
+
+  prometheus:
+    image: prom/prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    # Sem 'ports', fica 100% interno
+
+  grafana:
+    image: grafana/grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_USER}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASS}
+    volumes:
+      - grafana_data:/var/lib/grafana
+    # Nginx vai rotear o tráfego para ele internamente na porta 3000
+
+  node_exporter:
+    image: prom/node-exporter:latest
+    # Sem ports
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.47.0 # Versão compatível com ARM64
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    # Sem ports
+
+volumes:
+  pgdata:
+  grafana_data:
