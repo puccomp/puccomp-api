@@ -22,11 +22,11 @@ Movimentação é manual.
 
 O título do card deve ser descritivo e em linguagem natural — não use prefixos de commit.
 
-| O quê | Exemplo |
-|---|---|
-| Card | `Endpoint de criação de membro` |
-| Branch | `feature/42-endpoint-criacao-membro` |
-| Commits | `feat(members): adiciona endpoint de criação` |
+| O quê    | Exemplo                                       |
+| -------- | --------------------------------------------- |
+| Card     | `Endpoint de criação de membro`               |
+| Branch   | `feature/42-endpoint-criacao-membro`          |
+| Commits  | `feat(members): adiciona endpoint de criação` |
 | PR title | `feat(members): adiciona endpoint de criação` |
 
 ## Branches
@@ -66,12 +66,12 @@ gitGraph
    merge hotfix/61-login
 ```
 
-| Branch | Formato | Base | Destino |
-|---|---|---|---|
-| `feature/*` | `feature/123-descricao-curta` | `develop` | `develop` |
-| `bugfix/*` | `bugfix/123-descricao-curta` | `develop` | `develop` |
-| `hotfix/*` | `hotfix/123-descricao-curta` | `main` | `main` + `develop` |
-| `release/*` | `release/1.2.0` | `develop` | `main` + `develop` |
+| Branch      | Formato                       | Base      | Destino            |
+| ----------- | ----------------------------- | --------- | ------------------ |
+| `feature/*` | `feature/123-descricao-curta` | `develop` | `develop`          |
+| `bugfix/*`  | `bugfix/123-descricao-curta`  | `develop` | `develop`          |
+| `hotfix/*`  | `hotfix/123-descricao-curta`  | `main`    | `main` + `develop` |
+| `release/*` | `release/1.2.0`               | `develop` | `main` + `develop` |
 
 O número é o ID do card no GH Projects.
 
@@ -120,6 +120,8 @@ Copie `local.bru` como `local.secrets.bru` e preencha os segredos necessários. 
 
 ## Pull Requests
 
+Ao abrir o PR, a descrição já vem preenchido pelo [template padrão](.github/pull_request_template.md); preencha as seções antes de pedir revisão.
+
 1. PR aponta para `develop` (ou `main` em hotfixes)
 2. CI precisa estar verde antes da revisão
 3. Mínimo **1 aprovação** para mergear
@@ -133,19 +135,18 @@ Copie `local.bru` como `local.secrets.bru` e preencha os segredos necessários. 
 
 A regra é simples: **tudo que é estrutura é inglês; tudo que é prosa para humano é português.**
 
-| O quê | Idioma | Formato |
-|---|---|---|
-| Classes, métodos, variáveis | Inglês | `camelCase` |
-| Entidades e colunas do banco | Inglês | `snake_case` |
-| Campos JSON (chaves de request/response) | Inglês | `snake_case` |
-| Endpoints | Inglês | `/v1/members`, `/v1/roles` |
-| Valor das mensagens de erro | Português | `"Membro não encontrado"` |
-| Valor de enum | Inglês | `OWNER`, `ACTIVE` |
-| Label de exibição de enum | Português | `"Dono"`, `"Ativo"` |
-| Comentários, Javadoc, documentação OAS | Português | — |
+| O quê                                    | Idioma    | Formato                    |
+| ---------------------------------------- | --------- | -------------------------- |
+| Classes, métodos, variáveis              | Inglês    | `camelCase`                |
+| Entidades e colunas do banco             | Inglês    | `snake_case`               |
+| Campos JSON (chaves de request/response) | Inglês    | `snake_case`               |
+| Endpoints                                | Inglês    | `/v1/members`, `/v1/roles` |
+| Valor das mensagens de erro              | Português | `"Membro não encontrado"`  |
+| Valor de enum                            | Inglês    | `OWNER`, `ACTIVE`          |
+| Label de exibição de enum                | Português | `"Dono"`, `"Ativo"`        |
+| Comentários, Javadoc, documentação OAS   | Português | —                          |
 
 O Jackson e o Hibernate estão configurados para `snake_case` automaticamente — um campo Java `createdAt` vira `created_at` no JSON e no banco sem anotação manual.
-
 
 ### Legibilidade
 
@@ -182,7 +183,7 @@ com.puccomp.api
 
 **Fronteira no módulo, não na entidade.** Dentro de um módulo, os tipos colaboram à vontade — `Member` segurar `@ManyToOne Role` é detalhe interno de `organization`, não cruza fronteira. **Entre** módulos, só se acessa o que o outro **publica** (API/DTO/evento), nunca o interno. É a diferença entre entrar pela porta da frente e pular a janela.
 
-**Visibilidade dentro do módulo.** Público apenas o que é contrato: `controller` (porta de entrada) e DTOs de request/response. Implementação — `service`, `repository` — é *package-private*.
+**Visibilidade dentro do módulo.** Público apenas o que é contrato: `controller` (porta de entrada) e DTOs de request/response. Implementação — `service`, `repository` — é _package-private_.
 
 **Spring Modulith valida isso.** `ModularityTests.verify()` quebra o build se um módulo acessar o interno de outro, e gera diagramas dos módulos em `build/spring-modulith-docs`. `shared` e `config` são módulos `OPEN` (transversais, sem encapsulamento — todos podem usar). Ex.: `Standing` vive em `shared/reference/` por ser usado por mais de um módulo; `MemberStatus` é exclusivo de membros e fica em `organization/members/`.
 
@@ -244,20 +245,20 @@ docker compose up -d      # postgres + mailpit
 
 No primeiro boot com o banco vazio, o `DevDataSeeder` cria a EJ `ej-comp` e duas contas de teste:
 
-| Conta | Email | Senha | Standing | Cargo |
-|---|---|---|---|---|
-| Dono | `dono@ejcomp.dev` | `dono123` | `OWNER` | Presidente |
-| Membro | `membro@ejcomp.dev` | `membro123` | `MEMBER` | — |
+| Conta  | Email               | Senha       | Standing | Cargo      |
+| ------ | ------------------- | ----------- | -------- | ---------- |
+| Dono   | `dono@ejcomp.dev`   | `dono123`   | `OWNER`  | Presidente |
+| Membro | `membro@ejcomp.dev` | `membro123` | `MEMBER` | —          |
 
 **Serviços e portas:**
 
-| Serviço | URL | Observação |
-|---|---|---|
-| API | http://localhost:8080 | — |
-| Swagger UI | http://localhost:8080/docs | contrato OpenAPI |
-| Postgres | `localhost:5432` | db/user/senha: `puccomp` |
-| Mailpit (SMTP) | `localhost:1025` | recebe os emails de convite |
-| Mailpit (UI) | http://localhost:8025 | leia aqui o token `inv_...` do convite |
+| Serviço        | URL                        | Observação                             |
+| -------------- | -------------------------- | -------------------------------------- |
+| API            | http://localhost:8080      | —                                      |
+| Swagger UI     | http://localhost:8080/docs | contrato OpenAPI                       |
+| Postgres       | `localhost:5432`           | db/user/senha: `puccomp`               |
+| Mailpit (SMTP) | `localhost:1025`           | recebe os emails de convite            |
+| Mailpit (UI)   | http://localhost:8025      | leia aqui o token `inv_...` do convite |
 
 **Observabilidade (opt-in):**
 
@@ -265,10 +266,10 @@ No primeiro boot com o banco vazio, o `DevDataSeeder` cria a EJ `ej-comp` e duas
 docker compose -f compose.observability.yml up -d   # prometheus + grafana
 ```
 
-| Serviço | URL | Login |
-|---|---|---|
-| Prometheus | http://localhost:9090 | — |
-| Grafana | http://localhost:3000 | `admin` / `admin` |
+| Serviço    | URL                   | Login             |
+| ---------- | --------------------- | ----------------- |
+| Prometheus | http://localhost:9090 | —                 |
+| Grafana    | http://localhost:3000 | `admin` / `admin` |
 
 As métricas da app ficam em `/actuator/prometheus`.
 

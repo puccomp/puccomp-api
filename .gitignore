@@ -42,6 +42,7 @@ bruno/environments/*.secrets.bru
 ### AI Agents ###
 .claude/
 .codex/
+.gemini/
 .cursor/
 .windsurf/
 .continue/

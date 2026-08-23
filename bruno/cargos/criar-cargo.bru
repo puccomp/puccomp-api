@@ -18,16 +18,15 @@ body:json {
   {
     "name": "{{role_name}}",
     "description": "{{role_description}}",
-    "hierarchy_level": {{role_hierarchy_lvl}},
+    "department_id": "{{department_id}}",
     "max_seats": {{role_max_seats}}
   }
 }
 
 vars:pre-request {
-  role_name: Diretor
-  role_description: Coordena uma diretoria
-  role_hierarchy_lvl: 3
-  role_max_seats: 4
+  role_name: Diretor de Marketing
+  role_description: Coordena a diretoria de marketing
+  role_max_seats: 1
 }
 
 script:post-response {

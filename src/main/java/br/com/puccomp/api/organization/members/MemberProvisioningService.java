@@ -27,13 +27,15 @@ class MemberProvisioningService implements MemberProvisioning {
     @Override
     @Transactional
     public UUID createMember(UUID accountId, String name, UUID courseId, UUID roleId, Standing standing) {
+        Role role = roleId != null ? entityManager.find(Role.class, roleId) : null;
         var member = Member.builder()
                 .accountId(accountId)
                 .name(name)
                 .course(entityManager.getReference(Course.class, courseId))
                 .standing(standing)
                 .status(MemberStatus.ACTIVE)
-                .role(roleId != null ? entityManager.getReference(Role.class, roleId) : null)
+                .role(role)
+                .department(role != null ? role.getDepartment() : null)
                 .build();
         return members.save(member).getId();
     }

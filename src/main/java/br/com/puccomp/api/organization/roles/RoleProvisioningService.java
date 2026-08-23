@@ -15,11 +15,10 @@ class RoleProvisioningService implements RoleProvisioning {
 
     @Override
     @Transactional
-    public UUID createRole(String name, String description, int hierarchyLevel) {
+    public UUID createRole(String name, String description) {
         Role role = Role.builder()
                 .name(name.trim())
                 .description(description)
-                .hierarchyLevel(hierarchyLevel)
                 .build();
         return roles.save(role).getId();
     }

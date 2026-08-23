@@ -1,0 +1,25 @@
+meta {
+  name: Atualizar cargo
+  type: http
+  seq: 4
+}
+
+put {
+  url: {{base_url}}/v1/roles/{{role_id}}
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{access_token}}
+}
+
+body:json {
+  {
+    "name": "Diretor de Marketing",
+    "description": "Coordena a diretoria de marketing e a captação",
+    "department_id": "{{department_id}}",
+    "max_seats": 2,
+    "active": true
+  }
+}
