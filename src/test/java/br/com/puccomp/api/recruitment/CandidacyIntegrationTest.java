@@ -67,7 +67,8 @@ class CandidacyIntegrationTest extends AbstractIntegrationTest {
                                 "dono@candidato-existente.dev");
                 String email = "candidato.existente@email.com";
                 post("/v1/recruitment/candidates",
-                                new CandidateRequest("Candidato Existente", email, "+55 31 98888-7777", null, null),
+                                new CandidateRequest("Candidato Existente", email, "+55 31 98888-7777",
+                                                List.of("https://linkedin.com/in/existente")),
                                 token, CandidateResponse.class);
 
                 UUID processId = openProcess(token, "Processo Candidato Existente", null);
@@ -75,7 +76,7 @@ class CandidacyIntegrationTest extends AbstractIntegrationTest {
                 ResponseEntity<CandidacyReceiptResponse> submit = post(
                                 publicProcess("ej-candidato-existente", processId) + "/candidacies",
                                 new SubmitCandidacyRequest("Candidato Existente", email, "+55 31 97777-6666",
-                                                "Ciência da Computação", 4, null, null, true),
+                                                "Ciência da Computação", "4º período", null, true),
                                 null, CandidacyReceiptResponse.class);
 
                 assertThat(submit.getStatusCode()).isEqualTo(HttpStatus.CREATED);
@@ -101,7 +102,7 @@ class CandidacyIntegrationTest extends AbstractIntegrationTest {
 
                 // se as duas inscrições tivessem criado candidatos separados, o cadastro abaixo passaria
                 ResponseEntity<ErrorResponse> duplicado = post("/v1/recruitment/candidates",
-                                new CandidateRequest("Recorrente", email, "+55 31 90000-0000", null, null),
+                                new CandidateRequest("Recorrente", email, "+55 31 90000-0000", null),
                                 token, ErrorResponse.class);
                 assertThat(duplicado.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
         }
@@ -114,7 +115,7 @@ class CandidacyIntegrationTest extends AbstractIntegrationTest {
                 String membro = login("membro@sem-permissao.dev", "senha123");
 
                 ResponseEntity<ErrorResponse> res = post("/v1/recruitment/candidates",
-                                new CandidateRequest("Alguem", "alguem@email.com", "+55 31 90000-0000", null, null),
+                                new CandidateRequest("Alguem", "alguem@email.com", "+55 31 90000-0000", null),
                                 membro, ErrorResponse.class);
 
                 assertThat(res.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
@@ -217,6 +218,84 @@ class CandidacyIntegrationTest extends AbstractIntegrationTest {
                 assertThat(submit.getBody().message()).contains("fora do prazo");
         }
 
+        @Test
+        @DisplayName("a ficha do candidato guarda os links na ordem enviada, até o limite de 5")
+        void shouldStoreLinksInOrder() {
+                String token = ownerOf("EJ Links", "ej-links", "dono@links.dev");
+                List<String> links = List.of("https://linkedin.com/in/ana", "https://github.com/ana",
+                                "https://behance.net/ana", "https://ana.dev", "https://ana.dev/cv.pdf");
+
+                ResponseEntity<CandidateResponse> criado = post("/v1/recruitment/candidates",
+                                new CandidateRequest("Ana Lima", "ana.links@email.com", "+55 31 90000-0000", links),
+                                token, CandidateResponse.class);
+
+                assertThat(criado.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+                assertThat(criado.getBody().links()).containsExactlyElementsOf(links);
+        }
+
+        @Test
+        @DisplayName("mais de 5 links ou link que não é URL devem ser recusados")
+        void shouldRejectInvalidLinks() {
+                String token = ownerOf("EJ Links Invalidos", "ej-links-invalidos", "dono@links-inv.dev");
+
+                ResponseEntity<ErrorResponse> demais = post("/v1/recruitment/candidates",
+                                new CandidateRequest("Excesso", "excesso@email.com", "+55 31 90000-0000",
+                                                List.of("https://a.dev", "https://b.dev", "https://c.dev",
+                                                                "https://d.dev", "https://e.dev", "https://f.dev")),
+                                token, ErrorResponse.class);
+                assertThat(demais.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+
+                ResponseEntity<ErrorResponse> naoUrl = post("/v1/recruitment/candidates",
+                                new CandidateRequest("Invalido", "invalido@email.com", "+55 31 90000-0000",
+                                                List.of("isso nao e uma url")),
+                                token, ErrorResponse.class);
+                assertThat(naoUrl.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        }
+
+        @Test
+        @DisplayName("inscrição sem links é aceita e não apaga os links que a ficha já tinha")
+        void shouldKeepExistingLinksWhenResubmittingWithout() {
+                String token = ownerOf("EJ Links Preservados", "ej-links-preservados", "dono@links-pres.dev");
+                String email = "preserva@email.com";
+                post("/v1/recruitment/candidates",
+                                new CandidateRequest("Preserva", email, "+55 31 90000-0000",
+                                                List.of("https://github.com/preserva")),
+                                token, CandidateResponse.class);
+
+                UUID processId = openProcess(token, "PS Links", null);
+                ResponseEntity<CandidacyReceiptResponse> submit = post(
+                                publicProcess("ej-links-preservados", processId) + "/candidacies",
+                                new SubmitCandidacyRequest("Preserva", email, "+55 31 90000-0000",
+                                                "Ciência da Computação", null, null, true),
+                                null, CandidacyReceiptResponse.class);
+
+                assertThat(submit.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+                assertThat(getWithToken("/v1/recruitment/processes/" + processId + "/candidacies", token).getBody())
+                                .contains("https://github.com/preserva");
+        }
+
+        @Test
+        @DisplayName("período é texto livre: aceita 'formando' e aceita ausência")
+        void shouldAcceptFreeFormCurrentTerm() {
+                String token = ownerOf("EJ Periodo", "ej-periodo", "dono@periodo.dev");
+                UUID processId = openProcess(token, "PS Periodo", null);
+
+                assertThat(post(publicProcess("ej-periodo", processId) + "/candidacies",
+                                new SubmitCandidacyRequest("Formando", "formando@email.com", "+55 31 90000-0000",
+                                                "Engenharia de Software", "formando", null, true),
+                                null, CandidacyReceiptResponse.class).getStatusCode())
+                                .isEqualTo(HttpStatus.CREATED);
+
+                assertThat(post(publicProcess("ej-periodo", processId) + "/candidacies",
+                                new SubmitCandidacyRequest("Sem Periodo", "sem.periodo@email.com",
+                                                "+55 31 90000-0000", "Engenharia de Software", null, null, true),
+                                null, CandidacyReceiptResponse.class).getStatusCode())
+                                .isEqualTo(HttpStatus.CREATED);
+
+                assertThat(getWithToken("/v1/recruitment/processes/" + processId + "/candidacies", token).getBody())
+                                .contains("formando");
+        }
+
         private String ownerOf(String ejName, String slug, String email) {
                 UUID tenantId = seeder.seedTenant(ejName, slug);
                 seeder.seedAccount(tenantId, email, "senha123", Standing.OWNER);
@@ -245,6 +324,6 @@ class CandidacyIntegrationTest extends AbstractIntegrationTest {
 
         private static SubmitCandidacyRequest candidacy(String email) {
                 return new SubmitCandidacyRequest("João Silva", email, "+55 31 99999-8888",
-                                "Sistemas de Informação", 3, null, null, true);
+                                "Sistemas de Informação", "3º período", null, true);
         }
 }

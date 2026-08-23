@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -24,8 +25,7 @@ class CandidateService implements CandidateRegistry {
                 .fullName(request.fullName().trim())
                 .email(email)
                 .phone(request.phone().trim())
-                .linkedinUrl(trimmed(request.linkedinUrl()))
-                .portfolioUrl(trimmed(request.portfolioUrl()))
+                .links(sanitized(request.links()))
                 .build()));
     }
 
@@ -43,8 +43,7 @@ class CandidateService implements CandidateRegistry {
         candidate.changeFullName(request.fullName().trim());
         candidate.changeEmail(email);
         candidate.changePhone(request.phone().trim());
-        candidate.changeLinkedinUrl(trimmed(request.linkedinUrl()));
-        candidate.changePortfolioUrl(trimmed(request.portfolioUrl()));
+        candidate.changeLinks(sanitized(request.links()));
 
         return CandidateResponse.from(candidate);
     }
@@ -59,8 +58,7 @@ class CandidateService implements CandidateRegistry {
                         .fullName(data.fullName().trim())
                         .email(email)
                         .phone(data.phone().trim())
-                        .linkedinUrl(trimmed(data.linkedinUrl()))
-                        .portfolioUrl(trimmed(data.portfolioUrl()))
+                        .links(sanitized(data.links()))
                         .build()));
     }
 
@@ -71,12 +69,16 @@ class CandidateService implements CandidateRegistry {
     private Candidate refreshContact(Candidate candidate, NewCandidate data) {
         candidate.changeFullName(data.fullName().trim());
         candidate.changePhone(data.phone().trim());
-        if (trimmed(data.linkedinUrl()) != null) candidate.changeLinkedinUrl(trimmed(data.linkedinUrl()));
-        if (trimmed(data.portfolioUrl()) != null) candidate.changePortfolioUrl(trimmed(data.portfolioUrl()));
+        List<String> links = sanitized(data.links());
+        if (!links.isEmpty()) candidate.changeLinks(links);
         return candidate;
     }
 
-    private static String trimmed(String value) {
-        return value == null || value.isBlank() ? null : value.trim();
+    private static List<String> sanitized(List<String> links) {
+        if (links == null) return List.of();
+        return links.stream()
+                .filter(link -> link != null && !link.isBlank())
+                .map(String::trim)
+                .toList();
     }
 }

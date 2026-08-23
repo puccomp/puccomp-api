@@ -30,18 +30,21 @@ class CandidacySubmitter {
             throw new ConflictException("As inscrições deste processo seletivo estão fora do prazo");
 
         Candidate candidate = candidates.findOrRegister(new CandidateRegistry.NewCandidate(
-                request.fullName(), request.email(), request.phone(),
-                request.linkedinUrl(), request.portfolioUrl()));
+                request.fullName(), request.email(), request.phone(), request.links()));
 
         var candidacy = Candidacy.builder()
                 .process(process)
                 .candidate(candidate)
                 .course(request.course().trim())
-                .currentTerm(request.currentTerm())
+                .currentTerm(trimmedTerm(request.currentTerm()))
                 .status(CandidacyStatus.SUBMITTED)
                 .privacyConsentAt(Instant.now())
                 .build();
 
         return CandidacyReceiptResponse.from(candidacies.save(candidacy));
+    }
+
+    private static String trimmedTerm(String currentTerm) {
+        return currentTerm == null || currentTerm.isBlank() ? null : currentTerm.trim();
     }
 }

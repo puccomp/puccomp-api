@@ -28,6 +28,15 @@ processos futuros sem duplicar dados de contato.
 letivo, status e consentimento LGPD. Os dados de contato (nome, e-mail, telefone,
 links) vivem em `Candidate`.
 
+O período (`current_term`) é texto livre e opcional, não um inteiro: cada curso
+tem uma grade própria, e quem está irregular ou formando não cabe num número.
+
+Os links são uma lista ordenada (no máximo 5, cada um validado como URL), na
+tabela `candidate_links`. Duas colunas fixas obrigavam toda EJ a pedir LinkedIn e
+portfólio; com a lista, cada uma pede o que faz sentido no seu formulário —
+GitHub, Behance, currículo online. Reinscrição só substitui a lista se a nova
+vier preenchida: mandar vazio não apaga o que já estava lá.
+
 ## Estados do processo
 
 ```
@@ -111,8 +120,8 @@ Se a resposta for "o service de outro pacote", falta uma porta ali.
 ## Pendências conhecidas
 
 - **Anexo de currículo** — depende do módulo de arquivos
-  ([ADR 0002](../adr/0002-armazenamento-s3.md)). Até lá a inscrição carrega só
-  `linkedinUrl` e `portfolioUrl`. Atenção: o upload aqui é **anônimo**, então
+  ([ADR 0002](../adr/0002-armazenamento-s3.md)). Até lá a ficha carrega só a
+  lista de `links`. Atenção: o upload aqui é **anônimo**, então
   não cabe em URL pré-assinada emitida para um usuário autenticado.
 - **Campos de formulário por EJ** — hoje a ficha é fixa. Ver ADR 0003.
 - **Triagem** — mover inscrição entre etapas, com nota e parecer.

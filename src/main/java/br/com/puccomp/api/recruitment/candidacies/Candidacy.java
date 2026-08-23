@@ -36,8 +36,9 @@ public class Candidacy extends Auditable {
     @JoinColumn(name = "candidate_id", nullable = false)
     private Candidate candidate;
 
-    @Column(name = "current_term", nullable = false)
-    private int currentTerm;
+    // Texto livre: cada curso tem uma grade diferente, e há quem esteja irregular ou formando.
+    @Column(name = "current_term", length = 50)
+    private String currentTerm;
 
     @Column(nullable = false)
     private String course;
