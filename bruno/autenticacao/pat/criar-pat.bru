@@ -1,7 +1,7 @@
 meta {
   name: Criar PAT
   type: http
-  seq: 4
+  seq: 1
 }
 
 post {
@@ -26,5 +26,6 @@ script:post-response {
   // O valor do token só aparece uma vez; salva para reutilizar nos testes.
   if (res.getStatus() === 201) {
     bru.setEnvVar("pat_token", res.getBody().token);
+    bru.setEnvVar("pat_id", res.getBody().id);
   }
 }

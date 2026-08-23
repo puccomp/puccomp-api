@@ -6,3 +6,17 @@ meta {
 auth {
   mode: inherit
 }
+
+vars:pre-request {
+  pat_name: Integração de testes
+}
+
+docs {
+  Token de acesso pessoal: credencial de longa duração para scripts e integrações, no lugar
+  do login com senha. Vale para a conta autenticada e carrega as permissões dela.
+
+  Fluxo:
+  1. "Criar PAT"          → salva pat_token (o valor só é exibido nesta resposta) e pat_id
+  2. "Identidade via PAT" → confirma que o token autentica sozinho, sem access_token
+  3. "Revogar PAT"        → invalida o token; repita o passo 2 e a resposta vira 401
+}
