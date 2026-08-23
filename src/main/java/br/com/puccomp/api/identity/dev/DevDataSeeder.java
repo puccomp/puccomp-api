@@ -3,10 +3,10 @@ package br.com.puccomp.api.identity.dev;
 import br.com.puccomp.api.identity.account.Account;
 import br.com.puccomp.api.identity.account.AccountRepository;
 import br.com.puccomp.api.identity.account.AccountStatus;
-import br.com.puccomp.api.identity.tenant.Tenant;
+import br.com.puccomp.api.identity.tenant.ProvisionTenantRequest;
+import br.com.puccomp.api.identity.tenant.TenantProvisioningService;
 import br.com.puccomp.api.identity.tenant.TenantRepository;
-import br.com.puccomp.api.identity.tenant.TenantStatus;
-import br.com.puccomp.api.organization.CourseProvisioning;
+import br.com.puccomp.api.organization.CourseCatalog;
 import br.com.puccomp.api.organization.MemberProvisioning;
 import br.com.puccomp.api.organization.RoleProvisioning;
 import br.com.puccomp.api.shared.reference.Standing;
@@ -19,6 +19,7 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
 import java.util.UUID;
 
 @Slf4j
@@ -38,31 +39,33 @@ class DevDataSeeder implements ApplicationRunner {
     private final AccountRepository accounts;
     private final PasswordEncoder passwordEncoder;
     private final RoleProvisioning roleProvisioning;
-    private final CourseProvisioning courseProvisioning;
+    private final CourseCatalog courseCatalog;
     private final MemberProvisioning memberProvisioning;
+    private final TenantProvisioningService tenantProvisioningService;
 
     @Override
     public void run(ApplicationArguments args) {
         if (tenants.count() > 0) return;
 
-        var ej = tenants.save(Tenant.builder()
-                .name("EJ Comp")
-                .slug("ej-comp")
-                .status(TenantStatus.ACTIVE)
-                .build());
+        var ej = tenantProvisioningService.provision(new ProvisionTenantRequest(
+                "EJ Comp",
+                "ej-comp",
+                OWNER_EMAIL,
+                List.of(
+                        "Ciência da Computação",
+                        "Ciência de Dados",
+                        "Engenharia de Software",
+                        "Engenharia de Computação",
+                        "Sistemas de Informação")));
 
         var owner = createAccount(OWNER_EMAIL, OWNER_PASSWORD);
         var member = createAccount(MEMBER_EMAIL, MEMBER_PASSWORD);
 
-        TenantContext.set(ej.getId());
+        TenantContext.set(ej.tenantId());
         try {
             UUID presidenteRoleId = roleProvisioning.createRole(
-                    "Presidente", "Cargo de presidência da EJ", 0);
-            UUID cienciaComputacaoId = courseProvisioning.createCourse("Ciência da Computação");
-            courseProvisioning.createCourse("Ciência de Dados");
-            courseProvisioning.createCourse("Engenharia de Software");
-            courseProvisioning.createCourse("Engenharia de Computação");
-            courseProvisioning.createCourse("Sistemas de Informação");
+                    "Presidente", "Cargo de presidência da EJ");
+            UUID cienciaComputacaoId = courseCatalog.listActive().getFirst().id();
             memberProvisioning.createMember(
                     owner.getId(), OWNER_NAME, cienciaComputacaoId, presidenteRoleId, Standing.OWNER);
             memberProvisioning.createMember(
@@ -73,7 +76,7 @@ class DevDataSeeder implements ApplicationRunner {
 
         log.info("[dev seed] Tenant '{}' criado. Contas: dono '{}' (senha {}, standing OWNER, cargo Presidente) "
                 + "e membro '{}' (senha {}, standing MEMBER, sem cargo)",
-                ej.getSlug(), OWNER_EMAIL, OWNER_PASSWORD, MEMBER_EMAIL, MEMBER_PASSWORD);
+                ej.slug(), OWNER_EMAIL, OWNER_PASSWORD, MEMBER_EMAIL, MEMBER_PASSWORD);
     }
 
     private Account createAccount(String email, String rawPassword) {
