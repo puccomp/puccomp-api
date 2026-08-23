@@ -3,7 +3,7 @@ version: '3.8'
 services:
   nginx:
     image: nginx:alpine
-    ports:
+    ports:      
       - "80:80" # Única porta exposta para o mundo HTTP
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
@@ -14,9 +14,13 @@ services:
   api:
     image: ghcr.io/puccomp/puccomp-api-v2:latest # Ajuste para o repo da COMP
     environment:
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/puccomp
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/puccomp      
       - SPRING_DATASOURCE_USERNAME=${DB_USER}
       - SPRING_DATASOURCE_PASSWORD=${DB_PASS}
+      - MAIL_HOST=${MAIL_HOST}
+      - MAIL_PORT=${MAIL_PORT}
+      - MAIL_USERNAME=${MAIL_USERNAME}
+      - MAIL_PASSWORD=${MAIL_PASSWORD}      
       - SPRING_PROFILES_ACTIVE=prod
       # O SES funciona automático se a Role da EC2 tiver a permissão SES:SendEmail
     depends_on:
@@ -43,6 +47,8 @@ services:
     environment:
       - GF_SECURITY_ADMIN_USER=${GRAFANA_USER}
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASS}
+      - GF_SERVER_ROOT_URL=http://54.211.58.34/grafana/
+      - GF_SERVER_SERVE_FROM_SUB_PATH=true
     volumes:
       - grafana_data:/var/lib/grafana
     # Nginx vai rotear o tráfego para ele internamente na porta 3000
