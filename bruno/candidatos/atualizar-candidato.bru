@@ -1,10 +1,10 @@
 meta {
   name: Atualizar candidato
   type: http
-  seq: 1
+  seq: 2
 }
 
-patch {
+put {
   url: {{base_url}}/v1/recruitment/candidates/{{candidate_id}}
   body: json
   auth: bearer
@@ -22,4 +22,8 @@ body:json {
     "linkedin_url": "https://linkedin.com/in/novo-link",
     "portfolio_url": "https://portfolio.com/novo-link"
   }
+}
+
+docs {
+  Substituição total: campo opcional ausente limpa o valor.
 }

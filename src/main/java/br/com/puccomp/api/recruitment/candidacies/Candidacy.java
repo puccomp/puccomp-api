@@ -30,7 +30,9 @@ public class Candidacy extends Auditable {
     @JoinColumn(name = "process_id", nullable = false)
     private SelectionProcess process;
 
-    @OneToOne(fetch = FetchType.LAZY, optional = false)
+    // ManyToOne: a mesma pessoa se inscreve em vários processos — é esse histórico que o
+    // split entre Candidate e Candidacy existe para permitir.
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "candidate_id", nullable = false)
     private Candidate candidate;
 

@@ -12,9 +12,13 @@ post {
 
 body:json {
   {
+    "full_name": "Candidato Zero",
     "email": "candidato0@email.com",
+    "phone": "31999999999",
     "course": "Ciencia da computacao",
     "current_term": 1,
+    "linkedin_url": null,
+    "portfolio_url": null,
     "privacy_consent": true
   }
 }
@@ -22,4 +26,7 @@ body:json {
 docs {
   Superfície anônima — sem Authorization. A resposta é só um comprovante
   (id, status, data): não ecoa a PII enviada.
+
+  O candidato é achado-ou-criado pelo e-mail dentro da EJ: reenviar com o mesmo
+  e-mail reaproveita a pessoa e atualiza os dados de contato.
 }

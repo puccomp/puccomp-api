@@ -97,6 +97,12 @@ que `candidacies` precisa (achar processo aberto, conferir existência),
 implementada por `SelectionProcessService`. `SelectionProcessRepository` continua
 *package-private*.
 
+`candidacies` também conhece `candidates`, pela mesma regra e pela mesma porta:
+`CandidateRegistry` expõe só o *find-or-register* usado na inscrição, e
+`CandidateRepository` fica *package-private*. Escrever candidato pela API é
+operação da EJ, protegida por `recruitment:write`; a superfície pública só
+alcança o candidato através da inscrição.
+
 Repositório é detalhe de implementação do agregado dele. Se um pacote vizinho
 precisa de dados, ele pede pela porta — não recebe uma chave do banco. O teste
 prático: _"se eu tornar esse repositório package-private de novo, o que quebra?"_

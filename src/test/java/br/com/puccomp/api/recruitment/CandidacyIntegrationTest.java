@@ -4,6 +4,7 @@ import br.com.puccomp.api.recruitment.candidacies.CandidacyReceiptResponse;
 import br.com.puccomp.api.recruitment.candidacies.CandidacyStatus;
 import br.com.puccomp.api.recruitment.candidacies.SubmitCandidacyRequest;
 import br.com.puccomp.api.recruitment.candidates.CandidateRequest;
+import br.com.puccomp.api.recruitment.candidates.CandidateResponse;
 import br.com.puccomp.api.recruitment.processes.ChangeStatusRequest;
 import br.com.puccomp.api.recruitment.processes.PublicProcessResponse;
 import br.com.puccomp.api.recruitment.processes.SelectionProcessRequest;
@@ -60,27 +61,63 @@ class CandidacyIntegrationTest extends AbstractIntegrationTest {
         }
 
         @Test
-        @DisplayName("deve aceitar inscrição pública com apenas email e consentimento quando o candidato já existe")
-        void shouldSubmitWithOnlyEmailAndConsentWhenCandidateAlreadyExists() {
+        @DisplayName("candidato que já existe é reaproveitado na inscrição, com os dados de contato atualizados")
+        void shouldReuseExistingCandidateOnSubmit() {
                 String token = ownerOf("EJ Candidato Existente", "ej-candidato-existente",
                                 "dono@candidato-existente.dev");
                 String email = "candidato.existente@email.com";
                 post("/v1/recruitment/candidates",
-                                new CandidateRequest("Candidato Existente", email, "+55 31 98888-7777", null, null,
-                                                true),
-                                token, Object.class);
+                                new CandidateRequest("Candidato Existente", email, "+55 31 98888-7777", null, null),
+                                token, CandidateResponse.class);
 
                 UUID processId = openProcess(token, "Processo Candidato Existente", null);
 
                 ResponseEntity<CandidacyReceiptResponse> submit = post(
-                                publicProcess("ej-candidato-existente", processId)
-                                                + "/candidacies",
-                                new SubmitCandidacyRequest(email, "Candidato Existente", "Ciencia da computacao", true),
+                                publicProcess("ej-candidato-existente", processId) + "/candidacies",
+                                new SubmitCandidacyRequest("Candidato Existente", email, "+55 31 97777-6666",
+                                                "Ciência da Computação", 4, null, null, true),
                                 null, CandidacyReceiptResponse.class);
 
                 assertThat(submit.getStatusCode()).isEqualTo(HttpStatus.CREATED);
                 assertThat(getWithToken("/v1/recruitment/processes/" + processId + "/candidacies", token).getBody())
-                                .contains(email);
+                                .contains(email)
+                                .contains("+55 31 97777-6666");
+        }
+
+        @Test
+        @DisplayName("a mesma pessoa se inscreve em dois processos sem virar dois candidatos")
+        void shouldKeepOneCandidateAcrossProcesses() {
+                String token = ownerOf("EJ Historico", "ej-historico-cand", "dono@historico-cand.dev");
+                String email = "recorrente@email.com";
+                UUID primeiro = openProcess(token, "PS 2026.1", null);
+                UUID segundo = openProcess(token, "PS 2026.2", null);
+
+                assertThat(post(publicProcess("ej-historico-cand", primeiro) + "/candidacies",
+                                candidacy(email), null, CandidacyReceiptResponse.class).getStatusCode())
+                                .isEqualTo(HttpStatus.CREATED);
+                assertThat(post(publicProcess("ej-historico-cand", segundo) + "/candidacies",
+                                candidacy(email), null, CandidacyReceiptResponse.class).getStatusCode())
+                                .isEqualTo(HttpStatus.CREATED);
+
+                // se as duas inscrições tivessem criado candidatos separados, o cadastro abaixo passaria
+                ResponseEntity<ErrorResponse> duplicado = post("/v1/recruitment/candidates",
+                                new CandidateRequest("Recorrente", email, "+55 31 90000-0000", null, null),
+                                token, ErrorResponse.class);
+                assertThat(duplicado.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        }
+
+        @Test
+        @DisplayName("cadastro de candidato exige permissão de escrita em recrutamento")
+        void shouldRejectCandidateWriteWithoutPermission() {
+                UUID tenantId = seeder.seedTenant("EJ Sem Permissao", "ej-sem-permissao-cand");
+                seeder.seedAccount(tenantId, "membro@sem-permissao.dev", "senha123", Standing.MEMBER);
+                String membro = login("membro@sem-permissao.dev", "senha123");
+
+                ResponseEntity<ErrorResponse> res = post("/v1/recruitment/candidates",
+                                new CandidateRequest("Alguem", "alguem@email.com", "+55 31 90000-0000", null, null),
+                                membro, ErrorResponse.class);
+
+                assertThat(res.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
         }
 
         @Test
@@ -207,7 +244,7 @@ class CandidacyIntegrationTest extends AbstractIntegrationTest {
         }
 
         private static SubmitCandidacyRequest candidacy(String email) {
-                return new SubmitCandidacyRequest(email, "João Silva", "+55 31 99999-8888",
+                return new SubmitCandidacyRequest("João Silva", email, "+55 31 99999-8888",
                                 "Sistemas de Informação", 3, null, null, true);
         }
 }

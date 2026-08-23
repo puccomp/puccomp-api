@@ -17,15 +17,14 @@ auth:bearer {
 body:json {
   {
     "full_name": "Candidato Teste",
-    "email": "[EMAIL_ADDRESS]",
+    "email": "candidato.teste@email.com",
     "phone": "31999999999",
     "linkedin_url": "https://linkedin.com/in/candidatoteste",
-    "portfolio_url": "https://portfolio.com/candidatoteste",
-    
+    "portfolio_url": "https://portfolio.com/candidatoteste"
   }
 }
 
 script:post-response {
   if (res.getStatus() === 201)
-    bru.setEnvVar("process_id", res.getBody().id);
+    bru.setEnvVar("candidate_id", res.getBody().id);
 }

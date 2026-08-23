@@ -1,20 +1,11 @@
 package br.com.puccomp.api.recruitment.candidates;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import lombok.AccessLevel;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import jakarta.persistence.Column;
-import jakarta.persistence.Table;
+import br.com.puccomp.api.shared.audit.Auditable;
+import jakarta.persistence.*;
+import lombok.*;
+import org.hibernate.annotations.TenantId;
 
 import java.util.UUID;
-
-import org.hibernate.annotations.TenantId;
 
 @Entity
 @Table(name = "candidates")
@@ -22,28 +13,29 @@ import org.hibernate.annotations.TenantId;
 @Builder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
-public class Candidate {
+public class Candidate extends Auditable {
+
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
     @TenantId
-    @Column(name = "tenant_id", nullable = false, updatable = false)
+    @Column(nullable = false, updatable = false)
     private UUID tenantId;
 
-    @Column(name = "full_name", nullable = false)
+    @Column(nullable = false)
     private String fullName;
 
-    @Column(name = "email", nullable = false)
+    @Column(nullable = false)
     private String email;
 
-    @Column(name = "phone", nullable = false)
+    @Column(nullable = false)
     private String phone;
 
-    @Column(name = "linkedin_url", nullable = true)
+    @Column
     private String linkedinUrl;
 
-    @Column(name = "portfolio_url", nullable = true)
+    @Column
     private String portfolioUrl;
 
     void changeFullName(String fullName) {
