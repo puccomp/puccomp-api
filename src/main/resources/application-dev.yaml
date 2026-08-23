@@ -17,6 +17,8 @@ puccomp:
       secret: dev-secret-change-me-please-pelo-menos-32-bytes-0123456789
   onboarding:
     accept-url-base: http://localhost:8080/aceitar-convite
+  admin:
+    key: dev-admin-key
 
 management:
   tracing:

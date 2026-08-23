@@ -13,6 +13,8 @@ get {
 params:query {
   ~page: 0
   ~size: 10
+  ~sort: name,asc
+  ~departmentId: {{department_id}}
 }
 
 auth:bearer {

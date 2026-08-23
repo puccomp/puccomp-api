@@ -13,7 +13,10 @@ public class OpenApiConfig {
         return new OpenAPI()
                 .info(new Info()
                         .title("PUC COMP API")
-                        .description("Plataforma ERP para Empresas Juniores")
+                        .description("Plataforma ERP para Empresas Juniores\n\n"
+                                + "### Paginação\n"
+                                + "Endpoints paginados aceitam os parâmetros `page`, `size` e `sort`. "
+                                + "Tamanho padrão de página: 20, tamanho máximo aceito: 100.")
                         .version("v1"));
     }
 }
