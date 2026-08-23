@@ -19,3 +19,5 @@ puccomp:
       secret: test-secret-pelo-menos-32-bytes-para-hs256-0123456789
   onboarding:
     accept-url-base: http://localhost/aceitar-convite
+  admin:
+    key: test-admin-key
