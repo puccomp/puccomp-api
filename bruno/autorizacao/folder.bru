@@ -6,11 +6,15 @@ docs {
   Autorização fine-grained por tenant. O OWNER (standing do membro) pode tudo (superpoder de
   plataforma); os demais recebem permissões do cargo (organization.Role) + grants extras do membro.
 
-  Fluxo sugerido para testar a barreira de permissão (todos os requests de login/identidade
-  ficam em /autenticacao):
-  1. "Login Conta" (dono)        → salva access_token (pode tudo)
-  2. "Login Membro"              → salva member_token (começa sem nenhuma permissão)
-  3. "Identidade do membro"      → salva member_id (id do membro/vínculo)
-  4. "Definir permissões do membro" usa {{member_id}} para conceder grants extras
+  Só existe um access_token por vez: cada login sobrescreve o anterior. Por isso o roteiro
+  alterna entre dono e membro em vez de manter dois tokens em paralelo.
+
+  Fluxo sugerido para testar a barreira de permissão (os requests de login e identidade ficam
+  em /autenticacao):
+  1. Login com {{account_email}} (dono)          → access_token que pode tudo
+  2. Login com {{member_email}} (membro do seed) → access_token ainda sem permissão nenhuma
+  3. "Identidade autenticada"                    → salva member_id (id do vínculo)
+  4. Relogue como dono e rode "Definir permissões do membro" com {{member_id}} — conceder
+     grants exige permissions:manage, que o membro ainda não tem
   5. Relogue o membro e veja as rotas liberando conforme as permissões concedidas.
 }

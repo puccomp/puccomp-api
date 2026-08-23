@@ -1,0 +1,31 @@
+meta {
+  name: Atualizar candidato
+  type: http
+  seq: 2
+}
+
+put {
+  url: {{base_url}}/v1/recruitment/candidates/{{candidate_id}}
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{access_token}}
+}
+
+body:json {
+  {
+    "full_name": "Novo Nome do Candidato",
+    "email": "candidato.atualizado@email.com",
+    "phone": "31999999999",
+    "links": [
+      "https://linkedin.com/in/novo-link"
+    ]
+  }
+}
+
+docs {
+  Substituição total: campo opcional ausente limpa o valor — mandar "links" vazio
+  aqui apaga os links da ficha, diferente da reinscrição pública.
+}
