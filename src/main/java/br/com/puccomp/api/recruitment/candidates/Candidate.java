@@ -5,6 +5,8 @@ import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.TenantId;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -32,11 +34,18 @@ public class Candidate extends Auditable {
     @Column(nullable = false)
     private String phone;
 
-    @Column
-    private String linkedinUrl;
+    // Lista ordenada em vez de colunas fixas: cada EJ pede os links que quiser no formulário,
+    // e a ordem em que a pessoa preencheu é a ordem em que a EJ vai ler.
+    @ElementCollection(fetch = FetchType.LAZY)
+    @CollectionTable(name = "candidate_links", joinColumns = @JoinColumn(name = "candidate_id"))
+    @OrderColumn(name = "link_order")
+    @Column(name = "url", nullable = false, length = 500)
+    @Builder.Default
+    private List<String> links = new ArrayList<>();
 
-    @Column
-    private String portfolioUrl;
+    public List<String> getLinks() {
+        return List.copyOf(links);
+    }
 
     void changeFullName(String fullName) {
         this.fullName = fullName;
@@ -50,11 +59,8 @@ public class Candidate extends Auditable {
         this.phone = phone;
     }
 
-    void changeLinkedinUrl(String linkedinUrl) {
-        this.linkedinUrl = linkedinUrl;
-    }
-
-    void changePortfolioUrl(String portfolioUrl) {
-        this.portfolioUrl = portfolioUrl;
+    void changeLinks(List<String> links) {
+        this.links.clear();
+        this.links.addAll(links);
     }
 }

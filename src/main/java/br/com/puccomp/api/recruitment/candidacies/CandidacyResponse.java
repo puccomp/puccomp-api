@@ -1,6 +1,7 @@
 package br.com.puccomp.api.recruitment.candidacies;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 public record CandidacyResponse(
@@ -10,9 +11,8 @@ public record CandidacyResponse(
         String email,
         String phone,
         String course,
-        int currentTerm,
-        String linkedinUrl,
-        String portfolioUrl,
+        String currentTerm,
+        List<String> links,
         CandidacyStatus status,
         Instant privacyConsentAt,
         Instant submittedAt) {
@@ -25,8 +25,7 @@ public record CandidacyResponse(
                 candidacy.getCandidate().getPhone(),
                 candidacy.getCourse(),
                 candidacy.getCurrentTerm(),
-                candidacy.getCandidate().getLinkedinUrl(),
-                candidacy.getCandidate().getPortfolioUrl(),
+                candidacy.getCandidate().getLinks(),
                 candidacy.getStatus(),
                 candidacy.getPrivacyConsentAt(),
                 candidacy.getCreatedAt());

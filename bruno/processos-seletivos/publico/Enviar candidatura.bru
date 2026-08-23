@@ -16,9 +16,11 @@ body:json {
     "email": "candidato0@email.com",
     "phone": "31999999999",
     "course": "Ciencia da computacao",
-    "current_term": 1,
-    "linkedin_url": null,
-    "portfolio_url": null,
+    "current_term": "7º período",
+    "links": [
+      "https://linkedin.com/in/candidato-zero",
+      "https://github.com/candidato-zero"
+    ],
     "privacy_consent": true
   }
 }
@@ -29,4 +31,8 @@ docs {
 
   O candidato é achado-ou-criado pelo e-mail dentro da EJ: reenviar com o mesmo
   e-mail reaproveita a pessoa e atualiza os dados de contato.
+
+  "current_term" é texto livre e opcional ("7º período", "formando", "irregular").
+  "links" aceita até 5 URLs; lista ausente ou vazia numa reinscrição não apaga
+  os links que já estavam na ficha.
 }
