@@ -12,16 +12,30 @@ nenhum outro módulo de negócio, só de `shared`.
 | Entidade | O que representa |
 |---|---|
 | `SelectionProcess` | A campanha. Um "PS 2026.1": título, edital, período e status. É o container. |
-| `Candidacy` | A inscrição de uma pessoa naquela campanha. 1 processo : N inscrições. |
+| `Candidate` | A pessoa. Única por `(tenant_id, lower(email))`. Persiste entre processos. |
+| `Candidacy` | O vínculo `Candidate` × `SelectionProcess`. 1 candidato : N inscrições. |
 
 `SelectionProcess` **não** é uma vaga. Um PS de EJ é entrada de turma, não
 contratação para um cargo específico — por isso não usamos o vocabulário de ATS
 (`Job`, `Posting`).
 
-`Candidacy` guarda hoje os dados do candidato direto (nome, e-mail, telefone,
-curso, período, links). Quando existir histórico entre semestres, o corte natural
-é extrair `Candidate` — a pessoa, única por e-mail na EJ — e deixar em `Candidacy`
-só o vínculo pessoa × processo, com nota e etapa.
+`Candidate` é criado na primeira inscrição (estratégia *find-or-create* em
+`CandidacySubmitter`): se o e-mail já existe para a EJ, reutiliza o registro;
+caso contrário, cria um novo. Isso permite ao mesmo candidato se inscrever em
+processos futuros sem duplicar dados de contato.
+
+`Candidacy` carrega apenas o que é específico de uma inscrição: curso, período
+letivo, status e consentimento LGPD. Os dados de contato (nome, e-mail, telefone,
+links) vivem em `Candidate`.
+
+O período (`current_term`) é texto livre e opcional, não um inteiro: cada curso
+tem uma grade própria, e quem está irregular ou formando não cabe num número.
+
+Os links são uma lista ordenada (no máximo 5, cada um validado como URL), na
+tabela `candidate_links`. Duas colunas fixas obrigavam toda EJ a pedir LinkedIn e
+portfólio; com a lista, cada uma pede o que faz sentido no seu formulário —
+GitHub, Behance, currículo online. Reinscrição só substitui a lista se a nova
+vier preenchida: mandar vazio não apaga o que já estava lá.
 
 ## Estados do processo
 
@@ -79,7 +93,8 @@ tenant.
 ```
 recruitment/
 ├── processes/     ← SelectionProcess, status, superfície interna e pública
-└── candidacies/   ← Candidacy, inscrição pública, listagem para a EJ
+├── candidacies/   ← Candidacy, inscrição pública, listagem para a EJ
+└── candidates/    ← Candidate, CRUD de candidatos
 ```
 
 A dependência aponta em **um sentido só**: `candidacies` conhece `processes`,
@@ -91,6 +106,12 @@ que `candidacies` precisa (achar processo aberto, conferir existência),
 implementada por `SelectionProcessService`. `SelectionProcessRepository` continua
 *package-private*.
 
+`candidacies` também conhece `candidates`, pela mesma regra e pela mesma porta:
+`CandidateRegistry` expõe só o *find-or-register* usado na inscrição, e
+`CandidateRepository` fica *package-private*. Escrever candidato pela API é
+operação da EJ, protegida por `recruitment:write`; a superfície pública só
+alcança o candidato através da inscrição.
+
 Repositório é detalhe de implementação do agregado dele. Se um pacote vizinho
 precisa de dados, ele pede pela porta — não recebe uma chave do banco. O teste
 prático: _"se eu tornar esse repositório package-private de novo, o que quebra?"_
@@ -99,9 +120,8 @@ Se a resposta for "o service de outro pacote", falta uma porta ali.
 ## Pendências conhecidas
 
 - **Anexo de currículo** — depende do módulo de arquivos
-  ([ADR 0002](../adr/0002-armazenamento-s3.md)). Até lá a inscrição carrega só
-  `linkedinUrl` e `portfolioUrl`. Atenção: o upload aqui é **anônimo**, então
+  ([ADR 0002](../adr/0002-armazenamento-s3.md)). Até lá a ficha carrega só a
+  lista de `links`. Atenção: o upload aqui é **anônimo**, então
   não cabe em URL pré-assinada emitida para um usuário autenticado.
 - **Campos de formulário por EJ** — hoje a ficha é fixa. Ver ADR 0003.
 - **Triagem** — mover inscrição entre etapas, com nota e parecer.
-- **`Candidate` como entidade** — histórico da pessoa entre processos.
