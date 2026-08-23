@@ -1,5 +1,6 @@
 package br.com.puccomp.api.recruitment.candidacies;
 
+import br.com.puccomp.api.recruitment.candidates.Candidate;
 import br.com.puccomp.api.recruitment.processes.SelectionProcess;
 import br.com.puccomp.api.shared.audit.Auditable;
 import jakarta.persistence.*;
@@ -29,32 +30,23 @@ public class Candidacy extends Auditable {
     @JoinColumn(name = "process_id", nullable = false)
     private SelectionProcess process;
 
-    @Column(name = "full_name", nullable = false)
-    private String fullName;
+    // ManyToOne: a mesma pessoa se inscreve em vários processos — é esse histórico que o
+    // split entre Candidate e Candidacy existe para permitir.
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "candidate_id", nullable = false)
+    private Candidate candidate;
 
-    @Column(nullable = false)
-    private String email;
-
-    @Column(nullable = false, length = 50)
-    private String phone;
+    @Column(name = "current_term", nullable = false)
+    private int currentTerm;
 
     @Column(nullable = false)
     private String course;
-
-    @Column(name = "current_term", nullable = false, length = 50)
-    private String currentTerm;
-
-    @Column(name = "linkedin_url")
-    private String linkedinUrl;
-
-    @Column(name = "portfolio_url")
-    private String portfolioUrl;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 50)
     private CandidacyStatus status;
 
-    /** Instante do aceite, não um booleano: é ele que comprova o consentimento LGPD. */
+    // Instante do aceite, não um booleano: é ele que comprova o consentimento LGPD.
     @Column(name = "privacy_consent_at", nullable = false, updatable = false)
     private Instant privacyConsentAt;
 }
