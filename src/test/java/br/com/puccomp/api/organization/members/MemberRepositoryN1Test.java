@@ -1,6 +1,7 @@
 package br.com.puccomp.api.organization.members;
 
 import br.com.puccomp.api.shared.reference.Standing;
+import br.com.puccomp.api.shared.tenant.TenantContext;
 import br.com.puccomp.api.support.AbstractIntegrationTest;
 import br.com.puccomp.api.support.TestSeeder;
 import jakarta.persistence.EntityManager;
@@ -32,10 +33,11 @@ class MemberRepositoryN1Test extends AbstractIntegrationTest {
 
     Statistics statistics;
 
+    UUID tenantId;
+
     @BeforeEach
-    @DisplayName("seeda 5 membros com cursos distintos entre si")
     void setUp() {
-        UUID tenantId = seeder.seedTenant("EJ N1 Membros", "ej-n1-membros-" + UUID.randomUUID());
+        tenantId = seeder.seedTenant("EJ N1 Membros", "ej-n1-membros-" + UUID.randomUUID());
 
         for (int i = 0; i < 5; i++) {
             seeder.seedCourse(tenantId, "Curso " + i);
@@ -49,15 +51,24 @@ class MemberRepositoryN1Test extends AbstractIntegrationTest {
     }
 
     @Test
-    @DisplayName("listagem de membros roda no máximo 1 query de conteúdo + 1 de count, sem crescer com os cursos")
+    @DisplayName("listagem de membros traz curso, cargo e diretoria na própria query, sem ida extra ao banco")
     void shouldNotGenerateAdditionalQueryPerCourse() {
         Pageable pageable = PageRequest.of(0, 20);
 
-        memberRepository.findAll(pageable).getContent()
-                .forEach(member -> member.getCourse().getName());
+        // sem o tenant no contexto o filtro do @TenantId descarta tudo, e a contagem
+        // de queries passaria a valer sobre uma lista vazia.
+        TenantContext.set(tenantId);
+        try {
+            var members = memberRepository.findAll(pageable).getContent();
+            assertThat(members).hasSize(5);
+            members.forEach(member -> member.getCourse().getName());
 
-        long queryCount = statistics.getQueryExecutionCount();
-
-        assertThat(queryCount).isLessThanOrEqualTo(2);
+            assertThat(statistics.getQueryExecutionCount()).isLessThanOrEqualTo(2);
+            // getQueryExecutionCount ignora carga preguiçosa de associação; quem denuncia o
+            // N+1 é o entity fetch, disparado quando o curso fica de fora do grafo.
+            assertThat(statistics.getEntityFetchCount()).isZero();
+        } finally {
+            TenantContext.clear();
+        }
     }
 }

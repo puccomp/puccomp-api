@@ -81,7 +81,7 @@ class InvitationPaginationTest extends AbstractIntegrationTest {
         headers.setBearerAuth(ownerToken);
         headers.setContentType(MediaType.APPLICATION_JSON);
         ResponseEntity<String> res = rest.exchange("/v1/invitations", HttpMethod.POST,
-                new HttpEntity<>(Map.of("email", email, "standing", "STAFF"), headers), String.class);
+                new HttpEntity<>(Map.of("email", email, "standing", "MEMBER"), headers), String.class);
         assertThat(res.getStatusCode()).isEqualTo(HttpStatus.CREATED);
     }
 }
