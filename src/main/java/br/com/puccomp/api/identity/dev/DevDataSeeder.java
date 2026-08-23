@@ -52,11 +52,11 @@ class DevDataSeeder implements ApplicationRunner {
                 "ej-comp",
                 OWNER_EMAIL,
                 List.of(
-                        "Ciencia da Computacao",
-                        "Ciencia de Dados",
+                        "Ciência da Computação",
+                        "Ciência de Dados",
                         "Engenharia de Software",
-                        "Engenharia de Computacao",
-                        "Sistemas de Informacao")));
+                        "Engenharia de Computação",
+                        "Sistemas de Informação")));
 
         var owner = createAccount(OWNER_EMAIL, OWNER_PASSWORD);
         var member = createAccount(MEMBER_EMAIL, MEMBER_PASSWORD);
@@ -64,7 +64,7 @@ class DevDataSeeder implements ApplicationRunner {
         TenantContext.set(ej.tenantId());
         try {
             UUID presidenteRoleId = roleProvisioning.createRole(
-                    "Presidente", "Cargo de presidencia da EJ", 0);
+                    "Presidente", "Cargo de presidência da EJ");
             UUID cienciaComputacaoId = courseCatalog.listActive().getFirst().id();
             memberProvisioning.createMember(
                     owner.getId(), OWNER_NAME, cienciaComputacaoId, presidenteRoleId, Standing.OWNER);

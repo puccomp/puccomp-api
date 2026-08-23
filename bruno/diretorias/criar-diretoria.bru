@@ -1,0 +1,32 @@
+meta {
+  name: Criar diretoria
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{base_url}}/v1/departments
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{access_token}}
+}
+
+body:json {
+  {
+    "name": "{{department_name}}",
+    "description": "{{department_description}}"
+  }
+}
+
+vars:pre-request {
+  department_name: Marketing
+  department_description: Comunicação, marca e captação
+}
+
+script:post-response {
+  if (res.getStatus() === 201)
+    bru.setEnvVar("department_id", res.getBody().id);
+}
