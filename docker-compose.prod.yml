@@ -1,10 +1,9 @@
-version: '3.8'
-
 services:
   nginx:
     image: nginx:alpine
     ports:      
-      - "80:80" # Única porta exposta para o mundo HTTP
+      - "80:80"   # Redireciona para HTTPS
+      - "443:443" # Exige certificado montado no nginx.conf
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
@@ -23,6 +22,17 @@ services:
       - MAIL_PASSWORD=${MAIL_PASSWORD}      
       - SPRING_PROFILES_ACTIVE=prod
       # O SES funciona automático se a Role da EC2 tiver a permissão SES:SendEmail
+      # Sem JWT_SECRET a aplicação não sobe: o placeholder não tem default.
+      - JWT_SECRET=${JWT_SECRET}
+      # Sem PUCCOMP_ADMIN_KEY o filtro de chave de plataforma fica desligado (o default
+      # é vazio) e POST /v1/admin/tenants responde 401 para qualquer chave.
+      - PUCCOMP_ADMIN_KEY=${PUCCOMP_ADMIN_KEY}
+      # Base do link que vai no e-mail de convite: se apontar para localhost, o convidado
+      # recebe um link que não abre.
+      - ONBOARDING_ACCEPT_URL=${ONBOARDING_ACCEPT_URL}
+      - ONBOARDING_FROM=${ONBOARDING_FROM}
+      # Origens do front liberadas no CORS. Sem isto, o navegador bloqueia as chamadas.
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS}
     depends_on:
       - db
 
@@ -47,7 +57,7 @@ services:
     environment:
       - GF_SECURITY_ADMIN_USER=${GRAFANA_USER}
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASS}
-      - GF_SERVER_ROOT_URL=http://54.211.58.34/grafana/
+      - GF_SERVER_ROOT_URL=https://puccomp.com.br/grafana/
       - GF_SERVER_SERVE_FROM_SUB_PATH=true
     volumes:
       - grafana_data:/var/lib/grafana
