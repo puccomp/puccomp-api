@@ -15,7 +15,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class TenantProvisioningDisabledKeyIntegrationTest extends AbstractIntegrationTest {
 
     @Test
-    @DisplayName("chave administrativa nao configurada mantem /v1/admin fechado")
+    @DisplayName("chave administrativa não configurada mantém /v1/admin fechado")
     void shouldRejectWhenPlatformKeyIsNotConfigured() {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);

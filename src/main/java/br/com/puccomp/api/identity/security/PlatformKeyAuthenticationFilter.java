@@ -51,7 +51,7 @@ class PlatformKeyAuthenticationFilter extends OncePerRequestFilter {
         try {
             return MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8));
         } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException("SHA-256 indisponivel", e);
+            throw new IllegalStateException("SHA-256 indisponível", e);
         }
     }
 }

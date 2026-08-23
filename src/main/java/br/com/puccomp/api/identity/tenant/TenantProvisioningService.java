@@ -25,9 +25,9 @@ public class TenantProvisioningService {
     public ProvisionedTenantResponse provision(ProvisionTenantRequest request) {
         String slug = Slugs.slugify(request.slug());
         if (!Slugs.isValid(slug))
-            throw new IllegalArgumentException("slug: informe um valor valido");
+            throw new IllegalArgumentException("slug: informe um valor válido");
         if (tenants.existsBySlug(slug))
-            throw new ConflictException("Ja existe uma EJ com esse slug");
+            throw new ConflictException("Já existe uma EJ com esse slug");
 
         UUID tenantId = UUID.randomUUID();
         TenantContext.set(tenantId);
