@@ -1,0 +1,21 @@
+meta {
+  name: Listar candidaturas
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{base_url}}/v1/recruitment/processes/{{process_id}}/candidacies?page=0&size=20&sort=createdAt,desc
+  body: none
+  auth: bearer
+}
+
+params:query {
+  page: 0
+  size: 20
+  sort: createdAt,desc
+}
+
+auth:bearer {
+  token: {{access_token}}
+}

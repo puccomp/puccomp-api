@@ -28,7 +28,7 @@ class AlumniAccessIntegrationTest extends AbstractIntegrationTest {
     void shouldGiveRetiredMemberLiveReadOnlyAccess() {
         UUID tenant = seeder.seedTenant("EJ Alumni", "ej-alumni");
         seeder.seedAccount(tenant, "dono@alumni.dev", "senha123", Standing.OWNER);
-        UUID veteranoId = seeder.seedAccount(tenant, "veterano@alumni.dev", "senha123", Standing.STAFF);
+        UUID veteranoId = seeder.seedAccount(tenant, "veterano@alumni.dev", "senha123", Standing.MEMBER);
 
         String owner = login("dono@alumni.dev", "senha123");
         String veterano = login("veterano@alumni.dev", "senha123");
@@ -48,7 +48,7 @@ class AlumniAccessIntegrationTest extends AbstractIntegrationTest {
     void shouldRestoreAccessWhenReactivated() {
         UUID tenant = seeder.seedTenant("EJ Retorno", "ej-retorno");
         seeder.seedAccount(tenant, "dono@retorno.dev", "senha123", Standing.OWNER);
-        UUID veteranoId = seeder.seedAccount(tenant, "veterano@retorno.dev", "senha123", Standing.STAFF);
+        UUID veteranoId = seeder.seedAccount(tenant, "veterano@retorno.dev", "senha123", Standing.MEMBER);
         String owner = login("dono@retorno.dev", "senha123");
 
         post("/v1/members/" + veteranoId + "/retire", owner);

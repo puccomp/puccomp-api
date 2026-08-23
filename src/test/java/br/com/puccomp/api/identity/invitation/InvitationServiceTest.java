@@ -53,16 +53,16 @@ class InvitationServiceTest {
         return new AuthPrincipal(UUID.randomUUID(), "dono@ej.dev", UUID.randomUUID(), null, Standing.OWNER, null);
     }
 
-    private AuthPrincipal staff() {
-        return new AuthPrincipal(UUID.randomUUID(), "staff@ej.dev", UUID.randomUUID(), UUID.randomUUID(),
-                Standing.STAFF, null);
+    private AuthPrincipal member() {
+        return new AuthPrincipal(UUID.randomUUID(), "member@ej.dev", UUID.randomUUID(), UUID.randomUUID(),
+                Standing.MEMBER, null);
     }
 
     private Invitation invitation(Instant expiresAt) {
         return Invitation.builder()
                 .tenantId(UUID.randomUUID())
                 .email("novato@ej.dev")
-                .standing(Standing.STAFF)
+                .standing(Standing.MEMBER)
                 .tokenHash("hash")
                 .tokenPrefix("inv_abc")
                 .expiresAt(expiresAt)
@@ -79,7 +79,7 @@ class InvitationServiceTest {
         when(properties.fromAddress()).thenReturn("nao-responda@ej.dev");
 
         InvitationResponse response = service.create(admin(),
-                new CreateInvitationRequest("novato@ej.dev", Standing.STAFF, null));
+                new CreateInvitationRequest("novato@ej.dev", Standing.MEMBER, null));
 
         assertThat(response.email()).isEqualTo("novato@ej.dev");
         assertThat(response.tokenPrefix()).startsWith("inv_");
@@ -97,10 +97,10 @@ class InvitationServiceTest {
         Account existing = Account.builder().id(UUID.randomUUID()).email("novato@ej.dev").build();
         when(accounts.findByEmailIgnoreCase("novato@ej.dev")).thenReturn(Optional.of(existing));
         when(memberDirectory.findMembership(existing.getId(), admin.tenantId()))
-                .thenReturn(Optional.of(new Membership(UUID.randomUUID(), admin.tenantId(), Standing.STAFF)));
+                .thenReturn(Optional.of(new Membership(UUID.randomUUID(), admin.tenantId(), Standing.MEMBER)));
 
         assertThatThrownBy(() -> service.create(admin,
-                new CreateInvitationRequest("novato@ej.dev", Standing.STAFF, null)))
+                new CreateInvitationRequest("novato@ej.dev", Standing.MEMBER, null)))
                 .isInstanceOf(ConflictException.class);
         verify(repository, never()).save(any());
     }
@@ -117,7 +117,7 @@ class InvitationServiceTest {
         when(properties.fromAddress()).thenReturn("nao-responda@ej.dev");
 
         InvitationResponse response = service.create(admin,
-                new CreateInvitationRequest("veterano@ej.dev", Standing.STAFF, null));
+                new CreateInvitationRequest("veterano@ej.dev", Standing.MEMBER, null));
 
         assertThat(response.email()).isEqualTo("veterano@ej.dev");
         verify(repository).save(any());
@@ -131,13 +131,13 @@ class InvitationServiceTest {
         when(memberProvisioning.roleExists(cargo)).thenReturn(false);
 
         assertThatThrownBy(() -> service.create(admin(),
-                new CreateInvitationRequest("novato@ej.dev", Standing.STAFF, cargo)))
+                new CreateInvitationRequest("novato@ej.dev", Standing.MEMBER, cargo)))
                 .isInstanceOf(ResourceNotFoundException.class);
     }
 
     @Test
-    @DisplayName("standing omitido (null) usa STAFF por padrão")
-    void shouldDefaultStandingToStaff() {
+    @DisplayName("standing omitido (null) usa MEMBER por padrão")
+    void shouldDefaultStandingToMember() {
         when(accounts.findByEmailIgnoreCase("novato@ej.dev")).thenReturn(Optional.empty());
         when(properties.invitationTtl()).thenReturn(Duration.ofHours(72));
         when(properties.acceptUrlBase()).thenReturn("http://localhost/aceitar");
@@ -147,32 +147,32 @@ class InvitationServiceTest {
 
         ArgumentCaptor<Invitation> saved = ArgumentCaptor.forClass(Invitation.class);
         verify(repository).save(saved.capture());
-        assertThat(saved.getValue().getStanding()).isEqualTo(Standing.STAFF);
+        assertThat(saved.getValue().getStanding()).isEqualTo(Standing.MEMBER);
     }
 
     @Test
-    @DisplayName("STAFF não pode convidar com standing privilegiado (ADMIN/OWNER): 403")
-    void shouldRejectStaffInvitingPrivilegedStanding() {
+    @DisplayName("MEMBER não pode convidar com standing OWNER: 403")
+    void shouldRejectMemberInvitingOwnerStanding() {
         when(accounts.findByEmailIgnoreCase("novato@ej.dev")).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service.create(staff(),
-                new CreateInvitationRequest("novato@ej.dev", Standing.ADMIN, null)))
+        assertThatThrownBy(() -> service.create(member(),
+                new CreateInvitationRequest("novato@ej.dev", Standing.OWNER, null)))
                 .isInstanceOf(AccessDeniedException.class);
         verify(repository, never()).save(any());
     }
 
     @Test
-    @DisplayName("OWNER/ADMIN pode convidar com standing privilegiado")
-    void shouldAllowPrivilegedInvitingPrivilegedStanding() {
+    @DisplayName("OWNER pode convidar com standing OWNER")
+    void shouldAllowOwnerInvitingOwnerStanding() {
         when(accounts.findByEmailIgnoreCase("novato@ej.dev")).thenReturn(Optional.empty());
         when(properties.invitationTtl()).thenReturn(Duration.ofHours(72));
         when(properties.acceptUrlBase()).thenReturn("http://localhost/aceitar");
         when(properties.fromAddress()).thenReturn("nao-responda@ej.dev");
 
         InvitationResponse response = service.create(admin(),
-                new CreateInvitationRequest("novato@ej.dev", Standing.ADMIN, null));
+                new CreateInvitationRequest("novato@ej.dev", Standing.OWNER, null));
 
-        assertThat(response.standing()).isEqualTo(Standing.ADMIN);
+        assertThat(response.standing()).isEqualTo(Standing.OWNER);
         verify(repository).save(any());
     }
 
@@ -183,7 +183,7 @@ class InvitationServiceTest {
         Account account = Account.builder().id(UUID.randomUUID()).email("novato@ej.dev")
                 .status(AccountStatus.ACTIVE).build();
         when(acceptor.provision(any(), any()))
-                .thenReturn(new InvitationAcceptor.Provisioned(account, UUID.randomUUID(), Standing.STAFF));
+                .thenReturn(new InvitationAcceptor.Provisioned(account, UUID.randomUUID(), Standing.MEMBER));
         when(jwtService.generateAccessToken(eq(account), any(), any(), any())).thenReturn("jwt-token");
         when(jwtService.accessTokenTtlSeconds()).thenReturn(28800L);
 
@@ -210,7 +210,7 @@ class InvitationServiceTest {
                 .id(UUID.randomUUID())
                 .tenantId(tenantId)
                 .email("novato@ej.dev")
-                .standing(Standing.STAFF)
+                .standing(Standing.MEMBER)
                 .tokenHash("old-hash")
                 .tokenPrefix("inv_old")
                 .expiresAt(Instant.now().plusSeconds(3600))

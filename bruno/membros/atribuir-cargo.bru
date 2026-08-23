@@ -1,0 +1,27 @@
+meta {
+  name: Atribuir cargo e diretoria
+  type: http
+  seq: 5
+}
+
+put {
+  url: {{base_url}}/v1/members/{{member_id}}/assignment
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{access_token}}
+}
+
+body:json {
+  {
+    "role_id": "{{role_id}}",
+    "department_id": null
+  }
+}
+
+docs {
+  Cargo com diretoria impõe a sua: department_id nulo é preenchido automaticamente e um
+  department_id divergente devolve 409. Cargo genérico deixa o department_id livre.
+}

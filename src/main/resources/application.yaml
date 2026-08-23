@@ -36,6 +36,8 @@ puccomp:
     accept-url-base: ${ONBOARDING_ACCEPT_URL}
     from-address: ${ONBOARDING_FROM:nao-responda@puccomp.dev}
     invitation-ttl: 72h
+  admin:
+    key: ${PUCCOMP_ADMIN_KEY:}
 
 server:
   error:

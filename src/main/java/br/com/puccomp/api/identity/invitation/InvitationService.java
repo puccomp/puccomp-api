@@ -27,7 +27,7 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
-class InvitationService {
+class InvitationService implements InvitationIssuer {
 
     private static final String PREFIX = "inv_";
     private static final int PREFIX_DISPLAY_LENGTH = 12;
@@ -52,9 +52,9 @@ class InvitationService {
                     throw new ConflictException("Essa pessoa já é membro desta EJ");
                 });
 
-        Standing standing = request.standing() == null ? Standing.STAFF : request.standing();
+        Standing standing = request.standing() == null ? Standing.MEMBER : request.standing();
         if (isPrivileged(standing) && !isPrivileged(admin.standing()))
-            throw new AccessDeniedException("Apenas OWNER ou ADMIN podem convidar com esse standing");
+            throw new AccessDeniedException("Apenas OWNER pode convidar com esse standing");
 
         if (request.roleId() != null && !memberProvisioning.roleExists(request.roleId()))
             throw new ResourceNotFoundException("Cargo não encontrado");
@@ -72,8 +72,30 @@ class InvitationService {
                 .build();
         repository.save(invitation);
 
-        sendInvitationEmail(email, token.raw());
+        sendInvitationEmail(email, acceptUrl(token.raw()));
         return InvitationResponse.from(invitation, Instant.now());
+    }
+
+    @Override
+    @Transactional
+    public IssuedInvitation issueForOwner(UUID tenantId, String email) {
+        String normalizedEmail = email.trim();
+        IssuedToken token = newToken();
+        Invitation invitation = Invitation.builder()
+                .tenantId(tenantId)
+                .email(normalizedEmail)
+                .standing(Standing.OWNER)
+                .roleId(null)
+                .tokenHash(token.hash())
+                .tokenPrefix(token.prefix())
+                .expiresAt(Instant.now().plus(properties.invitationTtl()))
+                .createdByAccountId(null)
+                .build();
+        repository.save(invitation);
+
+        String acceptUrl = acceptUrl(token.raw());
+        sendInvitationEmail(normalizedEmail, acceptUrl);
+        return new IssuedInvitation(invitation.getId(), acceptUrl, invitation.getExpiresAt());
     }
 
     @Transactional(readOnly = true)
@@ -103,12 +125,12 @@ class InvitationService {
         IssuedToken token = newToken();
         invitation.reissue(token.hash(), token.prefix(), Instant.now().plus(properties.invitationTtl()));
 
-        sendInvitationEmail(invitation.getEmail(), token.raw());
+        sendInvitationEmail(invitation.getEmail(), acceptUrl(token.raw()));
         return InvitationResponse.from(invitation, Instant.now());
     }
 
     private static boolean isPrivileged(Standing standing) {
-        return standing == Standing.OWNER || standing == Standing.ADMIN;
+        return standing == Standing.OWNER;
     }
 
     private Invitation findOwned(UUID tenantId, UUID invitationId) {
@@ -149,8 +171,11 @@ class InvitationService {
                 jwtService.accessTokenTtlSeconds());
     }
 
-    private void sendInvitationEmail(String to, String rawToken) {
-        String link = properties.acceptUrlBase() + "?token=" + rawToken;
+    private String acceptUrl(String rawToken) {
+        return properties.acceptUrlBase() + "?token=" + rawToken;
+    }
+
+    private void sendInvitationEmail(String to, String link) {
         String body = """
                 Você foi convidado para o sistema da sua Empresa Júnior.
 

@@ -1,0 +1,58 @@
+name: Deploy Produção
+
+on:
+  release:
+    types: [published] # Cumpre o critério: "em uma release criada a partir da main"
+
+jobs:
+  build-and-deploy:
+    if: github.event.release.target_commitish == 'main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write # Necessário para salvar a imagem no GHCR
+      id-token: write # Necessário para autenticar na AWS sem chaves fixas
+
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v3
+
+      # 1. Prepara o terreno para arquitetura ARM64 (Graviton da EC2)
+      - name: Configurar QEMU
+        uses: docker/setup-qemu-action@v2
+      - name: Configurar Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      # 2. Faz login no GHCR automaticamente com o robô do GitHub
+      - name: Login no GHCR
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # 3. Compila a imagem para ARM64 e envia para o GHCR com o nome que você escolheu
+      - name: Build e Push da Imagem
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          platforms: linux/arm64
+          push: true
+          tags: ghcr.io/puccomp/puccomp-api-v2:latest
+
+      # 4. Autentica na AWS usando a Role do Terraform
+      - name: Configurar Credenciais AWS
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: arn:aws:iam::191018124550:role/GitHubActionsDeployRole
+          aws-region: us-east-1
+
+      # 5. Entra na EC2 via SSM e roda os comandos via AWS CLI
+      - name: Atualizar EC2 via SSM
+        run: |
+          aws ssm send-command \
+            --instance-ids "i-072810abcfe82f430" \
+            --document-name "AWS-RunShellScript" \
+            --comment "Deploy automatizado do GitHub Actions" \
+            --parameters '{"commands":["cd /home/ubuntu/puccomp-api", "sudo docker pull ghcr.io/puccomp/puccomp-api-v2:latest", "sudo docker compose -f docker-compose.prod.yml up -d"]}' \
+            --region us-east-1

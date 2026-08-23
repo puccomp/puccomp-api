@@ -16,7 +16,10 @@ interface MemberRepository extends JpaRepository<Member, UUID> {
     @EntityGraph(attributePaths = {"role", "department", "course"})
     Page<Member> findAll(Pageable pageable);
 
-    @EntityGraph(attributePaths = {"role", "department"})
+    @EntityGraph(attributePaths = {"role", "department", "course"})
+    Page<Member> findAllByDepartmentId(UUID departmentId, Pageable pageable);
+
+    @EntityGraph(attributePaths = {"role", "department", "course"})
     Optional<Member> findById(UUID id);
 
     @Query("select m.role.id from Member m where m.id = :id")

@@ -31,6 +31,8 @@ public class RoleController {
     @Operation(summary = "Cria um novo cargo")
     @ApiResponse(responseCode = "400", description = "Dados inválidos",
             content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    @ApiResponse(responseCode = "404", description = "Departamento não encontrado",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     @ApiResponse(responseCode = "409", description = "Já existe um cargo com esse nome",
             content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     @ResponseStatus(HttpStatus.CREATED)
@@ -44,8 +46,11 @@ public class RoleController {
     @Parameter(name = "sort", description = "Padrão: name,asc e id,asc", example = "name,asc", in = ParameterIn.QUERY)
     @PreAuthorize("hasAuthority('roles:read')")
     @GetMapping
-    public Page<RoleResponse> getAll(@PageableDefault(size = 20,sort = {"name", "id"}, direction = Sort.Direction.ASC) Pageable pageable) {
-        return service.findAll(pageable);
+    public Page<RoleResponse> getAll(
+            @Parameter(description = "Filtra os cargos de uma diretoria; id desconhecido devolve página vazia")
+            @RequestParam(required = false) UUID departmentId,
+            @PageableDefault(size = 20, sort = {"name", "id"}, direction = Sort.Direction.ASC) Pageable pageable) {
+        return service.findAll(departmentId, pageable);
     }
 
     @Operation(summary = "Busca cargo por ID")
@@ -55,5 +60,18 @@ public class RoleController {
     @GetMapping("/{id}")
     public RoleResponse getById(@PathVariable UUID id) {
         return service.findById(id);
+    }
+
+    @Operation(summary = "Atualiza um cargo por completo; campo opcional ausente limpa o valor")
+    @ApiResponse(responseCode = "400", description = "Dados inválidos",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    @ApiResponse(responseCode = "404", description = "Cargo ou departamento não encontrado",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    @ApiResponse(responseCode = "409", description = "Já existe um cargo com esse nome",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    @PreAuthorize("hasAuthority('roles:write')")
+    @PutMapping("/{id}")
+    public RoleResponse update(@PathVariable UUID id, @RequestBody @Valid RoleUpdateRequest request) {
+        return service.update(id, request);
     }
 }

@@ -67,8 +67,8 @@ class MemberPaginationTest extends AbstractIntegrationTest {
     void shouldSortByNameAscByDefault() throws Exception {
         UUID tenant = seeder.seedTenant("EJ Paginacao Membros Ordem", "ej-pg-membros-ordem-" + UUID.randomUUID());
         seeder.seedAccount(tenant, "dono-pgm3@ej.dev", "senha123", Standing.OWNER);
-        seeder.seedAccount(tenant, "membro-a-pgm3@ej.dev", "senha123", Standing.STAFF);
-        seeder.seedAccount(tenant, "membro-b-pgm3@ej.dev", "senha123", Standing.STAFF);
+        seeder.seedAccount(tenant, "membro-a-pgm3@ej.dev", "senha123", Standing.MEMBER);
+        seeder.seedAccount(tenant, "membro-b-pgm3@ej.dev", "senha123", Standing.MEMBER);
         String token = login("dono-pgm3@ej.dev", "senha123");
 
         ResponseEntity<String> res = getWithToken("/v1/members?size=100", token);

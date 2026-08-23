@@ -55,7 +55,7 @@ create table members (
     tenant_id uuid not null,
     course varchar(255) not null check (course in ('COMPUTER_SCIENCE','DATA_SCIENCE','SOFTWARE_ENGINEERING','COMPUTER_ENGINEERING','INFORMATION_SYSTEMS')),
     name varchar(255) not null,
-    standing varchar(255) not null check (standing in ('OWNER','ADMIN','STAFF')),
+    standing varchar(255) not null check (standing in ('OWNER','MEMBER')),
     status varchar(255) not null check (status in ('ACTIVE','ALUMNUS','INACTIVE','PENDING')),
     primary key (id)
 );
@@ -71,7 +71,7 @@ create table invitations (
     role_id uuid,
     tenant_id uuid not null,
     email varchar(255) not null,
-    standing varchar(255) not null check (standing in ('OWNER','ADMIN','STAFF')),
+    standing varchar(255) not null check (standing in ('OWNER','MEMBER')),
     token_hash varchar(255) not null unique,
     token_prefix varchar(255) not null,
     primary key (id)

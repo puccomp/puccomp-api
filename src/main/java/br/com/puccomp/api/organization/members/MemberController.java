@@ -8,6 +8,7 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -30,8 +31,11 @@ public class MemberController {
     @Parameter(name = "sort", description = "Padrão: name,asc e id,asc", example = "name,asc", in = ParameterIn.QUERY)
     @PreAuthorize("hasAuthority('members:read')")
     @GetMapping
-    public Page<MemberResponse> getAll(@PageableDefault(size = 20,sort = {"name", "id"}, direction = Sort.Direction.ASC) Pageable pageable) {
-        return service.findAll(pageable);
+    public Page<MemberResponse> getAll(
+            @Parameter(description = "Filtra os membros de uma diretoria; id desconhecido devolve página vazia")
+            @RequestParam(required = false) UUID departmentId,
+            @PageableDefault(size = 20, sort = {"name", "id"}, direction = Sort.Direction.ASC) Pageable pageable) {
+        return service.findAll(departmentId, pageable);
     }
 
     @Operation(summary = "Busca membro por ID")
@@ -59,5 +63,16 @@ public class MemberController {
     @PostMapping("/{id}/reactivate")
     public MemberResponse reactivate(@PathVariable UUID id) {
         return service.reactivate(id);
+    }
+
+    @Operation(summary = "Define o cargo e a diretoria do membro; cargo com diretoria impõe a sua")
+    @ApiResponse(responseCode = "404", description = "Membro, cargo ou departamento não encontrado",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    @ApiResponse(responseCode = "409", description = "O cargo pertence a outra diretoria",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    @PreAuthorize("hasAuthority('members:write')")
+    @PutMapping("/{id}/assignment")
+    public MemberResponse assign(@PathVariable UUID id, @RequestBody @Valid MemberAssignmentRequest request) {
+        return service.assign(id, request);
     }
 }

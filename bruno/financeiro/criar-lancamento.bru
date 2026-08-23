@@ -1,0 +1,31 @@
+meta {
+  name: Criar lançamento
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{base_url}}/v1/financial/entries
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{access_token}}
+}
+
+body:json {
+  {
+    "occurred_on": "2026-07-31",
+    "amount": 420.00,
+    "description": "Patrocínio Empresa Beta",
+    "type": "INCOME",
+    "category": "Patrocínios",
+    "receipt_url": "https://sharepoint.com/puc-jr/comprovante-beta"
+  }
+}
+
+script:post-response {
+  if (res.getStatus() === 201)
+    bru.setEnvVar("financial_entry_id", res.getBody().id);
+}

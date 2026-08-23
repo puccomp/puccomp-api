@@ -41,7 +41,7 @@ class InvitationAcceptorTest {
         return Invitation.builder()
                 .tenantId(tenantId)
                 .email("novato@ej.dev")
-                .standing(Standing.STAFF)
+                .standing(Standing.MEMBER)
                 .roleId(roleId)
                 .tokenHash("hash")
                 .tokenPrefix("inv_abc")
@@ -74,14 +74,14 @@ class InvitationAcceptorTest {
         when(accounts.save(any())).thenAnswer(inv -> inv.getArgument(0));
         when(courseCatalog.isAssignable(course)).thenReturn(true);
         when(memberProvisioning.createMember(any(), eq("Novato"), eq(course), eq(cargo),
-                eq(Standing.STAFF))).thenReturn(memberId);
+                eq(Standing.MEMBER))).thenReturn(memberId);
 
         InvitationAcceptor.Provisioned result = acceptor.provision(invId,
                 new AcceptInvitationRequest("inv_token", "senha123", "Novato", course));
 
         assertThat(invitation.getAcceptedAt()).isNotNull();
         assertThat(result.memberId()).isEqualTo(memberId);
-        assertThat(result.standing()).isEqualTo(Standing.STAFF);
+        assertThat(result.standing()).isEqualTo(Standing.MEMBER);
         ArgumentCaptor<Account> saved = ArgumentCaptor.forClass(Account.class);
         verify(accounts).save(saved.capture());
         assertThat(saved.getValue().getEmail()).isEqualTo("novato@ej.dev");
@@ -102,7 +102,7 @@ class InvitationAcceptorTest {
         when(memberDirectory.findMembership(existing.getId(), tenant)).thenReturn(Optional.empty());
         when(courseCatalog.isAssignable(course)).thenReturn(true);
         when(memberProvisioning.createMember(eq(existing.getId()), eq("Novato"), eq(course),
-                isNull(), eq(Standing.STAFF))).thenReturn(memberId);
+                isNull(), eq(Standing.MEMBER))).thenReturn(memberId);
 
         InvitationAcceptor.Provisioned result = acceptor.provision(invId,
                 new AcceptInvitationRequest("inv_token", "senha123", "Novato", course));
@@ -121,7 +121,7 @@ class InvitationAcceptorTest {
         when(accounts.findByEmailIgnoreCase("novato@ej.dev")).thenReturn(Optional.of(existing));
         when(passwordEncoder.matches("senha123", "hash")).thenReturn(true);
         when(memberDirectory.findMembership(existing.getId(), tenant))
-                .thenReturn(Optional.of(new Membership(UUID.randomUUID(), tenant, Standing.STAFF)));
+                .thenReturn(Optional.of(new Membership(UUID.randomUUID(), tenant, Standing.MEMBER)));
 
         assertThatThrownBy(() -> acceptor.provision(invId,
                 new AcceptInvitationRequest("inv_token", "senha123", "Novato", UUID.randomUUID())))

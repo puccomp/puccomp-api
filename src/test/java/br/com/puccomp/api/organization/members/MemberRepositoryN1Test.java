@@ -39,7 +39,7 @@ class MemberRepositoryN1Test extends AbstractIntegrationTest {
 
         for (int i = 0; i < 5; i++) {
             seeder.seedCourse(tenantId, "Curso " + i);
-            seeder.seedAccount(tenantId, "membro" + i + "@n1.com", "senha123", Standing.STAFF);
+            seeder.seedAccount(tenantId, "membro" + i + "@n1.com", "senha123", Standing.MEMBER);
         }
 
         SessionFactory sessionFactory = entityManager.getEntityManagerFactory().unwrap(SessionFactory.class);
