@@ -3,6 +3,7 @@ package br.com.puccomp.api.organization.roles;
 import br.com.puccomp.api.shared.exception.ErrorResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -11,6 +12,8 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -40,12 +43,13 @@ public class RoleController {
     }
 
     @Operation(summary = "Lista todos os cargos paginados")
+    @Parameter(name = "sort", description = "Padrão: name,asc e id,asc", example = "name,asc", in = ParameterIn.QUERY)
     @PreAuthorize("hasAuthority('roles:read')")
     @GetMapping
     public Page<RoleResponse> getAll(
             @Parameter(description = "Filtra os cargos de uma diretoria; id desconhecido devolve página vazia")
             @RequestParam(required = false) UUID departmentId,
-            Pageable pageable) {
+            @PageableDefault(size = 20, sort = {"name", "id"}, direction = Sort.Direction.ASC) Pageable pageable) {
         return service.findAll(departmentId, pageable);
     }
 
