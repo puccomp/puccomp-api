@@ -4,6 +4,8 @@ import br.com.puccomp.api.identity.account.AuthPrincipal;
 import br.com.puccomp.api.identity.account.LoginResponse;
 import br.com.puccomp.api.shared.exception.ErrorResponse;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -12,6 +14,8 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -41,9 +45,10 @@ public class InvitationController {
     }
 
     @Operation(summary = "Lista os convites em aberto (não aceitos) da EJ")
+    @Parameter(name = "sort", description = "Padrão: created_at,desc e id,desc", example = "created_at,desc", in = ParameterIn.QUERY)
     @PreAuthorize("hasAuthority('members:invite')")
     @GetMapping
-    public Page<InvitationResponse> list(@AuthenticationPrincipal AuthPrincipal admin, Pageable pageable) {
+    public Page<InvitationResponse> list(@AuthenticationPrincipal AuthPrincipal admin, @PageableDefault(size = 20,sort = {"createdAt", "id"}, direction = Sort.Direction.DESC) Pageable pageable) {
         return service.listOutstanding(admin.tenantId(), pageable);
     }
 
