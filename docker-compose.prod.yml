@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   nginx:
     image: nginx:alpine
@@ -23,6 +21,15 @@ services:
       - MAIL_PASSWORD=${MAIL_PASSWORD}      
       - SPRING_PROFILES_ACTIVE=prod
       # O SES funciona automático se a Role da EC2 tiver a permissão SES:SendEmail
+      # Sem JWT_SECRET a aplicação não sobe: o placeholder não tem default.
+      - JWT_SECRET=${JWT_SECRET}
+      # Sem PUCCOMP_ADMIN_KEY o filtro de chave de plataforma fica desligado (o default
+      # é vazio) e POST /v1/admin/tenants responde 401 para qualquer chave.
+      - PUCCOMP_ADMIN_KEY=${PUCCOMP_ADMIN_KEY}
+      # Base do link que vai no e-mail de convite: se apontar para localhost, o convidado
+      # recebe um link que não abre.
+      - ONBOARDING_ACCEPT_URL=${ONBOARDING_ACCEPT_URL}
+      - ONBOARDING_FROM=${ONBOARDING_FROM}
     depends_on:
       - db
 
