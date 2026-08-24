@@ -1,0 +1,22 @@
+meta {
+  name: Identidade via PAT
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{base_url}}/v1/auth/me
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{pat_token}}
+}
+
+docs {
+  Mesma rota da identidade, autenticada com o PAT em vez do access_token: o filtro reconhece
+  o prefixo "pat_" e resolve a conta pelo token. É o que prova que o PAT funciona como credencial.
+
+  Depois de "Revogar PAT", esta chamada deve responder 401.
+}

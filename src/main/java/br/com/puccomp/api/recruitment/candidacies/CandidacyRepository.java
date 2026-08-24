@@ -8,7 +8,7 @@ import java.util.UUID;
 
 interface CandidacyRepository extends JpaRepository<Candidacy, UUID> {
 
-    boolean existsByProcessIdAndEmailIgnoreCase(UUID processId, String email);
+    boolean existsByProcessIdAndCandidateEmailIgnoreCase(UUID processId, String email);
 
     Page<Candidacy> findByProcessId(UUID processId, Pageable pageable);
 }

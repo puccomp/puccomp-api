@@ -38,6 +38,9 @@ puccomp:
     invitation-ttl: 72h
   admin:
     key: ${PUCCOMP_ADMIN_KEY:}
+  cors:
+    # Origens do front que podem chamar a API pelo navegador. Vira lista separada por vírgula.
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:3000}
 
 server:
   error:
