@@ -12,7 +12,7 @@
  * <p>Não depende de nenhum outro módulo de negócio — só de {@code shared}.
  *
  * <p><b>Pendente:</b> anexo de currículo. Aguarda a definição do módulo de arquivos; até lá a
- * inscrição carrega apenas {@code linkedinUrl} e {@code portfolioUrl}.
+ * ficha do candidato carrega apenas a lista de {@code links}.
  */
 @org.springframework.modulith.ApplicationModule(displayName = "Recruitment")
 package br.com.puccomp.api.recruitment;

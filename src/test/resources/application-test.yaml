@@ -21,3 +21,5 @@ puccomp:
     accept-url-base: http://localhost/aceitar-convite
   admin:
     key: test-admin-key
+  cors:
+    allowed-origins: https://puccomp.com.br,http://localhost:5173

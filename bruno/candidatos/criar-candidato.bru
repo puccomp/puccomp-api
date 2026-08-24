@@ -1,0 +1,32 @@
+meta {
+  name: Criar candidato
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{base_url}}/v1/recruitment/candidates
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{access_token}}
+}
+
+body:json {
+  {
+    "full_name": "Candidato Teste",
+    "email": "candidato.teste@email.com",
+    "phone": "31999999999",
+    "links": [
+      "https://linkedin.com/in/candidatoteste",
+      "https://github.com/candidatoteste"
+    ]
+  }
+}
+
+script:post-response {
+  if (res.getStatus() === 201)
+    bru.setEnvVar("candidate_id", res.getBody().id);
+}
