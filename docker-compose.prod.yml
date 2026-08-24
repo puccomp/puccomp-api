@@ -1,11 +1,9 @@
-version: '3.8'
-
 services:
   nginx:
     image: nginx:alpine
     ports:
-      - "80:80" # Única porta exposta para o mundo HTTP
-      - "443:443" #HTTPS
+      - "80:80"     # Única porta exposta para o mundo HTTP
+      - "443:443"   # HTTPS
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
       - /etc/letsencrypt:/etc/letsencrypt:ro
@@ -14,16 +12,13 @@ services:
       - grafana
 
   api:
-    image: ghcr.io/puccomp/puccomp-api-v2:latest # Ajuste para o repo da COMP
+    image: ghcr.io/puccomp/puccomp-api-v2:latest
     env_file:
-        - .env.prod
+      - .env #Necessario ser apenas .env por reconhecimento do EC2 não altere isso
     environment:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/puccomp
-      # A application.yaml lê DB_USERNAME/DB_PASSWORD, mas o .env.prod usa DB_USER/DB_PASS
-      # (nomes que o serviço db também consome). Estas duas linhas fazem a ponte: sem elas
-      # o placeholder não resolve e a aplicação não sobe.
-      - SPRING_DATASOURCE_USERNAME=${DB_USER}
-      - SPRING_DATASOURCE_PASSWORD=${DB_PASS}
+      - DB_USERNAME=${DB_USER}
+      - DB_PASSWORD=${DB_PASS}
       - SPRING_PROFILES_ACTIVE=prod
       # O SES funciona automático se a Role da EC2 tiver a permissão SES:SendEmail
     depends_on:
@@ -51,7 +46,7 @@ services:
       - GF_SECURITY_ADMIN_USER=${GRAFANA_USER}
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASS}
       - GF_SERVER_ROOT_URL=https://api.puccomp.com.br/grafana/
-      - GF_SERVER_SERVE_FROM_SUB_PATH=true
+      - GF_SERVER_FROM_SUB_PATH=true
     volumes:
       - grafana_data:/var/lib/grafana
     # Nginx vai rotear o tráfego para ele internamente na porta 3000
