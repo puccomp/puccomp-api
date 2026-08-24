@@ -20,16 +20,23 @@ body:json {
     "slug": "{{tenant_slug}}",
     "owner_email": "{{owner_email}}",
     "courses": [
-      "Computacao",
-      "Administracao"
+      "Análise e Desenvolvimento de Sistemas",
+      "Ciência da Computação",
+      "Ciência de Dados e Inteligência Artificial",
+      "Engenharia de Computação",
+      "Engenharia de Software",
+      "Física",
+      "Jogos Digitais",
+      "Matemática",
+      "Sistemas de Informação"
     ]
   }
 }
 
 vars:pre-request {
-  tenant_name: EJ Nova
-  tenant_slug: ej-nova
-  owner_email: owner@ejnova.dev
+  tenant_name: Comp
+  tenant_slug: puccomp
+  owner_email: thom.nmaciel.baron@gmail.com
 }
 
 script:post-response {
@@ -37,7 +44,7 @@ script:post-response {
     const body = res.getBody();
     bru.setEnvVar("tenant_id", body.tenant_id);
     bru.setEnvVar("invitation_id", body.invitation.id);
-
+  
     const acceptUrl = body.invitation.accept_url;
     const match = acceptUrl.match(/[?&]token=([^&]+)/);
     if (match) {
