@@ -20,7 +20,10 @@ services:
       - DB_USERNAME=${DB_USER}
       - DB_PASSWORD=${DB_PASS}
       - SPRING_PROFILES_ACTIVE=prod
-      # O SES funciona automático se a Role da EC2 tiver a permissão SES:SendEmail
+      - MAIL_HOST=${MAIL_HOST}
+      - MAIL_PORT=${MAIL_PORT}
+      - MAIL_USERNAME=${MAIL_USERNAME}
+      - MAIL_PASSWORD=${MAIL_PASSWORD}
     depends_on:
       - db
 
