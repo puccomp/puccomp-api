@@ -43,9 +43,6 @@ public class Candidate extends Auditable {
     @Builder.Default
     private List<String> links = new ArrayList<>();
 
-    public List<String> getLinks() {
-        return List.copyOf(links);
-    }
 
     void changeFullName(String fullName) {
         this.fullName = fullName;
@@ -59,8 +56,14 @@ public class Candidate extends Auditable {
         this.phone = phone;
     }
 
-    void changeLinks(List<String> links) {
-        this.links.clear();
-        this.links.addAll(links);
+    public List<String> getLinks() {
+            return links == null ? List.of() : List.copyOf(links);
+    }
+
+    void changeLinks(List<String> novosLinks) {
+        if (novosLinks != null && !novosLinks.isEmpty()) {
+            this.links.clear();
+            this.links.addAll(novosLinks.stream().limit(5).toList());
+        }
     }
 }
