@@ -42,7 +42,7 @@ class CandidacySubmitter {
                 .status(CandidacyStatus.SUBMITTED)
                 .privacyConsentAt(Instant.now())
                 .build();
-
+        
         emailService.enviarConfirmacaoInscricao(request.email(), request.fullName().trim());
         return CandidacyReceiptResponse.from(candidacies.save(candidacy));
     }

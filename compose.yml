@@ -7,3 +7,9 @@ services:
       POSTGRES_PASSWORD: puccomp
     ports:
       - "5432:5432"
+
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "1025:1025"
+      - "8025:8025" # mailpit web ui: http://localhost:8025
