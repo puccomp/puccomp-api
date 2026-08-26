@@ -1,5 +1,4 @@
 package br.com.puccomp.api.support;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.resttestclient.TestRestTemplate;
 import org.springframework.boot.resttestclient.autoconfigure.AutoConfigureTestRestTemplate;
@@ -25,7 +24,6 @@ public abstract class AbstractIntegrationTest {
 
     @Autowired
     protected TestRestTemplate rest;
-
 
 
     protected String login(String email, String password) {
