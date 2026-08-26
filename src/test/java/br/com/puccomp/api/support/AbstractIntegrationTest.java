@@ -1,8 +1,5 @@
 package br.com.puccomp.api.support;
 
-import org.junit.jupiter.api.BeforeEach;
-import org.mockito.Mock;
-import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.resttestclient.TestRestTemplate;
 import org.springframework.boot.resttestclient.autoconfigure.AutoConfigureTestRestTemplate;
@@ -14,11 +11,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
-
-import jakarta.mail.internet.MimeMessage;
 
 import java.util.Map;
 
@@ -33,14 +26,7 @@ public abstract class AbstractIntegrationTest {
     @Autowired
     protected TestRestTemplate rest;
 
-    @MockitoBean
-    protected JavaMailSender javaMailSender;
 
-    @BeforeEach
-    void setupMailMock() {
-        MimeMessage mimeMessageMock = Mockito.mock(MimeMessage.class);
-        Mockito.when(javaMailSender.createMimeMessage()).thenReturn(mimeMessageMock);
-    }
 
     protected String login(String email, String password) {
         ResponseEntity<Map<String, Object>> res = rest.exchange("/v1/auth/login", HttpMethod.POST,

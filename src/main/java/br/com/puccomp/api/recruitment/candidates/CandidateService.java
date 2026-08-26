@@ -5,8 +5,6 @@ import br.com.puccomp.api.shared.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import br.com.puccomp.api.email.*;
-
 import java.util.List;
 import java.util.UUID;
 
@@ -15,7 +13,6 @@ import java.util.UUID;
 class CandidateService implements CandidateRegistry {
 
     private final CandidateRepository repository;
-    private final EmailService emailService;
 
     @Transactional
     CandidateResponse create(CandidateRequest request) {
@@ -23,7 +20,6 @@ class CandidateService implements CandidateRegistry {
         if (repository.existsByEmailIgnoreCase(email))
             throw new ConflictException("Já existe um candidato com esse e-mail");
 
-        emailService.enviarConfirmacaoInscricao(email, request.fullName().trim());
         
         return CandidateResponse.from(repository.save(Candidate.builder()
                 .fullName(request.fullName().trim())
