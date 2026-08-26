@@ -119,7 +119,11 @@ public class EmailService {
                     <p>Enquanto isso, que tal explorar um pouco mais sobre o que você vai viver com a gente?</p>
                     
                     <div style="text-align: center; margin-top: 40px; margin-bottom: 20px;">
+<<<<<<< HEAD
+                        <a href="https://puccomp.com.br" class="button">Ir para o Site</a>
+=======
                         <a href="https://puccomp.com.br" class="button">Quero ver o site</a>
+>>>>>>> f139bf3df0fc4d6a119652a225a8cdb16978b881
                     </div>
                     
                 </div>

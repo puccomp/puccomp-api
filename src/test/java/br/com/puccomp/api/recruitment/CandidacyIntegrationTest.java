@@ -1,5 +1,6 @@
 package br.com.puccomp.api.recruitment;
 
+import br.com.puccomp.api.email.EmailService;
 import br.com.puccomp.api.recruitment.candidacies.CandidacyReceiptResponse;
 import br.com.puccomp.api.recruitment.candidacies.CandidacyStatus;
 import br.com.puccomp.api.recruitment.candidacies.SubmitCandidacyRequest;
@@ -14,13 +15,19 @@ import br.com.puccomp.api.shared.exception.ErrorResponse;
 import br.com.puccomp.api.shared.reference.Standing;
 import br.com.puccomp.api.support.AbstractIntegrationTest;
 import br.com.puccomp.api.support.TestSeeder;
+import jakarta.mail.internet.MimeMessage;
+
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Import;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import java.time.Instant;
 import java.util.List;
@@ -33,6 +40,16 @@ class CandidacyIntegrationTest extends AbstractIntegrationTest {
 
         @Autowired
         private TestSeeder seeder;
+
+        @MockitoBean
+        private EmailService emailService; // Mocka o serviço de e-mail inteiro
+
+        @BeforeEach
+        void setupEmailMock() {
+                // Garante que chamar o envio de e-mail não faça nada e não lance erros
+                Mockito.doNothing().when(emailService).enviarConfirmacaoInscricao(Mockito.anyString(), Mockito.anyString());
+        }
+        
 
         @Test
         @DisplayName("candidato anônimo deve ver o processo aberto e se inscrever pelo slug da EJ")
