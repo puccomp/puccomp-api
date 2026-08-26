@@ -5,7 +5,8 @@ on:
     branches: [develop, main]
   push:
     branches: [develop, main]
-
+  workflow_dispatch:
+  
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
