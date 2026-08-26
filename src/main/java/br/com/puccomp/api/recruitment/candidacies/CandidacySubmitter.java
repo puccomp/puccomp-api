@@ -8,6 +8,7 @@ import br.com.puccomp.api.shared.exception.ConflictException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import br.com.puccomp.api.email.EmailService;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -19,6 +20,7 @@ class CandidacySubmitter {
     private final CandidacyRepository candidacies;
     private final CandidateRegistry candidates;
     private final ProcessDirectory processes;
+    private final EmailService emailService;
 
     @Transactional
     CandidacyReceiptResponse submit(UUID processId, SubmitCandidacyRequest request) {
@@ -40,7 +42,8 @@ class CandidacySubmitter {
                 .status(CandidacyStatus.SUBMITTED)
                 .privacyConsentAt(Instant.now())
                 .build();
-
+        
+        emailService.enviarConfirmacaoInscricao(request.email(), request.fullName().trim());
         return CandidacyReceiptResponse.from(candidacies.save(candidacy));
     }
 
