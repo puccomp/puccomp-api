@@ -4,14 +4,14 @@ import br.com.puccomp.api.identity.account.AuthPrincipal;
 import br.com.puccomp.api.identity.account.LoginResponse;
 import br.com.puccomp.api.shared.exception.ErrorResponse;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -45,10 +45,12 @@ public class InvitationController {
     }
 
     @Operation(summary = "Lista os convites em aberto (não aceitos) da EJ")
-    @Parameter(name = "sort", description = "Padrão: created_at,desc e id,desc", example = "created_at,desc", in = ParameterIn.QUERY)
     @PreAuthorize("hasAuthority('members:invite')")
     @GetMapping
-    public Page<InvitationResponse> list(@AuthenticationPrincipal AuthPrincipal admin, @PageableDefault(size = 20,sort = {"createdAt", "id"}, direction = Sort.Direction.DESC) Pageable pageable) {
+    public Page<InvitationResponse> list(
+            @AuthenticationPrincipal AuthPrincipal admin,
+            @ParameterObject @PageableDefault(size = 20, sort = {"createdAt", "id"}, direction = Sort.Direction.DESC)
+            Pageable pageable) {
         return service.listOutstanding(admin.tenantId(), pageable);
     }
 
@@ -78,6 +80,7 @@ public class InvitationController {
     @Operation(summary = "Prévia pública do convite: nome da EJ e cursos disponíveis para preencher o aceite")
     @ApiResponse(responseCode = "400", description = "Convite inválido ou expirado",
             content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    @SecurityRequirements
     @GetMapping("/accept")
     public InvitationPreviewResponse preview(@RequestParam String token) {
         return service.preview(token);
@@ -86,6 +89,7 @@ public class InvitationController {
     @Operation(summary = "Aceita um convite: define senha + perfil, cria a conta e já autentica")
     @ApiResponse(responseCode = "400", description = "Convite inválido ou expirado",
             content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    @SecurityRequirements
     @PostMapping("/accept")
     public LoginResponse accept(@RequestBody @Valid AcceptInvitationRequest request) {
         return service.accept(request);

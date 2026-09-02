@@ -75,3 +75,6 @@ management:
 springdoc:
   swagger-ui:
     path: /docs
+  # Sem isso o springdoc publica as respostas sob o media type `*/*`, que geradores de cliente
+  # não sabem interpretar.
+  default-produces-media-type: application/json
