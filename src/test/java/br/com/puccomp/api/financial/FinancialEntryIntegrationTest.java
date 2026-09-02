@@ -158,7 +158,7 @@ class FinancialEntryIntegrationTest extends AbstractIntegrationTest {
     }
 
     private void grantMemberPermissions(String ownerToken, UUID memberId, List<String> permissions) {
-        ResponseEntity<String> res = put("/v1/authz/members/" + memberId + "/permissions",
+        ResponseEntity<String> res = put("/v1/members/" + memberId + "/permissions",
                 Map.of("permissions", permissions), ownerToken, String.class);
         assertThat(res.getStatusCode()).isEqualTo(HttpStatus.OK);
     }

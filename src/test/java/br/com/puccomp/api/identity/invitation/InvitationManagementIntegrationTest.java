@@ -105,7 +105,7 @@ class InvitationManagementIntegrationTest extends AbstractIntegrationTest {
     private void grant(String ownerToken, UUID memberId, String permission) {
         HttpHeaders headers = bearer(ownerToken);
         headers.setContentType(MediaType.APPLICATION_JSON);
-        ResponseEntity<String> res = rest.exchange("/v1/authz/members/" + memberId + "/permissions",
+        ResponseEntity<String> res = rest.exchange("/v1/members/" + memberId + "/permissions",
                 HttpMethod.PUT, new HttpEntity<>(Map.of("permissions", List.of(permission)), headers), String.class);
         assertThat(res.getStatusCode()).isEqualTo(HttpStatus.OK);
     }

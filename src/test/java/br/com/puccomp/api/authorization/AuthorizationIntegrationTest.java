@@ -88,7 +88,7 @@ class AuthorizationIntegrationTest extends AbstractIntegrationTest {
         HttpHeaders headers = new HttpHeaders();
         headers.setBearerAuth(ownerToken);
         headers.setContentType(MediaType.APPLICATION_JSON);
-        ResponseEntity<String> res = rest.exchange("/v1/authz/members/" + memberId + "/permissions",
+        ResponseEntity<String> res = rest.exchange("/v1/members/" + memberId + "/permissions",
                 HttpMethod.PUT, new HttpEntity<>(Map.of("permissions", codigos), headers), String.class);
         assertThat(res.getStatusCode()).isEqualTo(HttpStatus.OK);
     }

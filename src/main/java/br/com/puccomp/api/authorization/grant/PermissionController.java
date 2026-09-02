@@ -17,7 +17,7 @@ import java.util.stream.Collectors;
 
 @Tag(name = "Autorização")
 @RestController
-@RequestMapping("/v1/authz")
+@RequestMapping("/v1")
 @PreAuthorize("hasAuthority('permissions:manage')")
 @RequiredArgsConstructor
 public class PermissionController {

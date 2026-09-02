@@ -3,6 +3,10 @@ meta {
 }
 
 docs {
+  As permissões são sub-recurso de quem as detém: /v1/roles/{id}/permissions e
+  /v1/members/{id}/permissions, com o catálogo em /v1/permissions. As permissões EFETIVAS de
+  quem está logado saem prontas no /v1/auth/me — não monte esse cálculo no cliente.
+
   Autorização fine-grained por tenant. O OWNER (standing do membro) pode tudo (superpoder de
   plataforma); os demais recebem permissões do cargo (organization.Role) + grants extras do membro.
 
