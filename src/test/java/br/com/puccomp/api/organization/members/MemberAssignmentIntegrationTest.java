@@ -6,6 +6,7 @@ import br.com.puccomp.api.organization.roles.RoleRequest;
 import br.com.puccomp.api.organization.roles.RoleResponse;
 import br.com.puccomp.api.organization.roles.RoleUpdateRequest;
 import br.com.puccomp.api.shared.exception.ErrorResponse;
+import br.com.puccomp.api.shared.reference.NamedRef;
 import br.com.puccomp.api.shared.reference.Standing;
 import br.com.puccomp.api.support.AbstractIntegrationTest;
 import br.com.puccomp.api.support.TestSeeder;
@@ -47,8 +48,8 @@ class MemberAssignmentIntegrationTest extends AbstractIntegrationTest {
                 new MemberAssignmentRequest(diretorMarketing, null), owner, MemberResponse.class);
 
         assertThat(res.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(res.getBody().role()).isEqualTo("Diretor de Marketing");
-        assertThat(res.getBody().department()).isEqualTo("Marketing");
+        assertThat(res.getBody().role()).isEqualTo(new NamedRef(diretorMarketing, "Diretor de Marketing"));
+        assertThat(res.getBody().department()).isEqualTo(new NamedRef(marketing, "Marketing"));
     }
 
     @Test
@@ -80,8 +81,8 @@ class MemberAssignmentIntegrationTest extends AbstractIntegrationTest {
                 new MemberAssignmentRequest(trainee, tecnologia), owner, MemberResponse.class);
 
         assertThat(res.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(res.getBody().role()).isEqualTo("Trainee");
-        assertThat(res.getBody().department()).isEqualTo("Tecnologia");
+        assertThat(res.getBody().role()).isEqualTo(new NamedRef(trainee, "Trainee"));
+        assertThat(res.getBody().department()).isEqualTo(new NamedRef(tecnologia, "Tecnologia"));
     }
 
     @Test
@@ -132,7 +133,7 @@ class MemberAssignmentIntegrationTest extends AbstractIntegrationTest {
 
         ResponseEntity<MemberResponse> res = get(MEMBERS + "/" + convidado, owner, MemberResponse.class);
         assertThat(res.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(res.getBody().department()).isEqualTo("Projetos");
+        assertThat(res.getBody().department()).isEqualTo(new NamedRef(projetos, "Projetos"));
     }
 
     @Test

@@ -1,5 +1,6 @@
 package br.com.puccomp.api.organization.roles;
 
+import br.com.puccomp.api.shared.reference.NamedRef;
 import br.com.puccomp.api.organization.departments.DepartmentRequest;
 import br.com.puccomp.api.organization.departments.DepartmentResponse;
 import br.com.puccomp.api.shared.exception.ErrorResponse;
@@ -38,7 +39,7 @@ class RoleIntegrationTest extends AbstractIntegrationTest {
 
         RoleResponse created = createRole(owner, "Diretor de Marketing", marketing);
 
-        assertThat(created.department()).isEqualTo(new RoleResponse.DepartmentSummary(marketing, "Marketing"));
+        assertThat(created.department()).isEqualTo(new NamedRef(marketing, "Marketing"));
     }
 
     @Test

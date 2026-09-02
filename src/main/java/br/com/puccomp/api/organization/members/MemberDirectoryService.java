@@ -1,6 +1,7 @@
 package br.com.puccomp.api.organization.members;
 
 import br.com.puccomp.api.organization.MemberDirectory;
+import br.com.puccomp.api.shared.reference.NamedRef;
 import br.com.puccomp.api.shared.reference.Standing;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -48,9 +49,10 @@ class MemberDirectoryService implements MemberDirectory {
         return members.findById(memberId).map(m -> new MemberProfile(
                 m.getId(),
                 m.getName(),
-                m.getCourse().getName(),
-                m.getRole() != null ? m.getRole().getName() : null,
-                m.getDepartment() != null ? m.getDepartment().getName() : null));
+                NamedRef.of(m.getCourse().getId(), m.getCourse().getName()),
+                m.getRole() != null ? NamedRef.of(m.getRole().getId(), m.getRole().getName()) : null,
+                m.getDepartment() != null
+                        ? NamedRef.of(m.getDepartment().getId(), m.getDepartment().getName()) : null));
     }
 
     private Membership toMembership(MemberRepository.MembershipRow row) {
