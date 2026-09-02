@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -19,8 +20,9 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.UUID;
 
 @Tag(name = "Inscrição pública")
+@SecurityRequirements
 @RestController
-@RequestMapping("/v1/public/{ejSlug}/processes/{processId}/candidacies")
+@RequestMapping("/v1/public/{orgSlug}/processes/{processId}/candidacies")
 @RequiredArgsConstructor
 public class PublicCandidacyController {
 

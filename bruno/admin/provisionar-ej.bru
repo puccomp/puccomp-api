@@ -5,7 +5,7 @@ meta {
 }
 
 post {
-  url: {{base_url}}/v1/admin/tenants
+  url: {{base_url}}/v1/admin/organizations
   body: json
   auth: none
 }
@@ -16,8 +16,8 @@ headers {
 
 body:json {
   {
-    "name": "{{tenant_name}}",
-    "slug": "{{tenant_slug}}",
+    "name": "{{org_name}}",
+    "slug": "{{org_slug}}",
     "owner_email": "{{owner_email}}",
     "courses": [
       "Análise e Desenvolvimento de Sistemas",
@@ -34,15 +34,16 @@ body:json {
 }
 
 vars:pre-request {
-  tenant_name: Comp
-  tenant_slug: puccomp
+  org_name: Comp
+  org_slug: puccomp
   owner_email: thom.nmaciel.baron@gmail.com
 }
 
 script:post-response {
   if (res.getStatus() === 201) {
     const body = res.getBody();
-    bru.setEnvVar("tenant_id", body.tenant_id);
+    bru.setEnvVar("org_id", body.organization.id);
+    bru.setEnvVar("org_slug", body.organization.slug);
     bru.setEnvVar("invitation_id", body.invitation.id);
   
     const acceptUrl = body.invitation.accept_url;
@@ -55,5 +56,6 @@ script:post-response {
 
 docs {
   Requer PUCCOMP_ADMIN_KEY configurado no backend e a mesma chave em puccomp_admin_key.
-  A resposta encadeia tenant_id, invitation_id e invite_token para aceitar o convite.
+  A resposta devolve { organization: { id, name, slug }, invitation: { id, accept_url, expires_at } };
+  o script encadeia org_id, org_slug, invitation_id e invite_token para aceitar o convite.
 }

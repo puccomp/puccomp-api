@@ -6,7 +6,7 @@ import jakarta.validation.constraints.NotEmpty;
 
 import java.util.List;
 
-public record ProvisionTenantRequest(
+public record ProvisionOrganizationRequest(
         @NotBlank(message = "O nome é obrigatório") String name,
         @NotBlank(message = "O slug é obrigatório") String slug,
         @NotBlank(message = "O email do dono é obrigatório")

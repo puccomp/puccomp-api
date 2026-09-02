@@ -335,8 +335,8 @@ class CandidacyIntegrationTest extends AbstractIntegrationTest {
                 return processId;
         }
 
-        private static String publicProcess(String ejSlug, UUID processId) {
-                return "/v1/public/" + ejSlug + "/processes/" + processId;
+        private static String publicProcess(String orgSlug, UUID processId) {
+                return "/v1/public/" + orgSlug + "/processes/" + processId;
         }
 
         private static SubmitCandidacyRequest candidacy(String email) {

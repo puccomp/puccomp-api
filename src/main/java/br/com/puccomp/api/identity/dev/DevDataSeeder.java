@@ -3,7 +3,7 @@ package br.com.puccomp.api.identity.dev;
 import br.com.puccomp.api.identity.account.Account;
 import br.com.puccomp.api.identity.account.AccountRepository;
 import br.com.puccomp.api.identity.account.AccountStatus;
-import br.com.puccomp.api.identity.tenant.ProvisionTenantRequest;
+import br.com.puccomp.api.identity.tenant.ProvisionOrganizationRequest;
 import br.com.puccomp.api.identity.tenant.TenantProvisioningService;
 import br.com.puccomp.api.identity.tenant.TenantRepository;
 import br.com.puccomp.api.organization.CourseCatalog;
@@ -47,7 +47,7 @@ class DevDataSeeder implements ApplicationRunner {
     public void run(ApplicationArguments args) {
         if (tenants.count() > 0) return;
 
-        var ej = tenantProvisioningService.provision(new ProvisionTenantRequest(
+        var ej = tenantProvisioningService.provision(new ProvisionOrganizationRequest(
                 "EJ Comp",
                 "ej-comp",
                 OWNER_EMAIL,
@@ -61,7 +61,7 @@ class DevDataSeeder implements ApplicationRunner {
         var owner = createAccount(OWNER_EMAIL, OWNER_PASSWORD);
         var member = createAccount(MEMBER_EMAIL, MEMBER_PASSWORD);
 
-        TenantContext.set(ej.tenantId());
+        TenantContext.set(ej.organization().id());
         try {
             UUID presidenteRoleId = roleProvisioning.createRole(
                     "Presidente", "Cargo de presidência da EJ");
@@ -76,7 +76,7 @@ class DevDataSeeder implements ApplicationRunner {
 
         log.info("[dev seed] Tenant '{}' criado. Contas: dono '{}' (senha {}, standing OWNER, cargo Presidente) "
                 + "e membro '{}' (senha {}, standing MEMBER, sem cargo)",
-                ej.slug(), OWNER_EMAIL, OWNER_PASSWORD, MEMBER_EMAIL, MEMBER_PASSWORD);
+                ej.organization().slug(), OWNER_EMAIL, OWNER_PASSWORD, MEMBER_EMAIL, MEMBER_PASSWORD);
     }
 
     private Account createAccount(String email, String rawPassword) {

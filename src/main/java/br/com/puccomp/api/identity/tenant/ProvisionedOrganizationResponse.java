@@ -5,12 +5,11 @@ import br.com.puccomp.api.identity.invitation.InvitationIssuer.IssuedInvitation;
 import java.time.Instant;
 import java.util.UUID;
 
-public record ProvisionedTenantResponse(UUID tenantId, String slug, Invitation invitation) {
+public record ProvisionedOrganizationResponse(OrganizationView organization, Invitation invitation) {
 
-    static ProvisionedTenantResponse from(Tenant tenant, IssuedInvitation invitation) {
-        return new ProvisionedTenantResponse(
-                tenant.getId(),
-                tenant.getSlug(),
+    static ProvisionedOrganizationResponse from(Tenant tenant, IssuedInvitation invitation) {
+        return new ProvisionedOrganizationResponse(
+                OrganizationView.from(tenant),
                 new Invitation(invitation.id(), invitation.acceptUrl(), invitation.expiresAt()));
     }
 

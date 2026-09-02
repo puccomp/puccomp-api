@@ -4,7 +4,7 @@ import br.com.puccomp.api.identity.account.AccountRepository;
 import br.com.puccomp.api.identity.account.AuthPrincipal;
 import br.com.puccomp.api.identity.account.LoginResponse;
 import br.com.puccomp.api.identity.notification.Mailer;
-import br.com.puccomp.api.identity.tenant.Tenant;
+import br.com.puccomp.api.identity.tenant.OrganizationView;
 import br.com.puccomp.api.identity.tenant.TenantRepository;
 import br.com.puccomp.api.identity.token.JwtService;
 import br.com.puccomp.api.organization.CourseCatalog;
@@ -152,8 +152,8 @@ class InvitationService implements InvitationIssuer {
                 .orElseThrow(() -> new IllegalArgumentException("Convite inválido ou expirado"));
 
         TenantContext.set(invitation.getTenantId());
-        String ejName = tenants.findById(invitation.getTenantId()).map(Tenant::getName).orElse(null);
-        return new InvitationPreviewResponse(ejName, invitation.getEmail(), courseCatalog.listActive());
+        var organization = tenants.findById(invitation.getTenantId()).map(OrganizationView::from).orElse(null);
+        return new InvitationPreviewResponse(organization, invitation.getEmail(), courseCatalog.listActive());
     }
 
     LoginResponse accept(AcceptInvitationRequest request) {

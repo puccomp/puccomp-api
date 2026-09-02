@@ -22,7 +22,7 @@ public class TenantProvisioningService {
     private final TransactionTemplate transactionTemplate;
     private final JdbcTemplate jdbc;
 
-    public ProvisionedTenantResponse provision(ProvisionTenantRequest request) {
+    public ProvisionedOrganizationResponse provision(ProvisionOrganizationRequest request) {
         String slug = Slugs.slugify(request.slug());
         if (!Slugs.isValid(slug))
             throw new IllegalArgumentException("slug: informe um valor válido");
@@ -45,7 +45,7 @@ public class TenantProvisioningService {
                         """, tenant.getId(), tenant.getName(), tenant.getSlug(), tenant.getStatus().name());
                 request.courses().forEach(courseProvisioning::createCourse);
                 var invitation = invitationIssuer.issueForOwner(tenant.getId(), request.ownerEmail());
-                return ProvisionedTenantResponse.from(tenant, invitation);
+                return ProvisionedOrganizationResponse.from(tenant, invitation);
             });
         } finally {
             TenantContext.clear();

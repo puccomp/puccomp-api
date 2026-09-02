@@ -15,8 +15,8 @@ params:query {
 }
 
 docs {
-  Prévia pública do convite (autenticada apenas pelo token): retorna o nome da EJ e os
-  cursos disponíveis para preencher o aceite. Guarda o primeiro curso em `course_id`.
+  Prévia pública do convite (autenticada apenas pelo token): retorna { organization: {id, name,
+  slug}, email, courses } para preencher o aceite. Guarda o primeiro curso em `course_id`.
 }
 
 script:post-response {

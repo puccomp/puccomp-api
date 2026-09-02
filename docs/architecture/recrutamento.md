@@ -79,12 +79,12 @@ GET    /v1/recruitment/processes/{processId}/candidacies
 **Pública** — anônima, sob `/v1/public/**`, só processos `OPEN`:
 
 ```
-GET    /v1/public/{ejSlug}/processes
-GET    /v1/public/{ejSlug}/processes/{processId}
-POST   /v1/public/{ejSlug}/processes/{processId}/candidacies
+GET    /v1/public/{orgSlug}/processes
+GET    /v1/public/{orgSlug}/processes/{processId}
+POST   /v1/public/{orgSlug}/processes/{processId}/candidacies
 ```
 
-O `ejSlug` é traduzido em tenant pelo `PublicTenantFilter` (em `identity/security`),
+O `orgSlug` é traduzido em tenant pelo `PublicTenantFilter` (em `identity/security`),
 antes de a requisição chegar ao controller. Nenhum service do módulo resolve
 tenant.
 
