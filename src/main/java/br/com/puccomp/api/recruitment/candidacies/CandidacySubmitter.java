@@ -8,7 +8,8 @@ import br.com.puccomp.api.shared.exception.ConflictException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import br.com.puccomp.api.email.EmailService;
+import br.com.puccomp.api.email.EmailMessage;
+import br.com.puccomp.api.email.Mailer;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -20,7 +21,7 @@ class CandidacySubmitter {
     private final CandidacyRepository candidacies;
     private final CandidateRegistry candidates;
     private final ProcessDirectory processes;
-    private final EmailService emailService;
+    private final Mailer mailer;
 
     @Transactional
     CandidacyReceiptResponse submit(UUID processId, SubmitCandidacyRequest request) {
@@ -43,8 +44,10 @@ class CandidacySubmitter {
                 .privacyConsentAt(Instant.now())
                 .build();
         
-        emailService.enviarConfirmacaoInscricao(request.email(), request.fullName().trim());
-        return CandidacyReceiptResponse.from(candidacies.save(candidacy));
+        Candidacy saved = candidacies.save(candidacy);
+        mailer.send(new EmailMessage.CandidacyReceived(
+                request.email(), request.fullName().trim(), process.getTitle()));
+        return CandidacyReceiptResponse.from(saved);
     }
 
     private static String trimmedTerm(String currentTerm) {

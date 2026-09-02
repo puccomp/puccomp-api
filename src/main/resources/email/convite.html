@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #121212; color: #E2E8F0; }
+        .container { max-width: 600px; margin: 40px auto; background-color: #1A1C23; border: 1px solid #2D3748; border-radius: 8px; overflow: hidden; }
+        .header { background-color: #121212; padding: 30px 20px; text-align: center; border-bottom: 1px solid #2D3748; }
+        .content { padding: 40px 30px; line-height: 1.6; font-size: 16px; }
+        .content h2 { color: #FFFFFF; font-size: 24px; margin-top: 0; font-weight: 600; }
+        .cyan-text { color: #5EEAD4; font-weight: bold; }
+        .footer { background-color: #121212; padding: 25px 20px; text-align: center; font-size: 13px; color: #718096; border-top: 1px solid #2D3748; }
+        .button {
+            display: inline-block;
+            padding: 14px 32px;
+            background-color: #1A5CFF;
+            color: #FFFFFF !important;
+            text-decoration: none;
+            border-radius: 4px;
+            font-weight: bold;
+            margin-top: 20px;
+        }
+        .fallback { margin-top: 30px; font-size: 13px; color: #718096; word-break: break-all; }
+        .expiry { color: #FDE047; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header"></div>
+
+        <div class="content">
+            <h2>Você foi convidado 🚀</h2>
+            <p>Você recebeu um convite para entrar no sistema da <span class="cyan-text">{{organizationName}}</span>.</p>
+            <p>Para aceitar, defina sua senha e complete seu perfil:</p>
+
+            <div style="text-align: center; margin-top: 30px; margin-bottom: 20px;">
+                <a href="{{acceptUrl}}" class="button">Aceitar convite</a>
+            </div>
+
+            <p>O convite expira em <span class="expiry">{{validFor}}</span>.</p>
+
+            <p class="fallback">
+                Se o botão não funcionar, copie este endereço no navegador:<br>
+                {{acceptUrl}}
+            </p>
+        </div>
+
+        <div class="footer">
+            Empresa Júnior de Computação<br>
+            Este é um e-mail automático. Por favor, não responda.
+        </div>
+    </div>
+</body>
+</html>

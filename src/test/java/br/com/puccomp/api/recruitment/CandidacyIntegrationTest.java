@@ -1,6 +1,5 @@
 package br.com.puccomp.api.recruitment;
 
-import br.com.puccomp.api.email.EmailService;
 import br.com.puccomp.api.recruitment.candidacies.CandidacyReceiptResponse;
 import br.com.puccomp.api.recruitment.candidacies.CandidacyStatus;
 import br.com.puccomp.api.recruitment.candidacies.SubmitCandidacyRequest;
@@ -15,6 +14,7 @@ import br.com.puccomp.api.shared.exception.ErrorResponse;
 import br.com.puccomp.api.shared.reference.Standing;
 import br.com.puccomp.api.support.AbstractIntegrationTest;
 import br.com.puccomp.api.support.TestSeeder;
+import jakarta.mail.Session;
 import jakarta.mail.internet.MimeMessage;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -41,15 +41,18 @@ class CandidacyIntegrationTest extends AbstractIntegrationTest {
         @Autowired
         private TestSeeder seeder;
 
+        // Mocka o transporte, não o Mailer: é o SmtpMailer que adia a entrega para depois do
+        // commit, e é exatamente esse comportamento que os testes daqui precisam exercitar.
         @MockitoBean
-        private EmailService emailService; // Mocka o serviço de e-mail inteiro
+        private JavaMailSender mailSender;
 
         @BeforeEach
-        void setupEmailMock() {
-                // Garante que chamar o envio de e-mail não faça nada e não lance erros
-                Mockito.doNothing().when(emailService).enviarConfirmacaoInscricao(Mockito.anyString(), Mockito.anyString());
+        void stubMailTransport() {
+                Mockito.reset(mailSender);
+                Mockito.when(mailSender.createMimeMessage())
+                                .thenAnswer(invocation -> new MimeMessage((Session) null));
         }
-        
+
 
         @Test
         @DisplayName("candidato anônimo deve ver o processo aberto e se inscrever pelo slug da EJ")
@@ -197,6 +200,10 @@ class CandidacyIntegrationTest extends AbstractIntegrationTest {
                                 ErrorResponse.class);
                 assertThat(duplicate.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
                 assertThat(duplicate.getBody().message()).contains("Você já se inscreveu");
+
+                // A duplicata só estoura no commit, no índice único. Enviando o comprovante antes
+                // disso, o candidato recebia "inscrição confirmada" por uma inscrição inexistente.
+                Mockito.verify(mailSender, Mockito.times(1)).send(Mockito.any(MimeMessage.class));
         }
 
         @Test

@@ -47,8 +47,11 @@ puccomp:
       access-token-ttl: 8h
   onboarding:
     accept-url-base: ${ONBOARDING_ACCEPT_URL}
-    from-address: ${ONBOARDING_FROM:nao-responda@puccomp.com.br}
     invitation-ttl: 72h
+  email:
+    # Remetente de todo email transacional; em produção precisa estar verificado no SES.
+    # Aceita ONBOARDING_FROM para não quebrar quem já tem esse nome no .env de produção.
+    from: ${MAIL_FROM:${ONBOARDING_FROM:nao-responda@puccomp.com.br}}
   admin:
     key: ${PUCCOMP_ADMIN_KEY:}
   cors:

@@ -3,7 +3,8 @@ package br.com.puccomp.api.identity.invitation;
 import br.com.puccomp.api.identity.account.AccountRepository;
 import br.com.puccomp.api.identity.account.AuthPrincipal;
 import br.com.puccomp.api.identity.account.LoginResponse;
-import br.com.puccomp.api.identity.notification.Mailer;
+import br.com.puccomp.api.email.EmailMessage;
+import br.com.puccomp.api.email.Mailer;
 import br.com.puccomp.api.identity.tenant.OrganizationView;
 import br.com.puccomp.api.identity.tenant.TenantRepository;
 import br.com.puccomp.api.identity.token.JwtService;
@@ -72,7 +73,7 @@ class InvitationService implements InvitationIssuer {
                 .build();
         repository.save(invitation);
 
-        sendInvitationEmail(email, acceptUrl(token.raw()));
+        sendInvitationEmail(admin.tenantId(), email, acceptUrl(token.raw()));
         return InvitationResponse.from(invitation, Instant.now());
     }
 
@@ -94,7 +95,7 @@ class InvitationService implements InvitationIssuer {
         repository.save(invitation);
 
         String acceptUrl = acceptUrl(token.raw());
-        sendInvitationEmail(normalizedEmail, acceptUrl);
+        sendInvitationEmail(tenantId, normalizedEmail, acceptUrl);
         return new IssuedInvitation(invitation.getId(), acceptUrl, invitation.getExpiresAt());
     }
 
@@ -125,7 +126,7 @@ class InvitationService implements InvitationIssuer {
         IssuedToken token = newToken();
         invitation.reissue(token.hash(), token.prefix(), Instant.now().plus(properties.invitationTtl()));
 
-        sendInvitationEmail(invitation.getEmail(), acceptUrl(token.raw()));
+        sendInvitationEmail(invitation.getTenantId(), invitation.getEmail(), acceptUrl(token.raw()));
         return InvitationResponse.from(invitation, Instant.now());
     }
 
@@ -175,14 +176,10 @@ class InvitationService implements InvitationIssuer {
         return properties.acceptUrlBase() + "?token=" + rawToken;
     }
 
-    private void sendInvitationEmail(String to, String link) {
-        String body = """
-                Você foi convidado para o sistema da sua Empresa Júnior.
-
-                Para aceitar, acesse o link abaixo, defina sua senha e complete seu perfil:
-                %s
-
-                O convite expira em %d horas.""".formatted(link, properties.invitationTtl().toHours());
-        mailer.send(properties.fromAddress(), to, "Convite para o sistema da sua EJ", body);
+    private void sendInvitationEmail(UUID tenantId, String to, String link) {
+        String organizationName = tenants.findById(tenantId)
+                .map(t -> t.getName())
+                .orElse("sua Empresa Júnior");
+        mailer.send(new EmailMessage.Invitation(to, organizationName, link, properties.invitationTtl()));
     }
 }
