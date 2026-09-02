@@ -7,6 +7,21 @@ spring:
     hibernate:
       ddl-auto: validate
     show-sql: true
+  # Mailpit (compose.yml): entrega local sem credencial nenhuma, caixa em http://localhost:8025.
+  # Precisa sobrescrever os quatro: no application.yaml eles são ${MAIL_*} sem default, de
+  # propósito — em produção faltar SMTP tem que derrubar o boot, não passar despercebido.
+  mail:
+    host: localhost
+    port: 1025
+    username: ""
+    password: ""
+    properties:
+      mail:
+        smtp:
+          auth: false
+          starttls:
+            enable: false
+            required: false
 
 puccomp:
   security:
