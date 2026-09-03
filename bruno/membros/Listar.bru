@@ -1,5 +1,5 @@
 meta {
-  name: Listar membros
+  name: Listar
   type: http
   seq: 1
 }
@@ -10,13 +10,13 @@ get {
   auth: bearer
 }
 
-auth:bearer {
-  token: {{access_token}}
-}
-
 params:query {
   ~page: 0
   ~size: 10
   ~sort: name,asc
   ~departmentId: {{department_id}}
+}
+
+auth:bearer {
+  token: {{access_token}}
 }

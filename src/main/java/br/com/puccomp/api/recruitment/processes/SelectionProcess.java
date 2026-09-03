@@ -6,7 +6,6 @@ import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.TenantId;
 
-import java.time.Instant;
 import java.util.UUID;
 
 @Entity
@@ -35,30 +34,16 @@ public class SelectionProcess extends Auditable {
     @Column(nullable = false)
     private SelectionProcessStatus status;
 
-    @Column(name = "opens_at")
-    private Instant opensAt;
-
-    @Column(name = "closes_at")
-    private Instant closesAt;
-
-    public void update(String title, String description, Instant opensAt, Instant closesAt) {
+    public void update(String title, String description) {
         this.title = title;
         this.description = description;
-        this.opensAt = opensAt;
-        this.closesAt = closesAt;
     }
 
     public void changeStatusTo(SelectionProcessStatus target) {
-        if (status == target)
-            return;
+        if (status == target) return;
         if (!status.canTransitionTo(target))
             throw new ConflictException("Não é possível mudar o processo de %s para %s".formatted(status, target));
         this.status = target;
     }
 
-    /** Data nula significa "sem limite": aí só o status decide. */
-    public boolean acceptsCandidaciesAt(Instant now) {
-        return (opensAt == null || !now.isBefore(opensAt))
-                && (closesAt == null || now.isBefore(closesAt));
-    }
 }

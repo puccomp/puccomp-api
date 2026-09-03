@@ -1,4 +1,4 @@
-package br.com.puccomp.api.recruitment.candidacies;
+package br.com.puccomp.api.recruitment.applications;
 
 import br.com.puccomp.api.shared.exception.ErrorResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -22,23 +22,24 @@ import java.util.UUID;
 @Tag(name = "Inscrição pública")
 @SecurityRequirements
 @RestController
-@RequestMapping("/v1/public/{orgSlug}/processes/{processId}/candidacies")
+@RequestMapping("/v1/public/{orgSlug}/processes/{processId}/applications")
 @RequiredArgsConstructor
-public class PublicCandidacyController {
+public class PublicCandidateApplicationController {
 
-    private final CandidacyService service;
+    private final CandidateApplicationService service;
 
-    @Operation(summary = "Inscreve um candidato em um processo seletivo aberto")
+    @Operation(summary = "Envia uma inscrição para um processo seletivo aberto")
     @ApiResponse(responseCode = "400", description = "Dados inválidos",
             content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
-    @ApiResponse(responseCode = "404", description = "EJ ou processo seletivo não encontrado",
+    @ApiResponse(responseCode = "404", description = "EJ não encontrada",
             content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     @ApiResponse(responseCode = "409", description = "Processo fechado ou inscrição já enviada",
             content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     @ResponseStatus(HttpStatus.CREATED)
     @PostMapping
-    public CandidacyReceiptResponse submit(@PathVariable UUID processId,
-                                           @RequestBody @Valid SubmitCandidacyRequest request) {
+    public CandidateApplicationReceiptResponse submit(
+            @PathVariable UUID processId,
+            @RequestBody @Valid SubmitCandidateApplicationRequest request) {
         return service.submit(processId, request);
     }
 }

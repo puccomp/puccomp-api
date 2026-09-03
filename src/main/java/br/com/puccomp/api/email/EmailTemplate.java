@@ -9,12 +9,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-/**
- * Renderiza os HTML de {@code resources/email/} substituindo {@code {{chave}}}.
- *
- * <p>Todo valor é escapado. Nome de candidato e nome de EJ vêm de fora, e sem escapar um nome com
- * {@code <} quebraria o email inteiro — no melhor caso.
- */
 final class EmailTemplate {
 
     private static final Map<String, String> CACHE = new ConcurrentHashMap<>();

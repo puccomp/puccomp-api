@@ -1,7 +1,7 @@
 meta {
-  name: Login Membro
+  name: Login
   type: http
-  seq: 2
+  seq: 1
 }
 
 post {
@@ -12,8 +12,8 @@ post {
 
 body:json {
   {
-    "email": "{{member_email}}",
-    "password": "{{member_password}}"
+    "email": "{{owner_email}}",      // member_email
+    "password": "{{owner_password}}" // member_password
   }
 }
 

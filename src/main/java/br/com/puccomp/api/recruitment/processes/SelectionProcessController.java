@@ -69,8 +69,8 @@ public class SelectionProcessController {
         return service.update(processId, request);
     }
 
-    @Operation(summary = "Avança o status do processo: DRAFT → OPEN → CLOSED → FINISHED. "
-            + "CANCELLED é alcançável de qualquer estado não-final")
+    @Operation(summary = "Avança o status do processo: DRAFT → OPEN → CLOSED. "
+            + "CANCELLED é alcançável antes do fechamento")
     @ApiResponse(responseCode = "404", description = "Processo seletivo não encontrado",
             content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     @ApiResponse(responseCode = "409", description = "Transição de status inválida",

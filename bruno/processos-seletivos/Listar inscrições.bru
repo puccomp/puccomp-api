@@ -1,11 +1,11 @@
 meta {
-  name: Listar candidaturas
+  name: Listar inscrições
   type: http
   seq: 6
 }
 
 get {
-  url: {{base_url}}/v1/recruitment/processes/{{process_id}}/candidacies?page=0&size=20&sort=createdAt,desc
+  url: {{base_url}}/v1/recruitment/processes/{{process_id}}/applications?page=0&size=20&sort=createdAt,desc
   body: none
   auth: bearer
 }

@@ -26,7 +26,7 @@ class OpenApiContractTest extends AbstractIntegrationTest {
 
     @ParameterizedTest(name = "{0} publica page, size e sort achatados")
     @ValueSource(strings = {"/v1/members", "/v1/roles", "/v1/departments", "/v1/invitations",
-            "/v1/financial/entries", "/v1/recruitment/processes/{processId}/candidacies"})
+            "/v1/financial/entries", "/v1/recruitment/processes/{processId}/applications"})
     void shouldFlattenPageableIntoQueryParams(String path) {
         assertThat(parameterNames(path)).contains("page", "size", "sort").doesNotContain("pageable");
     }
@@ -50,6 +50,23 @@ class OpenApiContractTest extends AbstractIntegrationTest {
         assertThat(operationSecurity("/v1/public/{orgSlug}/processes", "get")).isEmpty();
         assertThat(operationSecurity("/v1/admin/organizations", "post"))
                 .singleElement().asInstanceOf(map(String.class, Object.class)).containsKey("platformKey");
+    }
+
+    @Test
+    @DisplayName("recrutamento publica inscrições sem expor cadastro isolado de candidato")
+    @SuppressWarnings("unchecked")
+    void shouldExposeOnlyCandidateApplicationSurface() {
+        var paths = (Map<String, Object>) spec().get("paths");
+
+        assertThat(paths)
+                .containsKeys(
+                        "/v1/recruitment/processes/{processId}/applications",
+                        "/v1/public/{orgSlug}/processes/{processId}/applications")
+                .doesNotContainKeys(
+                        "/v1/recruitment/candidates",
+                        "/v1/recruitment/candidates/{id}",
+                        "/v1/recruitment/processes/{processId}/candidacies",
+                        "/v1/public/{orgSlug}/processes/{processId}/candidacies");
     }
 
     @Test

@@ -33,8 +33,6 @@ class SelectionProcessService implements ProcessDirectory {
                 .title(request.title().trim())
                 .description(trimmed(request.description()))
                 .status(SelectionProcessStatus.DRAFT)
-                .opensAt(request.opensAt())
-                .closesAt(request.closesAt())
                 .build();
 
         return SelectionProcessResponse.from(repository.save(process));
@@ -43,11 +41,7 @@ class SelectionProcessService implements ProcessDirectory {
     @Transactional
     SelectionProcessResponse update(UUID id, SelectionProcessRequest request) {
         SelectionProcess process = findOwned(id);
-        process.update(
-                request.title().trim(),
-                trimmed(request.description()),
-                request.opensAt(),
-                request.closesAt());
+        process.update(request.title().trim(), trimmed(request.description()));
 
         return SelectionProcessResponse.from(process);
     }

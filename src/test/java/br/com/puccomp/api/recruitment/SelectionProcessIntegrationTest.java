@@ -16,7 +16,6 @@ import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
-import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -35,9 +34,7 @@ class SelectionProcessIntegrationTest extends AbstractIntegrationTest {
 
         var request = new SelectionProcessRequest(
                 "Processo Seletivo 2026.1",
-                "Descrição do processo 2026.1",
-                Instant.now(),
-                Instant.now().plusSeconds(86_400));
+                "Descrição do processo 2026.1");
 
         ResponseEntity<SelectionProcessResponse> created =
                 post("/v1/recruitment/processes", request, token, SelectionProcessResponse.class);
@@ -73,9 +70,9 @@ class SelectionProcessIntegrationTest extends AbstractIntegrationTest {
         UUID processId = createProcess(token, "Processo");
 
         ResponseEntity<ErrorResponse> jump = patch("/v1/recruitment/processes/" + processId + "/status",
-                new ChangeStatusRequest(SelectionProcessStatus.FINISHED), token, ErrorResponse.class);
+                new ChangeStatusRequest(SelectionProcessStatus.CLOSED), token, ErrorResponse.class);
         assertThat(jump.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
-        assertThat(jump.getBody().message()).contains("Não é possível mudar o processo de DRAFT para FINISHED");
+        assertThat(jump.getBody().message()).contains("Não é possível mudar o processo de DRAFT para CLOSED");
 
         assertThat(patch("/v1/recruitment/processes/" + processId + "/status",
                 new ChangeStatusRequest(SelectionProcessStatus.CANCELLED), token, SelectionProcessResponse.class)
@@ -86,20 +83,6 @@ class SelectionProcessIntegrationTest extends AbstractIntegrationTest {
         assertThat(reopen.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
     }
 
-    @Test
-    @DisplayName("deve recusar processo cuja data de término precede a de início")
-    void shouldRejectInvertedPeriod() {
-        String token = ownerOf("EJ Datas", "ej-datas", "dono@datas.dev");
-
-        Instant start = Instant.now();
-        ResponseEntity<ErrorResponse> response = post("/v1/recruitment/processes",
-                new SelectionProcessRequest("Processo", null, start, start.minusSeconds(3_600)),
-                token, ErrorResponse.class);
-
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-        assertThat(response.getBody().message()).contains("data de término deve ser posterior");
-    }
-
     private String ownerOf(String ejName, String slug, String email) {
         UUID tenantId = seeder.seedTenant(ejName, slug);
         seeder.seedAccount(tenantId, email, "senha123", Standing.OWNER);
@@ -107,7 +90,7 @@ class SelectionProcessIntegrationTest extends AbstractIntegrationTest {
     }
 
     private UUID createProcess(String token, String title) {
-        return post("/v1/recruitment/processes", new SelectionProcessRequest(title, null, null, null),
+        return post("/v1/recruitment/processes", new SelectionProcessRequest(title, null),
                 token, SelectionProcessResponse.class).getBody().id();
     }
 }

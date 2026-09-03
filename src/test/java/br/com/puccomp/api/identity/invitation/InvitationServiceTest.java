@@ -87,7 +87,8 @@ class InvitationServiceTest {
         ArgumentCaptor<Invitation> saved = ArgumentCaptor.forClass(Invitation.class);
         verify(repository).save(saved.capture());
         assertThat(saved.getValue().getTokenHash()).hasSize(64);
-        assertThat(sentInvitation().acceptUrl()).startsWith("http://localhost/aceitar");
+        assertThat(sentInvitation().variables().get("acceptUrl").toString())
+                .startsWith("http://localhost/aceitar");
     }
 
     @Test
@@ -202,12 +203,11 @@ class InvitationServiceTest {
         verify(acceptor, never()).provision(any(), any());
     }
 
-    /** O corpo do email deixou de ser problema daqui: o service só entrega dados. */
-    private EmailMessage.Invitation sentInvitation() {
+    private EmailMessage sentInvitation() {
         ArgumentCaptor<EmailMessage> sent = ArgumentCaptor.forClass(EmailMessage.class);
         verify(mailer).send(sent.capture());
-        assertThat(sent.getValue()).isInstanceOf(EmailMessage.Invitation.class);
-        return (EmailMessage.Invitation) sent.getValue();
+        assertThat(sent.getValue().template()).isEqualTo("convite");
+        return sent.getValue();
     }
 
     private Invitation outstanding(UUID tenantId) {
@@ -255,7 +255,8 @@ class InvitationServiceTest {
         assertThat(invitation.getTokenPrefix()).startsWith("inv_");
         assertThat(invitation.getExpiresAt()).isAfter(validadeAntiga);
         assertThat(response.status()).isEqualTo(InvitationStatus.PENDING);
-        assertThat(sentInvitation().acceptUrl()).startsWith("http://localhost/aceitar");
+        assertThat(sentInvitation().variables().get("acceptUrl").toString())
+                .startsWith("http://localhost/aceitar");
     }
 
     @Test

@@ -1,4 +1,4 @@
-package br.com.puccomp.api.recruitment.candidacies;
+package br.com.puccomp.api.recruitment.applications;
 
 import br.com.puccomp.api.shared.exception.ErrorResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -20,23 +20,23 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.UUID;
 
-@Tag(name = "Candidaturas")
+@Tag(name = "Inscrições")
 @RestController
-@RequestMapping("/v1/recruitment/processes/{processId}/candidacies")
+@RequestMapping("/v1/recruitment/processes/{processId}/applications")
 @RequiredArgsConstructor
-public class CandidacyController {
+public class CandidateApplicationController {
 
-    private final CandidacyService service;
+    private final CandidateApplicationService service;
 
     @Operation(summary = "Lista as inscrições recebidas em um processo seletivo")
     @ApiResponse(responseCode = "404", description = "Processo seletivo não encontrado",
             content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     @PreAuthorize("hasAuthority('recruitment:read')")
     @GetMapping
-    public Page<CandidacyResponse> listByProcess(
+    public Page<CandidateApplicationResponse> listByProcess(
             @PathVariable UUID processId,
-            @ParameterObject @PageableDefault(size = 20, sort = {"createdAt", "id"}, direction = Sort.Direction.DESC)
-            Pageable pageable) {
+            @ParameterObject @PageableDefault(size = 20, sort = {"createdAt", "id"},
+                    direction = Sort.Direction.DESC) Pageable pageable) {
         return service.listByProcess(processId, pageable);
     }
 }

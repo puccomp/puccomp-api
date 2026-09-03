@@ -1,11 +1,15 @@
-package br.com.puccomp.api.recruitment.candidacies;
+package br.com.puccomp.api.recruitment.applications;
 
-import jakarta.validation.constraints.*;
+import jakarta.validation.constraints.AssertTrue;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import org.hibernate.validator.constraints.URL;
 
 import java.util.List;
 
-public record SubmitCandidacyRequest(
+public record SubmitCandidateApplicationRequest(
         @NotBlank(message = "O nome completo é obrigatório") String fullName,
         @NotBlank(message = "O e-mail é obrigatório") @Email(message = "E-mail inválido") String email,
         @NotBlank(message = "O telefone é obrigatório") @Size(max = 50) String phone,

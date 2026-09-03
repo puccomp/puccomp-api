@@ -12,15 +12,12 @@ public enum SelectionProcessStatus {
 
     CLOSED,
 
-    FINISHED,
-
     CANCELLED;
 
     private static final Map<SelectionProcessStatus, Set<SelectionProcessStatus>> ALLOWED_TRANSITIONS = Map.of(
             DRAFT, EnumSet.of(OPEN, CANCELLED),
             OPEN, EnumSet.of(CLOSED, CANCELLED),
-            CLOSED, EnumSet.of(FINISHED, CANCELLED),
-            FINISHED, EnumSet.noneOf(SelectionProcessStatus.class),
+            CLOSED, EnumSet.noneOf(SelectionProcessStatus.class),
             CANCELLED, EnumSet.noneOf(SelectionProcessStatus.class));
 
     boolean canTransitionTo(SelectionProcessStatus target) {

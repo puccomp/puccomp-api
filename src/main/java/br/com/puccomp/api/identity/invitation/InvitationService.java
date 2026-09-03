@@ -24,6 +24,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -180,6 +181,14 @@ class InvitationService implements InvitationIssuer {
         String organizationName = tenants.findById(tenantId)
                 .map(t -> t.getName())
                 .orElse("sua Empresa Júnior");
-        mailer.send(new EmailMessage.Invitation(to, organizationName, link, properties.invitationTtl()));
+        long validityHours = properties.invitationTtl().toHours();
+        mailer.send(new EmailMessage(
+                to,
+                "Convite para " + organizationName,
+                "convite",
+                Map.of(
+                        "organizationName", organizationName,
+                        "acceptUrl", link,
+                        "validFor", validityHours == 1 ? "1 hora" : validityHours + " horas")));
     }
 }

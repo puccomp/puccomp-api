@@ -1,11 +1,11 @@
 meta {
-  name: Enviar candidatura
+  name: Enviar inscrição
   type: http
   seq: 3
 }
 
 post {
-  url: {{base_url}}/v1/public/{{org_slug}}/processes/{{process_id}}/candidacies
+  url: {{base_url}}/v1/public/{{org_slug}}/processes/{{process_id}}/applications
   body: json
   auth: none
 }
@@ -26,13 +26,12 @@ body:json {
 }
 
 docs {
-  Superfície anônima — sem Authorization. A resposta é só um comprovante
-  (id, status, data): não ecoa a PII enviada.
+  Superfície anônima — sem Authorization. A resposta é somente um comprovante
+  com id e submitted_at; não ecoa a PII enviada.
 
-  O candidato é achado-ou-criado pelo e-mail dentro da EJ: reenviar com o mesmo
-  e-mail reaproveita a pessoa e atualiza os dados de contato.
+  Cada envio cria um snapshot independente. O mesmo e-mail pode participar de
+  processos diferentes, mas não pode enviar duas inscrições ao mesmo processo.
 
   "current_term" é texto livre e opcional ("7º período", "formando", "irregular").
-  "links" aceita até 5 URLs; lista ausente ou vazia numa reinscrição não apaga
-  os links que já estavam na ficha.
+  "links" aceita até 5 URLs e preserva a ordem enviada.
 }

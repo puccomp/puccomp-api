@@ -21,8 +21,8 @@ body:json {
 }
 
 docs {
-  Transições válidas: DRAFT → OPEN → CLOSED → FINISHED.
-  CANCELLED é alcançável de qualquer estado não-final.
+  Transições válidas: DRAFT → OPEN → CLOSED.
+  CANCELLED é alcançável a partir de DRAFT ou OPEN.
 
   Só um processo OPEN aparece na superfície pública e aceita inscrições.
 }

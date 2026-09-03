@@ -4,124 +4,106 @@ Cobre o ciclo de entrada de novos membros: a EJ publica um processo seletivo e
 recebe inscrições por uma superfície pública.
 
 É o único módulo com **escrita anônima** — o porquê do desenho está na
-[ADR 0003](../adr/0003-superficie-publica-de-recrutamento.md). Não depende de
-nenhum outro módulo de negócio, só de `shared`.
+[ADR 0003](../adr/0003-superficie-publica-de-recrutamento.md). De negócio, não
+depende de nenhum outro módulo.
 
 ## Entidades
 
 | Entidade | O que representa |
 |---|---|
-| `SelectionProcess` | A campanha. Um "PS 2026.1": título, edital, período e status. É o container. |
-| `Candidate` | A pessoa. Única por `(tenant_id, lower(email))`. Persiste entre processos. |
-| `Candidacy` | O vínculo `Candidate` × `SelectionProcess`. 1 candidato : N inscrições. |
+| `SelectionProcess` | A campanha criada pela EJ: título, descrição e estado. |
+| `CandidateApplication` | O snapshot imutável de uma inscrição enviada para um processo. |
 
 `SelectionProcess` **não** é uma vaga. Um PS de EJ é entrada de turma, não
 contratação para um cargo específico — por isso não usamos o vocabulário de ATS
 (`Job`, `Posting`).
 
-`Candidate` é criado na primeira inscrição (estratégia *find-or-create* em
-`CandidacySubmitter`): se o e-mail já existe para a EJ, reutiliza o registro;
-caso contrário, cria um novo. Isso permite ao mesmo candidato se inscrever em
-processos futuros sem duplicar dados de contato.
+`CandidateApplication` guarda exatamente o que a pessoa enviou: nome, e-mail,
+telefone, curso, período letivo, links e instante do consentimento LGPD. Uma
+inscrição posterior com o mesmo e-mail não altera as anteriores.
 
-`Candidacy` carrega apenas o que é específico de uma inscrição: curso, período
-letivo, status e consentimento LGPD. Os dados de contato (nome, e-mail, telefone,
-links) vivem em `Candidate`.
+Não existe cadastro independente de candidato. Se no futuro houver portal do
+candidato, banco de talentos ou convite individual, esse novo conceito poderá
+ser introduzido sem deixar de preservar o snapshot de cada inscrição.
 
-O período (`current_term`) é texto livre e opcional, não um inteiro: cada curso
-tem uma grade própria, e quem está irregular ou formando não cabe num número.
+O período (`current_term`) é texto livre e opcional: cada curso tem uma grade
+própria, e quem está irregular ou formando não cabe num número.
 
-Os links são uma lista ordenada (no máximo 5, cada um validado como URL), na
-tabela `candidate_links`. Duas colunas fixas obrigavam toda EJ a pedir LinkedIn e
-portfólio; com a lista, cada uma pede o que faz sentido no seu formulário —
-GitHub, Behance, currículo online. Reinscrição só substitui a lista se a nova
-vier preenchida: mandar vazio não apaga o que já estava lá.
+Os links formam uma lista ordenada com no máximo cinco URLs. Eles pertencem à
+inscrição, não a um perfil compartilhado, porque fazem parte do formulário
+transmitido naquele momento.
 
 ## Estados do processo
 
-```
-DRAFT ──▶ OPEN ──▶ CLOSED ──▶ FINISHED
-  │        │         │
-  └────────┴─────────┴──▶ CANCELLED
+```text
+DRAFT ──▶ OPEN ──▶ CLOSED
+  │         │
+  └─────────┴──▶ CANCELLED
 ```
 
 | Estado | Significa |
 |---|---|
-| `DRAFT` | Existe só para a EJ. Invisível na superfície pública. |
-| `OPEN` | Publicado e recebendo inscrições. **Único estado público.** |
-| `CLOSED` | Inscrições encerradas; a EJ está avaliando. |
-| `FINISHED` | Resultado divulgado. Estado final. |
-| `CANCELLED` | Interrompido. Estado final. |
+| `DRAFT` | Existe só para a EJ e ainda não recebe inscrições. |
+| `OPEN` | Está publicado e recebendo inscrições. |
+| `CLOSED` | Encerrou as inscrições. Estado final. |
+| `CANCELLED` | Foi interrompido antes do fechamento. Estado final. |
 
-Transição inválida responde `409`. A regra vive no próprio enum, e o
-`SelectionProcess` a aplica — não há setter de status.
+`OPEN` é a única fonte de verdade para publicação e recebimento. Não existem
+datas paralelas de abertura e fechamento. Transições inválidas respondem `409`.
 
-Status e prazo são **duas travas independentes**: `OPEN` diz que a EJ publicou;
-`opensAt`/`closesAt` dizem a janela. A inscrição precisa das duas — um processo
-`OPEN` com prazo vencido recusa com `409`. Datas nulas significam "sem limite".
-
-`CandidacyStatus` tem só `SUBMITTED`: a triagem (em análise / aprovado /
-reprovado) é card separado, e o contrato não promete o que ainda não entrega.
+Uma inscrição persistida já foi submetida, portanto ela não carrega um status
+constante. Estados de triagem só entram quando esse caso de uso existir.
 
 ## Superfície
 
 **Interna** — exige autenticação e permissão `recruitment:read` / `recruitment:write`:
 
-```
+```http
 GET    /v1/recruitment/processes
 POST   /v1/recruitment/processes
 GET    /v1/recruitment/processes/{processId}
 PUT    /v1/recruitment/processes/{processId}
 PATCH  /v1/recruitment/processes/{processId}/status
-GET    /v1/recruitment/processes/{processId}/candidacies
+GET    /v1/recruitment/processes/{processId}/applications
 ```
 
-**Pública** — anônima, sob `/v1/public/**`, só processos `OPEN`:
+**Pública** — anônima, sob `/v1/public/**`, somente para processos `OPEN`:
 
-```
+```http
 GET    /v1/public/{orgSlug}/processes
 GET    /v1/public/{orgSlug}/processes/{processId}
-POST   /v1/public/{orgSlug}/processes/{processId}/candidacies
+POST   /v1/public/{orgSlug}/processes/{processId}/applications
 ```
 
-O `orgSlug` é traduzido em tenant pelo `PublicTenantFilter` (em `identity/security`),
-antes de a requisição chegar ao controller. Nenhum service do módulo resolve
-tenant.
+O `orgSlug` é traduzido em tenant pelo `PublicTenantFilter`, em
+`identity/security`, antes de a requisição chegar ao domínio. Nenhum código de
+recrutamento resolve o tenant por conta própria.
 
 ## Organização interna
 
-```
+```text
 recruitment/
-├── processes/     ← SelectionProcess, status, superfície interna e pública
-├── candidacies/   ← Candidacy, inscrição pública, listagem para a EJ
-└── candidates/    ← Candidate, CRUD de candidatos
+├── processes/      ← processo, estados e projeções interna/pública
+└── applications/   ← inscrição pública e listagem interna
 ```
 
-A dependência aponta em **um sentido só**: `candidacies` conhece `processes`,
-nunca o contrário. Uma inscrição pertence a um processo; um processo não precisa
-saber que inscrições existem.
+`applications` conhece `processes`, nunca o contrário. A travessia passa por
+`ProcessDirectory`, que publica apenas a leitura de processo aberto e a
+verificação de existência. Os repositórios permanecem package-private.
 
-Essa travessia passa por `ProcessDirectory` — uma interface com os dois métodos
-que `candidacies` precisa (achar processo aberto, conferir existência),
-implementada por `SelectionProcessService`. `SelectionProcessRepository` continua
-*package-private*.
+## Integridade e isolamento
 
-`candidacies` também conhece `candidates`, pela mesma regra e pela mesma porta:
-`CandidateRegistry` expõe só o *find-or-register* usado na inscrição, e
-`CandidateRepository` fica *package-private*. Escrever candidato pela API é
-operação da EJ, protegida por `recruitment:write`; a superfície pública só
-alcança o candidato através da inscrição.
-
-Repositório é detalhe de implementação do agregado dele. Se um pacote vizinho
-precisa de dados, ele pede pela porta — não recebe uma chave do banco. O teste
-prático: _"se eu tornar esse repositório package-private de novo, o que quebra?"_
-Se a resposta for "o service de outro pacote", falta uma porta ali.
+- Uma inscrição pertence ao mesmo tenant do processo, garantido também por FK
+  composta no banco.
+- Um e-mail pode se inscrever somente uma vez por processo, ignorando caixa.
+- O mesmo e-mail pode participar de processos diferentes.
+- O comprovante público contém somente `id` e `submitted_at`, sem ecoar PII.
+- O e-mail de confirmação é entregue somente depois do commit.
 
 ## Pendências conhecidas
 
 - **Anexo de currículo** — depende do módulo de arquivos
-  ([ADR 0002](../adr/0002-armazenamento-s3.md)). Até lá a ficha carrega só a
-  lista de `links`. Atenção: o upload aqui é **anônimo**, então
-  não cabe em URL pré-assinada emitida para um usuário autenticado.
+  ([ADR 0002](../adr/0002-armazenamento-s3.md)). O upload aqui será anônimo.
 - **Campos de formulário por EJ** — hoje a ficha é fixa. Ver ADR 0003.
-- **Triagem** — mover inscrição entre etapas, com nota e parecer.
+- **Triagem** — etapas, nota e parecer ainda não fazem parte do contrato.
+- **LGPD** — definir política de retenção, anonimização e versão do aviso aceito.
