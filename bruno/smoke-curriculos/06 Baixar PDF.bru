@@ -1,0 +1,18 @@
+meta {
+  name: Smoke - download direto S3
+  type: http
+  seq: 6
+}
+get {
+  url: {{smoke_download_url}}
+  body: none
+  auth: none
+}
+tests {
+  test("URL assinada baixa attachment sem bearer da API", function () {
+    expect(res.status).to.equal(200);
+    expect(res.headers["content-type"]).to.include("application/octet-stream");
+    expect(res.headers["content-disposition"]).to.include("attachment");
+    expect(res.headers["cache-control"]).to.include("no-store");
+  });
+}

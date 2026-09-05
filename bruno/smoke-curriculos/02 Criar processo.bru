@@ -1,0 +1,24 @@
+meta {
+  name: Smoke - criar processo
+  type: http
+  seq: 2
+}
+post {
+  url: {{base_url}}/v1/recruitment/processes
+  body: json
+  auth: bearer
+}
+auth:bearer {
+  token: {{smoke_token}}
+}
+body:json {
+  { "title": "Smoke de currículos", "description": "Criado pelo smoke test Bruno" }
+}
+tests {
+  test("Cria processo isolado para esta execução", function () {
+    expect(res.status).to.equal(201);
+    expect(res.body.id).to.be.a("string");
+    bru.setVar("smoke_process_id", res.body.id);
+    bru.setVar("smoke_candidate_email", "smoke-" + res.body.id + "@example.com");
+  });
+}

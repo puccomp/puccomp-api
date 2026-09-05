@@ -1,0 +1,20 @@
+meta {
+  name: Smoke - rejeita PDF falso
+  type: http
+  seq: 7
+}
+post {
+  url: {{base_url}}/v1/public/{{smoke_org_slug}}/processes/{{smoke_process_id}}/applications
+  body: multipartForm
+  auth: none
+}
+body:multipart-form {
+  application: {"full_name":"Arquivo Inválido","email":"invalid-{{smoke_candidate_email}}","phone":"31999990000","course":"Computação","privacy_consent":true} @contentType(application/json)
+  cv: @file(./fixtures/invalid-cv.pdf) @contentType(application/pdf)
+}
+tests {
+  test("Extensão e MIME não bastam para aceitar PDF", function () {
+    expect(res.status).to.equal(400);
+    expect(res.body.message).to.be.a("string").and.not.empty;
+  });
+}

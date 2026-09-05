@@ -1,0 +1,22 @@
+meta {
+  name: Smoke - abrir processo
+  type: http
+  seq: 3
+}
+patch {
+  url: {{base_url}}/v1/recruitment/processes/{{smoke_process_id}}/status
+  body: json
+  auth: bearer
+}
+auth:bearer {
+  token: {{smoke_token}}
+}
+body:json {
+  { "status": "OPEN" }
+}
+tests {
+  test("Processo aceita inscrições", function () {
+    expect(res.status).to.equal(200);
+    expect(res.body.status).to.equal("OPEN");
+  });
+}

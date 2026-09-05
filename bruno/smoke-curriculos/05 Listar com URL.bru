@@ -1,0 +1,28 @@
+meta {
+  name: Smoke - listagem autorizada com URL
+  type: http
+  seq: 5
+}
+get {
+  url: {{base_url}}/v1/recruitment/processes/{{smoke_process_id}}/applications
+  body: none
+  auth: bearer
+}
+auth:bearer {
+  token: {{smoke_token}}
+}
+tests {
+  test("DTO contém currículo e URL com validade curta", function () {
+    expect(res.status).to.equal(200);
+    const application = res.body.content.find(item => item.id === bru.getVar("smoke_application_id"));
+    expect(application).to.exist;
+    expect(application.cv.filename).to.equal("cv-smoke.pdf");
+    expect(application.cv.content_type).to.equal("application/pdf");
+    expect(application.cv.size).to.be.greaterThan(0);
+    expect(application.cv.download_url).to.include("X-Amz-Signature=");
+    const remaining = Date.parse(application.cv.download_expires_at) - Date.now();
+    expect(remaining).to.be.greaterThan(0).and.at.most(301000);
+    expect(res.headers["cache-control"]).to.include("no-store");
+    bru.setVar("smoke_download_url", application.cv.download_url);
+  });
+}

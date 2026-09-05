@@ -19,3 +19,11 @@ params:query {
 auth:bearer {
   token: {{access_token}}
 }
+
+docs {
+  Exige recruitment:read e pertence ao tenant autenticado. Resposta sem cache.
+  Cada inscrição inclui cv: null quando não há currículo, ou:
+  { id, filename, content_type, size, download_url, download_expires_at }.
+  download_url permite GET direto no S3, sem Authorization da API, por 5 minutos.
+  Consulte a listagem novamente para renovar URLs expiradas; não persista essas URLs.
+}

@@ -1,0 +1,19 @@
+meta {
+  name: Smoke - rejeita candidatura duplicada
+  type: http
+  seq: 9
+}
+post {
+  url: {{base_url}}/v1/public/{{smoke_org_slug}}/processes/{{smoke_process_id}}/applications
+  body: multipartForm
+  auth: none
+}
+body:multipart-form {
+  application: {"full_name":"Candidato Smoke","email":"{{smoke_candidate_email}}","phone":"31999990000","course":"Computação","privacy_consent":true} @contentType(application/json)
+  cv: @file(./fixtures/cv-smoke.pdf) @contentType(application/pdf)
+}
+tests {
+  test("Duplicação retorna conflito", function () {
+    expect(res.status).to.equal(409);
+  });
+}

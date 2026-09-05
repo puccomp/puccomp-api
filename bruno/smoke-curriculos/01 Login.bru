@@ -1,0 +1,20 @@
+meta {
+  name: Smoke - login
+  type: http
+  seq: 1
+}
+post {
+  url: {{base_url}}/v1/auth/login
+  body: json
+  auth: none
+}
+body:json {
+  { "email": "{{smoke_owner_email}}", "password": "{{smoke_owner_password}}" }
+}
+tests {
+  test("Login retorna token", function () {
+    expect(res.status).to.equal(200);
+    expect(res.body.access_token).to.be.a("string").and.not.empty;
+    bru.setVar("smoke_token", res.body.access_token);
+  });
+}

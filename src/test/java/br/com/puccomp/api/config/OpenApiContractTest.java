@@ -70,6 +70,25 @@ class OpenApiContractTest extends AbstractIntegrationTest {
     }
 
     @Test
+    @DisplayName("inscrição aceita JSON e multipart; URL de currículo só aparece no DTO privado")
+    @SuppressWarnings("unchecked")
+    void shouldDescribeCvUploadAndPrivateDownload() {
+        var post = operation("/v1/public/{orgSlug}/processes/{processId}/applications", "post");
+        var requestBody = (Map<String, Object>) post.get("requestBody");
+        assertThat((Map<String, Object>) requestBody.get("content"))
+                .containsKeys("application/json", "multipart/form-data");
+        var components = (Map<String, Object>) spec().get("components");
+        var schemas = (Map<String, Object>) components.get("schemas");
+        var response = (Map<String, Object>) schemas.get("CandidateApplicationResponse");
+        assertThat((Map<String, Object>) response.get("properties")).containsKey("cv");
+        var receipt = (Map<String, Object>) schemas.get("CandidateApplicationReceiptResponse");
+        assertThat((Map<String, Object>) receipt.get("properties")).containsOnlyKeys("id", "submitted_at");
+        var download = (Map<String, Object>) schemas.get("FileDownload");
+        assertThat((Map<String, Object>) download.get("properties"))
+                .containsOnlyKeys("id", "filename", "content_type", "size", "download_url", "download_expires_at");
+    }
+
+    @Test
     @DisplayName("respostas saem como application/json, não como */*")
     void shouldDeclareJsonResponses() {
         assertThat(operation("/v1/auth/me", "get").get("responses"))

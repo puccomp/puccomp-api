@@ -24,6 +24,8 @@ spring:
             required: false
 
 puccomp:
+  files:
+    bucket: ${FILES_BUCKET:puccomp-private-dev}
   security:
     jwt:
       secret: dev-secret-change-me-please-pelo-menos-32-bytes-0123456789

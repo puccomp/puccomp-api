@@ -23,6 +23,31 @@ class GlobalExceptionHandler {
 
     GlobalExceptionHandler(Tracer tracer) { this.tracer = tracer; }
 
+    @ExceptionHandler(ValidationException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    ErrorResponse handleDomainValidation(ValidationException ex) {
+        return ErrorResponse.of(400, ex.getMessage(), currentTraceId());
+    }
+
+    @ExceptionHandler(ServiceUnavailableException.class)
+    @ResponseStatus(HttpStatus.SERVICE_UNAVAILABLE)
+    ErrorResponse handleUnavailable(ServiceUnavailableException ex) {
+        return ErrorResponse.of(503, ex.getMessage(), currentTraceId());
+    }
+
+    @ExceptionHandler(org.springframework.web.multipart.MaxUploadSizeExceededException.class)
+    @ResponseStatus(HttpStatus.CONTENT_TOO_LARGE)
+    ErrorResponse handleUploadSize() {
+        return ErrorResponse.of(413, "Arquivo ou requisição excede o limite permitido", currentTraceId());
+    }
+
+    @ExceptionHandler({org.springframework.web.multipart.MultipartException.class,
+            org.springframework.web.multipart.support.MissingServletRequestPartException.class})
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    ErrorResponse handleMultipart() {
+        return ErrorResponse.of(400, "Multipart inválido; envie application (JSON) e cv (PDF)", currentTraceId());
+    }
+
     @ExceptionHandler(ResourceNotFoundException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
     ErrorResponse handleNotFound(ResourceNotFoundException ex) {
@@ -39,12 +64,6 @@ class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.UNAUTHORIZED)
     ErrorResponse handleUnauthorized(UnauthorizedException ex) {
         return ErrorResponse.of(HttpStatus.UNAUTHORIZED.value(), ex.getMessage(), currentTraceId());
-    }
-
-    @ExceptionHandler(ValidationException.class)
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
-    ErrorResponse handleDomainValidation(ValidationException ex) {
-        return ErrorResponse.of(400, ex.getMessage(), currentTraceId());
     }
 
     /** Não é recusa de domínio: a mensagem é interna (JDK ou biblioteca) e fica só no log. */

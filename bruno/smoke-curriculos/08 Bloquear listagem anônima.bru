@@ -1,0 +1,16 @@
+meta {
+  name: Smoke - bloqueia leitura anônima
+  type: http
+  seq: 8
+}
+get {
+  url: {{base_url}}/v1/recruitment/processes/{{smoke_process_id}}/applications
+  body: none
+  auth: none
+}
+tests {
+  test("Visitante não recebe URLs nem candidaturas", function () {
+    expect(res.status).to.equal(401);
+    expect(JSON.stringify(res.body)).not.to.include("X-Amz-Signature");
+  });
+}

@@ -1,0 +1,35 @@
+meta {
+  name: Enviar inscrição com currículo
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{base_url}}/v1/public/{{org_slug}}/processes/{{process_id}}/applications
+  body: multipartForm
+  auth: none
+}
+
+body:multipart-form {
+  application: {"full_name":"Ana Lima","email":"ana@example.com","phone":"31999990000","course":"Computação","privacy_consent":true} @contentType(application/json)
+  cv: @file({{cv_path}}) @contentType(application/pdf)
+}
+
+vars:pre-request {
+  cv_path: /tmp/curriculo.pdf
+}
+
+docs {
+  Ajuste cv_path para um PDF local. Envie exatamente duas partes: application (JSON)
+  e cv (PDF). Não defina Content-Type no cabeçalho global: Bruno gera o boundary.
+
+  PDF de até 5 MiB e 20 páginas. Recusa criptografia, scripts, formulários e anexos
+  embutidos. O antivírus precisa estar disponível. O currículo é opcional na candidatura:
+  para enviar sem arquivo, use a requisição JSON "Enviar inscrição".
+
+  201: comprovante público com id e submitted_at, sem URL nem dados do currículo.
+  400: JSON, partes ou PDF inválidos; 409: duplicado/processo fechado;
+  413: limite de upload excedido; 503: storage/antivírus indisponível ou capacidade esgotada.
+
+  Para baixar, use "Listar inscrições" com recruitment:read e copie cv.download_url.
+}

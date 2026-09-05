@@ -2,20 +2,14 @@ package br.com.puccomp.api.recruitment.applications;
 
 import br.com.puccomp.api.email.EmailMessage;
 import br.com.puccomp.api.email.Mailer;
+import br.com.puccomp.api.files.FileService;
+import br.com.puccomp.api.files.FileUpload;
 import br.com.puccomp.api.notification.AudienceNotifier;
-import br.com.puccomp.api.recruitment.processes.ProcessDirectory;
-import br.com.puccomp.api.recruitment.processes.SelectionProcess;
-import br.com.puccomp.api.shared.exception.ConflictException;
-import br.com.puccomp.api.shared.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Instant;
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -25,76 +19,55 @@ class CandidateApplicationService {
 
     private static final String RECRUITMENT_READ = "recruitment:read";
 
-    private final CandidateApplicationRepository applications;
-    private final ProcessDirectory processes;
+    private final CandidateApplicationRegistry registry;
     private final AudienceNotifier notifier;
     private final Mailer mailer;
+    private final FileService files;
 
-    @Transactional(readOnly = true)
     Page<CandidateApplicationResponse> listByProcess(UUID processId, Pageable pageable) {
-        if (!processes.exists(processId))
-            throw new ResourceNotFoundException("Processo seletivo não encontrado");
-
-        return applications.findByProcessId(processId, pageable).map(CandidateApplicationResponse::from);
+        return registry.listByProcess(processId, pageable);
     }
 
-    @Transactional
     CandidateApplicationReceiptResponse submit(UUID processId, SubmitCandidateApplicationRequest request) {
-        SelectionProcess process = processes.findOpen(processId)
-                .orElseThrow(() -> new ConflictException(
-                        "Este processo seletivo não está aceitando inscrições no momento"));
+        return submit(processId, request, null);
+    }
 
-        var application = CandidateApplication.builder()
-                .process(process)
-                .fullName(request.fullName().trim())
-                .email(request.email().trim())
-                .phone(request.phone().trim())
-                .course(request.course().trim())
-                .currentTerm(trimmed(request.currentTerm()))
-                .links(sanitized(request.links()))
-                .privacyConsentAt(Instant.now())
-                .build();
+    CandidateApplicationReceiptResponse submit(UUID processId, SubmitCandidateApplicationRequest request,
+                                               FileUpload cv) {
+        registry.requireSubmittable(processId, request.email().trim());
+        // Antivírus e S3 levam dezenas de segundos: rodam sem transação aberta, e o arquivo só
+        // vira currículo válido no register. Reserva abandonada é recolhida pela limpeza.
+        UUID cvFileId = cv == null ? null : files.stage(cv);
 
-        CandidateApplication saved;
-        try {
-            saved = applications.saveAndFlush(application);
-        } catch (DataIntegrityViolationException exception) {
-            throw new ConflictException("Você já se inscreveu neste processo seletivo");
-        }
+        var registered = registry.register(processId, request, cvFileId);
+        confirmToCandidate(registered);
+        notifyRecruiters(registered);
+        return registered.receipt();
+    }
 
+    private void confirmToCandidate(CandidateApplicationRegistry.Registered registered) {
         mailer.send(new EmailMessage(
-                saved.getEmail(),
-                "Inscrição confirmada — " + process.getTitle(),
+                registered.email(),
+                "Inscrição confirmada — " + registered.processTitle(),
                 "candidatura-confirmada",
                 Map.of(
-                        "candidateName", firstName(saved.getFullName()),
-                        "processTitle", process.getTitle())));
-        notifyRecruiters(saved, process);
-        return CandidateApplicationReceiptResponse.from(saved);
+                        "candidateName", firstName(registered.fullName()),
+                        "processTitle", registered.processTitle())));
     }
 
-    private void notifyRecruiters(CandidateApplication saved, SelectionProcess process) {
+    private void notifyRecruiters(CandidateApplicationRegistry.Registered registered) {
         notifier.notifyPermissionHolders(RECRUITMENT_READ,
-                "Nova inscrição — " + process.getTitle(),
+                "Nova inscrição — " + registered.processTitle(),
                 "nova-inscricao",
                 Map.of(
-                        "candidateName", saved.getFullName(),
-                        "candidateEmail", saved.getEmail(),
-                        "course", saved.getCourse(),
-                        "processTitle", process.getTitle()));
+                        "candidateName", registered.fullName(),
+                        "candidateEmail", registered.email(),
+                        "course", registered.course(),
+                        "processTitle", registered.processTitle()));
     }
 
     private static String firstName(String fullName) {
         int space = fullName.indexOf(' ');
         return space < 0 ? fullName : fullName.substring(0, space);
-    }
-
-    private static String trimmed(String value) {
-        return value == null || value.isBlank() ? null : value.trim();
-    }
-
-    private static List<String> sanitized(List<String> links) {
-        if (links == null) return List.of();
-        return links.stream().map(String::trim).toList();
     }
 }

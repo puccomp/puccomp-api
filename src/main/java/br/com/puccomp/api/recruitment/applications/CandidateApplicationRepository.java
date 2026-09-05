@@ -9,4 +9,6 @@ import java.util.UUID;
 interface CandidateApplicationRepository extends JpaRepository<CandidateApplication, UUID> {
 
     Page<CandidateApplication> findByProcessId(UUID processId, Pageable pageable);
+
+    boolean existsByProcessIdAndEmailIgnoreCase(UUID processId, String email);
 }

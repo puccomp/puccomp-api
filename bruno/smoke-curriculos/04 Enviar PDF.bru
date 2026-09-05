@@ -1,0 +1,21 @@
+meta {
+  name: Smoke - candidatura com PDF
+  type: http
+  seq: 4
+}
+post {
+  url: {{base_url}}/v1/public/{{smoke_org_slug}}/processes/{{smoke_process_id}}/applications
+  body: multipartForm
+  auth: none
+}
+body:multipart-form {
+  application: {"full_name":"Candidato Smoke","email":"{{smoke_candidate_email}}","phone":"31999990000","course":"Computação","privacy_consent":true} @contentType(application/json)
+  cv: @file(./fixtures/cv-smoke.pdf) @contentType(application/pdf)
+}
+tests {
+  test("Candidatura criada sem expor PDF ou PII no comprovante público", function () {
+    expect(res.status).to.equal(201);
+    expect(res.body).to.have.all.keys("id", "submitted_at");
+    bru.setVar("smoke_application_id", res.body.id);
+  });
+}

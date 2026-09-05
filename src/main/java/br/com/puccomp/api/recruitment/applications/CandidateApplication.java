@@ -61,6 +61,9 @@ public class CandidateApplication extends Auditable {
     @Column(name = "current_term", updatable = false, length = 50)
     private String currentTerm;
 
+    @Column(name = "cv_file_id", updatable = false)
+    private UUID cvFileId;
+
     @ElementCollection(fetch = FetchType.LAZY)
     @CollectionTable(name = "candidate_application_links",
             joinColumns = @JoinColumn(name = "application_id"))
