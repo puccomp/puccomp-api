@@ -11,21 +11,29 @@ import br.com.puccomp.api.shared.exception.ErrorResponse;
 import br.com.puccomp.api.shared.reference.Standing;
 import br.com.puccomp.api.support.AbstractIntegrationTest;
 import br.com.puccomp.api.support.TestSeeder;
+import jakarta.mail.Address;
+import jakarta.mail.MessagingException;
 import jakarta.mail.Session;
 import jakarta.mail.internet.MimeMessage;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Import;
 import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.core.task.SyncTaskExecutor;
+import org.springframework.core.task.TaskExecutor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.mail.MailSendException;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.test.context.bean.override.convention.TestBean;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -38,6 +46,14 @@ class CandidateApplicationIntegrationTest extends AbstractIntegrationTest {
 
     @MockitoBean
     private JavaMailSender mailSender;
+
+    /** Entrega o e-mail na própria thread da request: sem isso, o {@code @Async} corre com o verify. */
+    @TestBean(name = "mailTaskExecutor")
+    private TaskExecutor mailTaskExecutor;
+
+    static TaskExecutor mailTaskExecutor() {
+        return new SyncTaskExecutor();
+    }
 
     @BeforeEach
     void stubMailTransport() {
@@ -151,7 +167,7 @@ class CandidateApplicationIntegrationTest extends AbstractIntegrationTest {
 
         assertThat(duplicate.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
         assertThat(duplicate.getBody().message()).contains("Você já se inscreveu");
-        Mockito.verify(mailSender, Mockito.times(1)).send(Mockito.any(MimeMessage.class));
+        Mockito.verify(mailSender, Mockito.times(2)).send(Mockito.any(MimeMessage.class));
     }
 
     @Test
@@ -214,6 +230,106 @@ class CandidateApplicationIntegrationTest extends AbstractIntegrationTest {
         assertThat(post(path, new SubmitCandidateApplicationRequest("Sem Período", "sem-periodo@example.com",
                 "31999990000", "Engenharia", null, null, true), null, CandidateApplicationReceiptResponse.class)
                 .getStatusCode()).isEqualTo(HttpStatus.CREATED);
+    }
+
+    @Test
+    @DisplayName("notifica por e-mail o dono e os cargos com recruitment:read, mas não membros sem a permissão")
+    void shouldNotifyMembersWithRecruitmentReadPermission() {
+        UUID tenantId = seeder.seedTenant("EJ Notificação", "ej-notificacao");
+        String ownerEmail = "dono@notificacao.dev";
+        seeder.seedAccount(tenantId, ownerEmail, "senha123", Standing.OWNER);
+        String token = login(ownerEmail, "senha123");
+
+        UUID recruiterRoleId = seeder.seedCargo(tenantId, "Recrutamento");
+        grantToRole(token, recruiterRoleId, "recruitment:read");
+        seeder.seedAccount(tenantId, "recrutador@notificacao.dev", "senha123", Standing.MEMBER, recruiterRoleId);
+        seeder.seedAccount(tenantId, "outro@notificacao.dev", "senha123", Standing.MEMBER);
+
+        UUID processId = openProcess(token, "PS Notificação", null);
+        submit("ej-notificacao", processId, "candidato@example.com");
+
+        assertThat(sentRecipients(3)).containsExactlyInAnyOrder(
+                "candidato@example.com", ownerEmail, "recrutador@notificacao.dev");
+    }
+
+    @Test
+    @DisplayName("alumni não recebem a inscrição, mesmo herdando um cargo com recruitment:read")
+    void shouldNotNotifyAlumni() {
+        UUID tenantId = seeder.seedTenant("EJ Alumni", "ej-alumni");
+        String ownerEmail = "dono@alumni.dev";
+        seeder.seedAccount(tenantId, ownerEmail, "senha123", Standing.OWNER);
+        String token = login(ownerEmail, "senha123");
+
+        UUID recruiterRoleId = seeder.seedCargo(tenantId, "Recrutamento");
+        grantToRole(token, recruiterRoleId, "recruitment:read");
+        UUID aposentado = seeder.seedAccount(tenantId, "veterano@alumni.dev", "senha123",
+                Standing.MEMBER, recruiterRoleId);
+        assertThat(post("/v1/members/" + aposentado + "/retire", null, token, String.class)
+                .getStatusCode()).isEqualTo(HttpStatus.OK);
+
+        UUID processId = openProcess(token, "PS Alumni", null);
+        submit("ej-alumni", processId, "candidato@example.com");
+
+        assertThat(sentRecipients(2)).containsExactlyInAnyOrder("candidato@example.com", ownerEmail);
+    }
+
+    @Test
+    @DisplayName("permissão concedida direto ao membro notifica igual à concedida pelo cargo")
+    void shouldNotifyOnMemberLevelGrant() {
+        UUID tenantId = seeder.seedTenant("EJ Grant", "ej-grant");
+        String ownerEmail = "dono@grant.dev";
+        seeder.seedAccount(tenantId, ownerEmail, "senha123", Standing.OWNER);
+        String token = login(ownerEmail, "senha123");
+
+        UUID semCargo = seeder.seedAccount(tenantId, "avulso@grant.dev", "senha123", Standing.MEMBER);
+        put("/v1/members/" + semCargo + "/permissions",
+                Map.of("permissions", List.of("recruitment:read")), token, String.class);
+
+        UUID processId = openProcess(token, "PS Grant", null);
+        submit("ej-grant", processId, "candidato@example.com");
+
+        assertThat(sentRecipients(3)).containsExactlyInAnyOrder(
+                "candidato@example.com", ownerEmail, "avulso@grant.dev");
+    }
+
+    @Test
+    @DisplayName("SMTP fora do ar não derruba a inscrição")
+    void shouldPersistApplicationWhenSmtpFails() {
+        String token = ownerOf("EJ SMTP", "ej-smtp", "dono@smtp.dev");
+        UUID processId = openProcess(token, "PS SMTP", null);
+        Mockito.doThrow(new MailSendException("smtp fora do ar"))
+                .when(mailSender).send(Mockito.any(MimeMessage.class));
+
+        assertThat(submit("ej-smtp", processId, "resiliente@example.com").getStatusCode())
+                .isEqualTo(HttpStatus.CREATED);
+        assertThat(getWithToken(internalApplications(processId), token).getBody())
+                .contains("resiliente@example.com");
+    }
+
+    private List<String> sentRecipients(int expected) {
+        ArgumentCaptor<MimeMessage> captor = ArgumentCaptor.forClass(MimeMessage.class);
+        Mockito.verify(mailSender, Mockito.times(expected)).send(captor.capture());
+        return captor.getAllValues().stream().map(CandidateApplicationIntegrationTest::onlyRecipient).toList();
+    }
+
+    private static String onlyRecipient(MimeMessage message) {
+        try {
+            Address[] recipients = message.getAllRecipients();
+            assertThat(recipients).hasSize(1);
+            return recipients[0].toString();
+        } catch (MessagingException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    private void grantToRole(String token, UUID roleId, String... permissions) {
+        put("/v1/roles/" + roleId + "/permissions",
+                Map.of("permissions", List.of(permissions)), token, String.class);
+    }
+
+    private ResponseEntity<CandidateApplicationReceiptResponse> submit(String slug, UUID processId, String email) {
+        return post(publicProcess(slug, processId) + "/applications",
+                application(email), null, CandidateApplicationReceiptResponse.class);
     }
 
     private String ownerOf(String organizationName, String slug, String email) {

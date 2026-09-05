@@ -2,6 +2,7 @@ package br.com.puccomp.api.recruitment.applications;
 
 import br.com.puccomp.api.email.EmailMessage;
 import br.com.puccomp.api.email.Mailer;
+import br.com.puccomp.api.notification.AudienceNotifier;
 import br.com.puccomp.api.recruitment.processes.ProcessDirectory;
 import br.com.puccomp.api.recruitment.processes.SelectionProcess;
 import br.com.puccomp.api.shared.exception.ConflictException;
@@ -22,8 +23,11 @@ import java.util.UUID;
 @RequiredArgsConstructor
 class CandidateApplicationService {
 
+    private static final String RECRUITMENT_READ = "recruitment:read";
+
     private final CandidateApplicationRepository applications;
     private final ProcessDirectory processes;
+    private final AudienceNotifier notifier;
     private final Mailer mailer;
 
     @Transactional(readOnly = true)
@@ -65,7 +69,19 @@ class CandidateApplicationService {
                 Map.of(
                         "candidateName", firstName(saved.getFullName()),
                         "processTitle", process.getTitle())));
+        notifyRecruiters(saved, process);
         return CandidateApplicationReceiptResponse.from(saved);
+    }
+
+    private void notifyRecruiters(CandidateApplication saved, SelectionProcess process) {
+        notifier.notifyPermissionHolders(RECRUITMENT_READ,
+                "Nova inscrição — " + process.getTitle(),
+                "nova-inscricao",
+                Map.of(
+                        "candidateName", saved.getFullName(),
+                        "candidateEmail", saved.getEmail(),
+                        "course", saved.getCourse(),
+                        "processTitle", process.getTitle()));
     }
 
     private static String firstName(String fullName) {

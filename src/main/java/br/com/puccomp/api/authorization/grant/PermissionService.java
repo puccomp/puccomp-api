@@ -1,11 +1,14 @@
 package br.com.puccomp.api.authorization.grant;
 
 import br.com.puccomp.api.authorization.PermissionResolver;
+import br.com.puccomp.api.shared.reference.Standing;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -16,7 +19,45 @@ class PermissionService implements PermissionResolver {
 
     @Override
     @Transactional(readOnly = true)
-    public Set<String> resolveAuthorities(UUID memberId, UUID roleId) {
+    public Set<String> effectiveAuthorities(Subject subject) {
+        if (subject.readOnly()) return readOnlyAuthorities();
+        if (subject.standing() == Standing.OWNER) return allAuthorities();
+        return resolveAuthorities(subject.memberId(), subject.roleId());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Set<UUID> filterWithPermission(Collection<Subject> subjects, String permission) {
+        Optional<Permission> required = Permission.fromCode(permission);
+        if (subjects.isEmpty() || required.isEmpty()) return Set.of();
+
+        Set<UUID> roleIds = idsOf(subjects, Subject::roleId);
+        Set<UUID> memberIds = idsOf(subjects, Subject::memberId);
+        Set<UUID> grantedRoles = roleIds.isEmpty() ? Set.of()
+                : rolePermissions.findByRoleIdInAndPermission(roleIds, required.get()).stream()
+                        .map(RolePermission::getRoleId).collect(Collectors.toSet());
+        Set<UUID> grantedMembers = memberIds.isEmpty() ? Set.of()
+                : memberPermissions.findByMemberIdInAndPermission(memberIds, required.get()).stream()
+                        .map(MemberPermission::getMemberId).collect(Collectors.toSet());
+
+        return subjects.stream()
+                .filter(subject -> holds(subject, required.get(), grantedRoles, grantedMembers))
+                .map(Subject::memberId)
+                .collect(Collectors.toSet());
+    }
+
+    private boolean holds(Subject subject, Permission required, Set<UUID> grantedRoles, Set<UUID> grantedMembers) {
+        if (subject.readOnly()) return readOnlyAuthorities().contains(required.code());
+        if (subject.standing() == Standing.OWNER) return true;
+        return (subject.roleId() != null && grantedRoles.contains(subject.roleId()))
+                || (subject.memberId() != null && grantedMembers.contains(subject.memberId()));
+    }
+
+    private static Set<UUID> idsOf(Collection<Subject> subjects, Function<Subject, UUID> id) {
+        return subjects.stream().map(id).filter(Objects::nonNull).collect(Collectors.toSet());
+    }
+
+    Set<String> resolveAuthorities(UUID memberId, UUID roleId) {
         Set<String> authorities = new HashSet<>();
         if (roleId != null)
             rolePermissions.findByRoleId(roleId)
@@ -28,17 +69,15 @@ class PermissionService implements PermissionResolver {
         return authorities;
     }
 
-    @Override
-    public Set<String> allAuthorities() {
+    Set<String> allAuthorities() {
         return Arrays.stream(Permission.values()).map(Permission::code)
-                .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+                .collect(Collectors.toCollection(LinkedHashSet::new));
     }
 
-    @Override
-    public Set<String> readOnlyAuthorities() {
+    Set<String> readOnlyAuthorities() {
         return Arrays.stream(Permission.values()).map(Permission::code)
                 .filter(code -> code.endsWith(":read"))
-                .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+                .collect(Collectors.toCollection(LinkedHashSet::new));
     }
 
     @Transactional(readOnly = true)

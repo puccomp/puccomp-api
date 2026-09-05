@@ -22,11 +22,11 @@ interface MemberRepository extends JpaRepository<Member, UUID> {
     @EntityGraph(attributePaths = {"role", "department", "course"})
     Optional<Member> findById(UUID id);
 
-    @Query("select m.role.id from Member m where m.id = :id")
-    Optional<UUID> findRoleIdById(UUID id);
+    @Query("select m.role.id as roleId, m.status as status from Member m where m.id = :id")
+    Optional<AccessRow> findAccessById(@Param("id") UUID id);
 
-    @Query("select m.status from Member m where m.id = :id")
-    Optional<MemberStatus> findStatusById(UUID id);
+    @EntityGraph(attributePaths = "role")
+    List<Member> findByStatus(MemberStatus status);
 
     @Query(value = "select id as member_id, tenant_id as tenant_id, standing as standing "
             + "from members where account_id = :accountId and status in ('ACTIVE', 'ALUMNUS')",
@@ -37,6 +37,11 @@ interface MemberRepository extends JpaRepository<Member, UUID> {
             + "from members where account_id = :accountId and tenant_id = :tenantId "
             + "and status in ('ACTIVE', 'ALUMNUS')", nativeQuery = true)
     Optional<MembershipRow> findMembership(@Param("accountId") UUID accountId, @Param("tenantId") UUID tenantId);
+
+    interface AccessRow {
+        UUID getRoleId();
+        MemberStatus getStatus();
+    }
 
     interface MembershipRow {
         UUID getMemberId();

@@ -19,16 +19,9 @@ class MemberDirectoryService implements MemberDirectory {
 
     @Override
     @Transactional(readOnly = true)
-    public Optional<UUID> findRoleId(UUID memberId) {
-        return members.findRoleIdById(memberId);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public boolean isReadOnly(UUID memberId) {
-        return members.findStatusById(memberId)
-                .map(status -> status == MemberStatus.ALUMNUS)
-                .orElse(false);
+    public Optional<MemberAccess> findAccess(UUID memberId) {
+        return members.findAccessById(memberId)
+                .map(row -> new MemberAccess(row.getRoleId(), row.getStatus() == MemberStatus.ALUMNUS));
     }
 
     @Override
@@ -41,6 +34,19 @@ class MemberDirectoryService implements MemberDirectory {
     @Transactional(readOnly = true)
     public Optional<Membership> findMembership(UUID accountId, UUID tenantId) {
         return members.findMembership(accountId, tenantId).map(this::toMembership);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ActiveMember> listActiveMembers() {
+        return members.findByStatus(MemberStatus.ACTIVE).stream()
+                .filter(m -> m.getAccountId() != null)
+                .map(m -> new ActiveMember(
+                        m.getId(),
+                        m.getAccountId(),
+                        m.getRole() != null ? m.getRole().getId() : null,
+                        m.getStanding()))
+                .toList();
     }
 
     @Override

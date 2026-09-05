@@ -29,6 +29,11 @@ spring:
           starttls:
             enable: true
             required: true
+  task:
+    execution:
+      # O pool de e-mail publica um Executor, o que sozinho faria o applicationTaskExecutor do Boot
+      # sumir do contexto. "force" mantém os dois.
+      mode: force
   data:
     web:
       pageable:
