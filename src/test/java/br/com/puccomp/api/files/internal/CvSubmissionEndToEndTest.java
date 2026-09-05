@@ -47,14 +47,16 @@ import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @Testcontainers
 @Import(TestSeeder.class)
 @TestPropertySource(properties = {"puccomp.files.enabled=true", "puccomp.files.bucket=puccomp-private-dev"})
 class CvSubmissionEndToEndTest extends AbstractIntegrationTest {
+    // O ciclo de vida é do @Testcontainers, que para o container depois da classe; o analisador
+    // não enxerga isso na cadeia fluente e acusa vazamento.
     @Container
+    @SuppressWarnings("resource")
     static final GenericContainer<?> minio = new GenericContainer<>("minio/minio:RELEASE.2025-04-22T22-12-26Z")
             .withEnv("MINIO_ROOT_USER", "testaccess")
             .withEnv("MINIO_ROOT_PASSWORD", "testsecret123")
