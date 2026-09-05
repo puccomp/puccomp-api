@@ -199,7 +199,7 @@ class InvitationServiceTest {
 
         assertThatThrownBy(() -> service.accept(
                 new AcceptInvitationRequest("inv_token", "senha123", "Novato", UUID.randomUUID())))
-                .isInstanceOf(IllegalArgumentException.class);
+                .isInstanceOf(br.com.puccomp.api.shared.exception.ValidationException.class);
         verify(acceptor, never()).provision(any(), any());
     }
 

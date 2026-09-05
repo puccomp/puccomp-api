@@ -13,6 +13,7 @@ import br.com.puccomp.api.organization.MemberDirectory;
 import br.com.puccomp.api.organization.MemberProvisioning;
 import br.com.puccomp.api.shared.exception.ConflictException;
 import br.com.puccomp.api.shared.exception.ResourceNotFoundException;
+import br.com.puccomp.api.shared.exception.ValidationException;
 import br.com.puccomp.api.shared.reference.Standing;
 import br.com.puccomp.api.shared.tenant.TenantContext;
 import br.com.puccomp.api.shared.token.TokenSecrets;
@@ -151,7 +152,7 @@ class InvitationService implements InvitationIssuer {
     InvitationPreviewResponse preview(String token) {
         Invitation invitation = repository.findByTokenHash(TokenSecrets.sha256Hex(token.trim()))
                 .filter(i -> i.isUsable(Instant.now()))
-                .orElseThrow(() -> new IllegalArgumentException("Convite inválido ou expirado"));
+                .orElseThrow(() -> new ValidationException("Convite inválido ou expirado"));
 
         TenantContext.set(invitation.getTenantId());
         var organization = tenants.findById(invitation.getTenantId()).map(OrganizationView::from).orElse(null);
@@ -161,7 +162,7 @@ class InvitationService implements InvitationIssuer {
     LoginResponse accept(AcceptInvitationRequest request) {
         Invitation invitation = repository.findByTokenHash(TokenSecrets.sha256Hex(request.token().trim()))
                 .filter(i -> i.isUsable(Instant.now()))
-                .orElseThrow(() -> new IllegalArgumentException("Convite inválido ou expirado"));
+                .orElseThrow(() -> new ValidationException("Convite inválido ou expirado"));
 
         TenantContext.set(invitation.getTenantId());
         var provisioned = acceptor.provision(invitation.getId(), request);

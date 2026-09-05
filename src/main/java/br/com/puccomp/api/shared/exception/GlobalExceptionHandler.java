@@ -17,6 +17,8 @@ import java.util.stream.Collectors;
 @RestControllerAdvice
 class GlobalExceptionHandler {
 
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
     private final Tracer tracer;
 
     GlobalExceptionHandler(Tracer tracer) { this.tracer = tracer; }
@@ -39,10 +41,18 @@ class GlobalExceptionHandler {
         return ErrorResponse.of(HttpStatus.UNAUTHORIZED.value(), ex.getMessage(), currentTraceId());
     }
 
+    @ExceptionHandler(ValidationException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    ErrorResponse handleDomainValidation(ValidationException ex) {
+        return ErrorResponse.of(400, ex.getMessage(), currentTraceId());
+    }
+
+    /** Não é recusa de domínio: a mensagem é interna (JDK ou biblioteca) e fica só no log. */
     @ExceptionHandler(IllegalArgumentException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     ErrorResponse handleIllegalArgument(IllegalArgumentException ex) {
-        return ErrorResponse.of(HttpStatus.BAD_REQUEST.value(), ex.getMessage(), currentTraceId());
+        log.warn("IllegalArgumentException nao tratada", ex);
+        return ErrorResponse.of(HttpStatus.BAD_REQUEST.value(), "Requisição inválida", currentTraceId());
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
