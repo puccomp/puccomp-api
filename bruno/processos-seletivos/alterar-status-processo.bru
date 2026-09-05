@@ -21,8 +21,12 @@ body:json {
 }
 
 docs {
-  Transições válidas: DRAFT → OPEN → CLOSED.
-  CANCELLED é alcançável a partir de DRAFT ou OPEN.
+  Transições válidas: DRAFT → OPEN → IN_REVIEW → CLOSED.
+  De OPEN também dá para ir direto a CLOSED, e CANCELLED é alcançável até IN_REVIEW.
 
-  Só um processo OPEN aparece na superfície pública e aceita inscrições.
+  IN_REVIEW significa "inscrições encerradas, avaliação rolando". Não precisa ser acionado à mão:
+  passado o closes_at, o processo já é reportado como IN_REVIEW e para de aceitar inscrição. Mudar
+  para IN_REVIEW manualmente serve para encerrar as inscrições antes do prazo.
+
+  O status devolvido é o efetivo. Quem manda em "aceita inscrição agora?" é accepting_applications.
 }

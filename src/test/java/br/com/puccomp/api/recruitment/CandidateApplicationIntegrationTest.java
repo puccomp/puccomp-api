@@ -339,12 +339,12 @@ class CandidateApplicationIntegrationTest extends AbstractIntegrationTest {
     }
 
     private UUID createProcess(String token, String title) {
-        return post("/v1/recruitment/processes", new SelectionProcessRequest(title, null), token,
+        return post("/v1/recruitment/processes", new SelectionProcessRequest(title, null, null, null, null), token,
                 SelectionProcessResponse.class).getBody().id();
     }
 
     private UUID openProcess(String token, String title, String description) {
-        UUID processId = post("/v1/recruitment/processes", new SelectionProcessRequest(title, description), token,
+        UUID processId = post("/v1/recruitment/processes", new SelectionProcessRequest(title, description, null, null, null), token,
                 SelectionProcessResponse.class).getBody().id();
         patch("/v1/recruitment/processes/" + processId + "/status",
                 new ChangeStatusRequest(SelectionProcessStatus.OPEN), token, SelectionProcessResponse.class);

@@ -16,6 +16,8 @@ import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
 
@@ -34,7 +36,7 @@ class SelectionProcessIntegrationTest extends AbstractIntegrationTest {
 
         var request = new SelectionProcessRequest(
                 "Processo Seletivo 2026.1",
-                "Descrição do processo 2026.1");
+                "Descrição do processo 2026.1", null, null, null);
 
         ResponseEntity<SelectionProcessResponse> created =
                 post("/v1/recruitment/processes", request, token, SelectionProcessResponse.class);
@@ -83,6 +85,82 @@ class SelectionProcessIntegrationTest extends AbstractIntegrationTest {
         assertThat(reopen.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
     }
 
+    @Test
+    @DisplayName("passado o prazo, o processo aparece como IN_REVIEW sem ninguém ter mexido nele")
+    void shouldDeriveInReviewOncePastDeadline() {
+        String token = ownerOf("EJ Prazo", "ej-prazo", "dono@prazo.dev");
+        Instant abriu = Instant.now().minus(10, ChronoUnit.DAYS);
+        UUID processId = createProcess(token, "PS Prazo", abriu, Instant.now().plusSeconds(2), null);
+        open(token, processId);
+
+        SelectionProcessResponse aberto = read(token, processId);
+        assertThat(aberto.status()).isEqualTo(SelectionProcessStatus.OPEN);
+        assertThat(aberto.acceptingApplications()).isTrue();
+
+        await(3);
+
+        SelectionProcessResponse vencido = read(token, processId);
+        assertThat(vencido.status()).isEqualTo(SelectionProcessStatus.IN_REVIEW);
+        assertThat(vencido.acceptingApplications()).isFalse();
+    }
+
+    @Test
+    @DisplayName("o processo ainda não aceita inscrição antes da data de abertura")
+    void shouldNotAcceptBeforeOpeningDate() {
+        String token = ownerOf("EJ Agendada", "ej-agendada", "dono@agendada.dev");
+        UUID processId = createProcess(token, "PS Agendado",
+                Instant.now().plus(2, ChronoUnit.DAYS), Instant.now().plus(9, ChronoUnit.DAYS), null);
+        open(token, processId);
+
+        SelectionProcessResponse response = read(token, processId);
+        assertThat(response.status()).isEqualTo(SelectionProcessStatus.OPEN);
+        assertThat(response.acceptingApplications()).isFalse();
+    }
+
+    @Test
+    @DisplayName("IN_REVIEW também é alcançável à mão, para encerrar as inscrições antes do prazo")
+    void shouldAllowClosingApplicationsAheadOfDeadline() {
+        String token = ownerOf("EJ Antecipada", "ej-antecipada", "dono@antecipada.dev");
+        UUID processId = createProcess(token, "PS Antecipado", null,
+                Instant.now().plus(30, ChronoUnit.DAYS), null);
+        open(token, processId);
+
+        assertThat(changeStatus(token, processId, SelectionProcessStatus.IN_REVIEW).getStatusCode())
+                .isEqualTo(HttpStatus.OK);
+        SelectionProcessResponse response = read(token, processId);
+        assertThat(response.status()).isEqualTo(SelectionProcessStatus.IN_REVIEW);
+        assertThat(response.acceptingApplications()).isFalse();
+    }
+
+    @Test
+    @DisplayName("de IN_REVIEW não dá para reabrir as inscrições")
+    void shouldNotReopenFromInReview() {
+        String token = ownerOf("EJ Sem Volta", "ej-sem-volta", "dono@sem-volta.dev");
+        UUID processId = createProcess(token, "PS Sem Volta", null, null, null);
+        open(token, processId);
+        changeStatus(token, processId, SelectionProcessStatus.IN_REVIEW);
+
+        assertThat(changeStatus(token, processId, SelectionProcessStatus.OPEN).getStatusCode())
+                .isEqualTo(HttpStatus.CONFLICT);
+        assertThat(changeStatus(token, processId, SelectionProcessStatus.CLOSED).getStatusCode())
+                .isEqualTo(HttpStatus.OK);
+    }
+
+    @Test
+    @DisplayName("recusa janela invertida e resultado anterior ao fim das inscrições")
+    void shouldRejectInconsistentWindow() {
+        String token = ownerOf("EJ Datas", "ej-datas", "dono@datas.dev");
+        Instant agora = Instant.now();
+
+        assertThat(post("/v1/recruitment/processes", new SelectionProcessRequest("Invertido", null,
+                agora.plus(10, ChronoUnit.DAYS), agora.plus(1, ChronoUnit.DAYS), null),
+                token, ErrorResponse.class).getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+
+        assertThat(post("/v1/recruitment/processes", new SelectionProcessRequest("Resultado antes", null,
+                agora, agora.plus(10, ChronoUnit.DAYS), agora.plus(5, ChronoUnit.DAYS)),
+                token, ErrorResponse.class).getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
     private String ownerOf(String ejName, String slug, String email) {
         UUID tenantId = seeder.seedTenant(ejName, slug);
         seeder.seedAccount(tenantId, email, "senha123", Standing.OWNER);
@@ -90,7 +168,35 @@ class SelectionProcessIntegrationTest extends AbstractIntegrationTest {
     }
 
     private UUID createProcess(String token, String title) {
-        return post("/v1/recruitment/processes", new SelectionProcessRequest(title, null),
+        return post("/v1/recruitment/processes", new SelectionProcessRequest(title, null, null, null, null),
                 token, SelectionProcessResponse.class).getBody().id();
+    }
+
+    private UUID createProcess(String token, String title, Instant opensAt, Instant closesAt, Instant resultAt) {
+        return post("/v1/recruitment/processes",
+                new SelectionProcessRequest(title, null, opensAt, closesAt, resultAt),
+                token, SelectionProcessResponse.class).getBody().id();
+    }
+
+    private void open(String token, UUID processId) {
+        changeStatus(token, processId, SelectionProcessStatus.OPEN);
+    }
+
+    /** String como tipo de resposta: a transição inválida devolve ErrorResponse, não o processo. */
+    private ResponseEntity<String> changeStatus(String token, UUID processId, SelectionProcessStatus status) {
+        return patch("/v1/recruitment/processes/" + processId + "/status",
+                new ChangeStatusRequest(status), token, String.class);
+    }
+
+    private SelectionProcessResponse read(String token, UUID processId) {
+        return get("/v1/recruitment/processes/" + processId, token, SelectionProcessResponse.class).getBody();
+    }
+
+    private static void await(int seconds) {
+        try {
+            Thread.sleep(seconds * 1000L);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 }
