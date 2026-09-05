@@ -54,7 +54,7 @@ class CvUploadIntegrationTest extends AbstractIntegrationTest {
         String email = slug + "@example.com";
         seeder.seedAccount(tenant, email, "senha123", Standing.OWNER);
         token = login(email, "senha123");
-        process = post("/v1/recruitment/processes", new SelectionProcessRequest("PS", null, null, null, null), token,
+        process = post("/v1/recruitment/processes", new SelectionProcessRequest("PS", null, null, null, null, null, null), token,
                 SelectionProcessResponse.class).getBody().id();
         patch("/v1/recruitment/processes/" + process + "/status", new ChangeStatusRequest(SelectionProcessStatus.OPEN),
                 token, SelectionProcessResponse.class);

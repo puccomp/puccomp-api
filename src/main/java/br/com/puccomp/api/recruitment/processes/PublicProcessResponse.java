@@ -8,7 +8,9 @@ public record PublicProcessResponse(
         String title,
         String description,
         Instant closesAt,
-        Instant resultAt
+        Instant resultAt,
+        Short minTerm,
+        Short maxTerm
 ) {
     static PublicProcessResponse from(SelectionProcess process) {
         return new PublicProcessResponse(
@@ -16,6 +18,8 @@ public record PublicProcessResponse(
                 process.getTitle(),
                 process.getDescription(),
                 process.getClosesAt(),
-                process.getResultAt());
+                process.getResultAt(),
+                process.getMinTerm(),
+                process.getMaxTerm());
     }
 }

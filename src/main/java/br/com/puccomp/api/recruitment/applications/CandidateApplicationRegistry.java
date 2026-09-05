@@ -55,8 +55,10 @@ class CandidateApplicationRegistry {
     /** Falha cedo, antes de gastar antivírus e S3 num envio que já seria recusado. */
     @Transactional(readOnly = true)
     void requireSubmittable(UUID processId, SubmitCandidateApplicationRequest request) {
-        if (processes.findOpen(processId).isEmpty()) throw new ConflictException(PROCESSO_FECHADO);
+        SelectionProcess process = processes.findOpen(processId)
+                .orElseThrow(() -> new ConflictException(PROCESSO_FECHADO));
         requireAcceptedCourse(request.courseId());
+        requireEligibleTerm(process, request.currentTerm());
         if (applications.existsByProcessIdAndEmailIgnoreCase(processId, request.email().trim()))
             throw new ConflictException(JA_INSCRITO);
     }
@@ -70,11 +72,26 @@ class CandidateApplicationRegistry {
             throw new ValidationException("Este curso não é aceito por esta empresa júnior");
     }
 
+    private static void requireEligibleTerm(SelectionProcess process, Short currentTerm) {
+        if (process.acceptsTerm(currentTerm)) return;
+        throw new ValidationException("Este processo seletivo aceita candidaturas %s"
+                .formatted(termRange(process)));
+    }
+
+    private static String termRange(SelectionProcess process) {
+        Short min = process.getMinTerm();
+        Short max = process.getMaxTerm();
+        if (min != null && max != null) return "do %dº ao %dº período".formatted(min, max);
+        if (min != null) return "a partir do %dº período".formatted(min);
+        return "até o %dº período".formatted(max);
+    }
+
     @Transactional
     Registered register(UUID processId, SubmitCandidateApplicationRequest request, UUID cvFileId) {
         SelectionProcess process = processes.findOpen(processId)
                 .orElseThrow(() -> new ConflictException(PROCESSO_FECHADO));
         requireAcceptedCourse(request.courseId());
+        requireEligibleTerm(process, request.currentTerm());
         if (cvFileId != null) files.confirm(cvFileId);
 
         var application = CandidateApplication.builder()

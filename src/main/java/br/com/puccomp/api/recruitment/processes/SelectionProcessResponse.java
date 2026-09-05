@@ -14,6 +14,8 @@ public record SelectionProcessResponse(
         Instant opensAt,
         Instant closesAt,
         Instant resultAt,
+        Short minTerm,
+        Short maxTerm,
         Instant createdAt,
         Instant updatedAt
 ) {
@@ -30,6 +32,8 @@ public record SelectionProcessResponse(
                 process.getOpensAt(),
                 process.getClosesAt(),
                 process.getResultAt(),
+                process.getMinTerm(),
+                process.getMaxTerm(),
                 process.getCreatedAt(),
                 process.getUpdatedAt()
         );

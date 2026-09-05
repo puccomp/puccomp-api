@@ -65,7 +65,8 @@ class SelectionProcessService implements ProcessDirectory {
                 .status(SelectionProcessStatus.DRAFT)
                 .build();
         process.update(request.title().trim(), trimmed(request.description()),
-                request.opensAt(), request.closesAt(), request.resultAt());
+                request.opensAt(), request.closesAt(), request.resultAt(),
+                request.minTerm(), request.maxTerm());
 
         return detailOf(repository.save(process), Instant.now());
     }
@@ -74,7 +75,8 @@ class SelectionProcessService implements ProcessDirectory {
     SelectionProcessResponse update(UUID id, SelectionProcessRequest request) {
         SelectionProcess process = findOwned(id);
         process.update(request.title().trim(), trimmed(request.description()),
-                request.opensAt(), request.closesAt(), request.resultAt());
+                request.opensAt(), request.closesAt(), request.resultAt(),
+                request.minTerm(), request.maxTerm());
 
         return detailOf(process, Instant.now());
     }

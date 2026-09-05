@@ -45,13 +45,38 @@ public class SelectionProcess extends Auditable {
     @Column(name = "result_at")
     private Instant resultAt;
 
-    public void update(String title, String description, Instant opensAt, Instant closesAt, Instant resultAt) {
+    @Column(name = "min_term")
+    private Short minTerm;
+
+    @Column(name = "max_term")
+    private Short maxTerm;
+
+    public void update(String title, String description, Instant opensAt, Instant closesAt, Instant resultAt,
+                       Short minTerm, Short maxTerm) {
         validateWindow(opensAt, closesAt, resultAt);
+        validateTermRange(minTerm, maxTerm);
         this.title = title;
         this.description = description;
         this.opensAt = opensAt;
         this.closesAt = closesAt;
         this.resultAt = resultAt;
+        this.minTerm = minTerm;
+        this.maxTerm = maxTerm;
+    }
+
+    public boolean restrictsTerm() {
+        return minTerm != null || maxTerm != null;
+    }
+
+    /**
+     * Sem faixa declarada, qualquer período serve — inclusive nenhum. Com faixa, a inscrição sem
+     * período é recusada: não dá para conferir a regra, e deixar passar a tornaria decorativa.
+     */
+    public boolean acceptsTerm(Short term) {
+        if (!restrictsTerm()) return true;
+        if (term == null) return false;
+        if (minTerm != null && term < minTerm) return false;
+        return maxTerm == null || term <= maxTerm;
     }
 
     public void changeStatusTo(SelectionProcessStatus target, Instant at) {
@@ -77,6 +102,11 @@ public class SelectionProcess extends Auditable {
         if (status != SelectionProcessStatus.OPEN) return false;
         if (opensAt != null && at.isBefore(opensAt)) return false;
         return closesAt == null || at.isBefore(closesAt);
+    }
+
+    private static void validateTermRange(Short minTerm, Short maxTerm) {
+        if (minTerm != null && maxTerm != null && minTerm > maxTerm)
+            throw new ValidationException("O período mínimo não pode ser maior que o máximo");
     }
 
     private static void validateWindow(Instant opensAt, Instant closesAt, Instant resultAt) {

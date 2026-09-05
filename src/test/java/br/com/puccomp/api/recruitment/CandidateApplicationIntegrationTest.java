@@ -378,6 +378,58 @@ class CandidateApplicationIntegrationTest extends AbstractIntegrationTest {
         }
     }
 
+    @Test
+    @DisplayName("faixa de período do processo recusa quem está fora dela e quem não informou")
+    void shouldEnforceProcessTermRange() {
+        String token = ownerOf("EJ Elegibilidade", "ej-elegibilidade", "dono@elegibilidade.dev");
+        UUID processId = post("/v1/recruitment/processes",
+                new SelectionProcessRequest("PS Elegibilidade", null, null, null, null,
+                        (short) 3, (short) 6),
+                token, SelectionProcessResponse.class).getBody().id();
+        patch("/v1/recruitment/processes/" + processId + "/status",
+                new ChangeStatusRequest(SelectionProcessStatus.OPEN), token, SelectionProcessResponse.class);
+
+        String path = publicProcess("ej-elegibilidade", processId) + "/applications";
+        UUID courseId = courseOf("ej-elegibilidade");
+
+        assertThat(post(path, candidate("dentro@example.com", courseId, (short) 4), null,
+                CandidateApplicationReceiptResponse.class).getStatusCode()).isEqualTo(HttpStatus.CREATED);
+
+        ResponseEntity<ErrorResponse> cedo = post(path,
+                candidate("cedo@example.com", courseId, (short) 2), null, ErrorResponse.class);
+        assertThat(cedo.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(cedo.getBody().message()).contains("do 3º ao 6º período");
+
+        assertThat(post(path, candidate("tarde@example.com", courseId, (short) 7), null,
+                ErrorResponse.class).getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(post(path, candidate("sem-periodo@example.com", courseId, null), null,
+                ErrorResponse.class).getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    @DisplayName("processo sem faixa segue aceitando qualquer período, inclusive nenhum")
+    void shouldAcceptAnyTermWhenProcessDeclaresNoRange() {
+        String token = ownerOf("EJ Sem Faixa", "ej-sem-faixa", "dono@sem-faixa.dev");
+        UUID processId = openProcess(token, "PS Sem Faixa", null);
+        String path = publicProcess("ej-sem-faixa", processId) + "/applications";
+        UUID courseId = courseOf("ej-sem-faixa");
+
+        assertThat(post(path, candidate("primeiro@example.com", courseId, (short) 1), null,
+                CandidateApplicationReceiptResponse.class).getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        assertThat(post(path, candidate("indefinido@example.com", courseId, null), null,
+                CandidateApplicationReceiptResponse.class).getStatusCode()).isEqualTo(HttpStatus.CREATED);
+    }
+
+    @Test
+    @DisplayName("recusa faixa de período invertida na criação do processo")
+    void shouldRejectInvertedTermRange() {
+        String token = ownerOf("EJ Faixa Invertida", "ej-faixa-invertida", "dono@faixa-invertida.dev");
+
+        assertThat(post("/v1/recruitment/processes",
+                new SelectionProcessRequest("Invertida", null, null, null, null, (short) 8, (short) 2),
+                token, ErrorResponse.class).getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
     private void grantToRole(String token, UUID roleId, String... permissions) {
         put("/v1/roles/" + roleId + "/permissions",
                 Map.of("permissions", List.of(permissions)), token, String.class);
@@ -406,12 +458,12 @@ class CandidateApplicationIntegrationTest extends AbstractIntegrationTest {
     }
 
     private UUID createProcess(String token, String title) {
-        return post("/v1/recruitment/processes", new SelectionProcessRequest(title, null, null, null, null), token,
+        return post("/v1/recruitment/processes", new SelectionProcessRequest(title, null, null, null, null, null, null), token,
                 SelectionProcessResponse.class).getBody().id();
     }
 
     private UUID openProcess(String token, String title, String description) {
-        UUID processId = post("/v1/recruitment/processes", new SelectionProcessRequest(title, description, null, null, null), token,
+        UUID processId = post("/v1/recruitment/processes", new SelectionProcessRequest(title, description, null, null, null, null, null), token,
                 SelectionProcessResponse.class).getBody().id();
         patch("/v1/recruitment/processes/" + processId + "/status",
                 new ChangeStatusRequest(SelectionProcessStatus.OPEN), token, SelectionProcessResponse.class);
@@ -424,6 +476,11 @@ class CandidateApplicationIntegrationTest extends AbstractIntegrationTest {
 
     private static String internalApplications(UUID processId) {
         return "/v1/recruitment/processes/" + processId + "/applications";
+    }
+
+    private static SubmitCandidateApplicationRequest candidate(String email, UUID courseId, Short term) {
+        return new SubmitCandidateApplicationRequest("João Silva", email, "31999998888",
+                courseId, term, null, true);
     }
 
     private static SubmitCandidateApplicationRequest application(String email, UUID courseId) {

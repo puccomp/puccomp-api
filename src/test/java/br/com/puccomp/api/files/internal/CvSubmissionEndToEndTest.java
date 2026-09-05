@@ -99,7 +99,7 @@ class CvSubmissionEndToEndTest extends AbstractIntegrationTest {
         put("/v1/roles/" + role + "/permissions", Map.of("permissions", List.of("recruitment:read")), token, String.class);
         seeder.seedAccount(tenant, "recruiter@cv-e2e.dev", "senha123", Standing.MEMBER, role);
         seeder.seedAccount(tenant, "unrelated@cv-e2e.dev", "senha123", Standing.MEMBER);
-        UUID process = post("/v1/recruitment/processes", new SelectionProcessRequest("PS Currículos", null, null, null, null), token,
+        UUID process = post("/v1/recruitment/processes", new SelectionProcessRequest("PS Currículos", null, null, null, null, null, null), token,
                 SelectionProcessResponse.class).getBody().id();
         patch("/v1/recruitment/processes/" + process + "/status", new ChangeStatusRequest(SelectionProcessStatus.OPEN),
                 token, SelectionProcessResponse.class);

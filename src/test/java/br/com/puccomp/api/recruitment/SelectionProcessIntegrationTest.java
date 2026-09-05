@@ -43,7 +43,7 @@ class SelectionProcessIntegrationTest extends AbstractIntegrationTest {
 
         var request = new SelectionProcessRequest(
                 "Processo Seletivo 2026.1",
-                "Descrição do processo 2026.1", null, null, null);
+                "Descrição do processo 2026.1", null, null, null, null, null);
 
         ResponseEntity<SelectionProcessResponse> created =
                 post("/v1/recruitment/processes", request, token, SelectionProcessResponse.class);
@@ -159,11 +159,11 @@ class SelectionProcessIntegrationTest extends AbstractIntegrationTest {
         Instant agora = Instant.now();
 
         assertThat(post("/v1/recruitment/processes", new SelectionProcessRequest("Invertido", null,
-                agora.plus(10, ChronoUnit.DAYS), agora.plus(1, ChronoUnit.DAYS), null),
+                agora.plus(10, ChronoUnit.DAYS), agora.plus(1, ChronoUnit.DAYS), null, null, null),
                 token, ErrorResponse.class).getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
 
         assertThat(post("/v1/recruitment/processes", new SelectionProcessRequest("Resultado antes", null,
-                agora, agora.plus(10, ChronoUnit.DAYS), agora.plus(5, ChronoUnit.DAYS)),
+                agora, agora.plus(10, ChronoUnit.DAYS), agora.plus(5, ChronoUnit.DAYS), null, null),
                 token, ErrorResponse.class).getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     }
 
@@ -227,13 +227,13 @@ class SelectionProcessIntegrationTest extends AbstractIntegrationTest {
     }
 
     private UUID createProcess(String token, String title) {
-        return post("/v1/recruitment/processes", new SelectionProcessRequest(title, null, null, null, null),
+        return post("/v1/recruitment/processes", new SelectionProcessRequest(title, null, null, null, null, null, null),
                 token, SelectionProcessResponse.class).getBody().id();
     }
 
     private UUID createProcess(String token, String title, Instant opensAt, Instant closesAt, Instant resultAt) {
         return post("/v1/recruitment/processes",
-                new SelectionProcessRequest(title, null, opensAt, closesAt, resultAt),
+                new SelectionProcessRequest(title, null, opensAt, closesAt, resultAt, null, null),
                 token, SelectionProcessResponse.class).getBody().id();
     }
 
