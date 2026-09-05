@@ -8,6 +8,11 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springdoc.core.annotations.ParameterObject;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -17,10 +22,10 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
 import java.util.UUID;
 
 @Tag(name = "Processos Seletivos")
@@ -31,11 +36,16 @@ public class SelectionProcessController {
 
     private final SelectionProcessService service;
 
-    @Operation(summary = "Lista os processos seletivos da EJ")
+    @Operation(summary = "Lista os processos seletivos da EJ",
+            description = "O filtro status casa com o status efetivo: OPEN traz só quem está dentro do "
+                    + "prazo, e IN_REVIEW inclui quem ainda está gravado como OPEN mas já venceu.")
     @PreAuthorize("hasAuthority('recruitment:read')")
     @GetMapping
-    public List<SelectionProcessResponse> getAll() {
-        return service.findAll();
+    public Page<SelectionProcessSummaryResponse> getAll(
+            @RequestParam(required = false) SelectionProcessStatus status,
+            @ParameterObject @PageableDefault(size = 20, sort = {"createdAt", "id"},
+                    direction = Sort.Direction.DESC) Pageable pageable) {
+        return service.findAll(status, pageable);
     }
 
     @Operation(summary = "Busca um processo seletivo por ID")

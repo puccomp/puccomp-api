@@ -1,5 +1,6 @@
 package br.com.puccomp.api.recruitment;
 
+import br.com.puccomp.api.recruitment.applications.SubmitCandidateApplicationRequest;
 import br.com.puccomp.api.recruitment.processes.ChangeStatusRequest;
 import br.com.puccomp.api.recruitment.processes.SelectionProcessRequest;
 import br.com.puccomp.api.recruitment.processes.SelectionProcessResponse;
@@ -8,17 +9,17 @@ import br.com.puccomp.api.shared.exception.ErrorResponse;
 import br.com.puccomp.api.shared.reference.Standing;
 import br.com.puccomp.api.support.AbstractIntegrationTest;
 import br.com.puccomp.api.support.TestSeeder;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Import;
-import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -28,6 +29,8 @@ class SelectionProcessIntegrationTest extends AbstractIntegrationTest {
 
     @Autowired
     private TestSeeder seeder;
+
+    private final ObjectMapper mapper = new ObjectMapper();
 
     @Test
     @DisplayName("deve criar processo em DRAFT e devolvê-lo na listagem da EJ")
@@ -44,9 +47,10 @@ class SelectionProcessIntegrationTest extends AbstractIntegrationTest {
         assertThat(created.getBody().title()).isEqualTo("Processo Seletivo 2026.1");
         assertThat(created.getBody().status()).isEqualTo(SelectionProcessStatus.DRAFT);
 
-        ResponseEntity<List<SelectionProcessResponse>> list = get("/v1/recruitment/processes", token,
-                new ParameterizedTypeReference<List<SelectionProcessResponse>>() { });
-        assertThat(list.getBody()).hasSize(1);
+        JsonNode list = listProcesses(token, "");
+        assertThat(list.path("content")).hasSize(1);
+        assertThat(list.path("page").path("total_elements").asInt()).isEqualTo(1);
+        assertThat(list.path("content").get(0).has("description")).isFalse();
     }
 
     @Test
@@ -57,9 +61,7 @@ class SelectionProcessIntegrationTest extends AbstractIntegrationTest {
 
         UUID processId = createProcess(tokenA, "Processo Alpha");
 
-        ResponseEntity<List<SelectionProcessResponse>> listB = get("/v1/recruitment/processes", tokenB,
-                new ParameterizedTypeReference<List<SelectionProcessResponse>>() { });
-        assertThat(listB.getBody()).isEmpty();
+        assertThat(listProcesses(tokenB, "").path("content")).isEmpty();
 
         ResponseEntity<String> readB = getWithToken("/v1/recruitment/processes/" + processId, tokenB);
         assertThat(readB.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
@@ -161,6 +163,59 @@ class SelectionProcessIntegrationTest extends AbstractIntegrationTest {
                 token, ErrorResponse.class).getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     }
 
+    @Test
+    @DisplayName("a listagem traz a contagem de inscrições e a data da última")
+    void shouldExposeApplicationMetrics() throws Exception {
+        UUID tenantId = seeder.seedTenant("EJ Métricas", "ej-metricas");
+        seeder.seedAccount(tenantId, "dono@metricas.dev", "senha123", Standing.OWNER);
+        String token = login("dono@metricas.dev", "senha123");
+        UUID processId = createProcess(token, "PS Métricas", null, null, null);
+        open(token, processId);
+
+        submitApplication("ej-metricas", processId, "um@example.com");
+        submitApplication("ej-metricas", processId, "dois@example.com");
+
+        JsonNode linha = listProcesses(token, "").path("content").get(0);
+        assertThat(linha.path("application_count").asInt()).isEqualTo(2);
+        assertThat(linha.path("last_application_at").isNull()).isFalse();
+
+        JsonNode detalhe = mapper.readTree(
+                getWithToken("/v1/recruitment/processes/" + processId, token).getBody());
+        assertThat(detalhe.path("application_count").asInt()).isEqualTo(2);
+    }
+
+    @Test
+    @DisplayName("processo sem inscrição nenhuma volta com contagem zero, não com campo ausente")
+    void shouldReportZeroForProcessWithoutApplications() {
+        String token = ownerOf("EJ Vazia", "ej-vazia", "dono@vazia.dev");
+        createProcess(token, "PS Vazio", null, null, null);
+
+        JsonNode linha = listProcesses(token, "").path("content").get(0);
+        assertThat(linha.path("application_count").asInt()).isZero();
+        assertThat(linha.path("last_application_at").isNull()).isTrue();
+    }
+
+    @Test
+    @DisplayName("o filtro status casa com o status efetivo, não com o gravado")
+    void shouldFilterByEffectiveStatus() {
+        String token = ownerOf("EJ Filtro", "ej-filtro", "dono@filtro.dev");
+        UUID vencido = createProcess(token, "PS Vencido", null, Instant.now().plusSeconds(2), null);
+        open(token, vencido);
+        UUID vigente = createProcess(token, "PS Vigente", null,
+                Instant.now().plus(30, ChronoUnit.DAYS), null);
+        open(token, vigente);
+
+        await(3);
+
+        JsonNode abertos = listProcesses(token, "?status=OPEN");
+        assertThat(abertos.path("content")).hasSize(1);
+        assertThat(abertos.path("content").get(0).path("id").asText()).isEqualTo(vigente.toString());
+
+        JsonNode emAvaliacao = listProcesses(token, "?status=IN_REVIEW");
+        assertThat(emAvaliacao.path("content")).hasSize(1);
+        assertThat(emAvaliacao.path("content").get(0).path("id").asText()).isEqualTo(vencido.toString());
+    }
+
     private String ownerOf(String ejName, String slug, String email) {
         UUID tenantId = seeder.seedTenant(ejName, slug);
         seeder.seedAccount(tenantId, email, "senha123", Standing.OWNER);
@@ -198,5 +253,20 @@ class SelectionProcessIntegrationTest extends AbstractIntegrationTest {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
+    }
+
+    private JsonNode listProcesses(String token, String query) {
+        try {
+            return mapper.readTree(getWithToken("/v1/recruitment/processes" + query, token).getBody());
+        } catch (Exception e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    private void submitApplication(String slug, UUID processId, String email) {
+        post("/v1/public/" + slug + "/processes/" + processId + "/applications",
+                new SubmitCandidateApplicationRequest("Candidato Teste", email, "31999998888",
+                        "Sistemas de Informação", "3º período", null, true),
+                null, String.class);
     }
 }
