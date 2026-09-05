@@ -24,8 +24,12 @@ class CandidateApplicationService {
     private final Mailer mailer;
     private final FileService files;
 
-    Page<CandidateApplicationResponse> listByProcess(UUID processId, Pageable pageable) {
-        return registry.listByProcess(processId, pageable);
+    Page<CandidateApplicationResponse> listByProcess(UUID processId, String query, Pageable pageable) {
+        return registry.listByProcess(processId, query, pageable);
+    }
+
+    Page<CandidateApplicationResponse> searchAcrossProcesses(String query, Pageable pageable) {
+        return registry.searchAcrossProcesses(query, pageable);
     }
 
     CandidateApplicationReceiptResponse submit(UUID processId, SubmitCandidateApplicationRequest request) {

@@ -62,6 +62,10 @@ public class CandidateApplication extends Auditable {
     @Column(name = "current_term", updatable = false)
     private Short currentTerm;
 
+    /** Gerada pelo banco a partir de {@code full_name}; existe só para o JPQL da busca alcançá-la. */
+    @Column(name = "search_name", insertable = false, updatable = false)
+    private String searchName;
+
     @Column(name = "cv_file_id", updatable = false)
     private UUID cvFileId;
 

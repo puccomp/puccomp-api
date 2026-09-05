@@ -12,6 +12,8 @@ import br.com.puccomp.api.shared.exception.ErrorResponse;
 import br.com.puccomp.api.shared.reference.Standing;
 import br.com.puccomp.api.support.AbstractIntegrationTest;
 import br.com.puccomp.api.support.TestSeeder;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.mail.Address;
 import jakarta.mail.MessagingException;
 import jakarta.mail.Session;
@@ -26,6 +28,9 @@ import org.springframework.context.annotation.Import;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.core.task.SyncTaskExecutor;
 import org.springframework.core.task.TaskExecutor;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.mail.MailSendException;
@@ -44,6 +49,8 @@ class CandidateApplicationIntegrationTest extends AbstractIntegrationTest {
 
     @Autowired
     private TestSeeder seeder;
+
+    private final ObjectMapper mapper = new ObjectMapper();
 
     @MockitoBean
     private JavaMailSender mailSender;
@@ -430,6 +437,83 @@ class CandidateApplicationIntegrationTest extends AbstractIntegrationTest {
                 token, ErrorResponse.class).getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     }
 
+    @Test
+    @DisplayName("busca por nome ignora acento e caixa, que é como o recrutador digita")
+    void shouldSearchByNameIgnoringAccents() {
+        String token = ownerOf("EJ Busca", "ej-busca", "dono@busca.dev");
+        UUID processId = openProcess(token, "PS Busca", null);
+        UUID courseId = courseOf("ej-busca");
+        submitNamed("ej-busca", processId, "João Conceição", "joao@example.com", courseId);
+        submitNamed("ej-busca", processId, "Maria Andrade", "maria@example.com", courseId);
+
+        // Sem acento no termo: quem normaliza é a coluna gerada.
+        assertThat(names(search(token, processId, "joao"))).containsExactly("João Conceição");
+        assertThat(names(search(token, processId, "CONCEICAO"))).containsExactly("João Conceição");
+        // Com acento no termo: aqui quem tem que normalizar é o Java, senão não casa com a coluna.
+        assertThat(names(search(token, processId, "Conceição"))).containsExactly("João Conceição");
+        assertThat(names(search(token, processId, "JOÃO"))).containsExactly("João Conceição");
+        assertThat(names(search(token, processId, "andrade"))).containsExactly("Maria Andrade");
+        assertThat(names(search(token, processId, "zzz"))).isEmpty();
+    }
+
+    @Test
+    @DisplayName("busca também casa e-mail, e termo curto demais é ignorado em vez de filtrar")
+    void shouldSearchByEmailAndIgnoreShortTerms() {
+        String token = ownerOf("EJ Busca Email", "ej-busca-email", "dono@busca-email.dev");
+        UUID processId = openProcess(token, "PS Email", null);
+        UUID courseId = courseOf("ej-busca-email");
+        submitNamed("ej-busca-email", processId, "Ana Lima", "ana.lima@empresa.com", courseId);
+        submitNamed("ej-busca-email", processId, "Bruno Reis", "bruno@outra.com", courseId);
+
+        assertThat(names(search(token, processId, "empresa.com"))).containsExactly("Ana Lima");
+        assertThat(names(search(token, processId, "a"))).hasSize(2);
+        assertThat(names(search(token, processId, "   "))).hasSize(2);
+    }
+
+    @Test
+    @DisplayName("curinga digitado é tratado como texto, não como coringa de LIKE")
+    void shouldNotLetUserWildcardsLeak() {
+        String token = ownerOf("EJ Curinga", "ej-curinga", "dono@curinga.dev");
+        UUID processId = openProcess(token, "PS Curinga", null);
+        UUID courseId = courseOf("ej-curinga");
+        submitNamed("ej-curinga", processId, "Ana Lima", "ana@example.com", courseId);
+        submitNamed("ej-curinga", processId, "Bruno Reis", "bruno@example.com", courseId);
+
+        assertThat(names(search(token, processId, "%%"))).isEmpty();
+        assertThat(names(search(token, processId, "a_a"))).isEmpty();
+    }
+
+    @Test
+    @DisplayName("a busca da EJ inteira acha a pessoa em qualquer processo e diz de qual")
+    void shouldSearchAcrossProcesses() {
+        String token = ownerOf("EJ Recorrentes", "ej-recorrentes", "dono@recorrentes.dev");
+        UUID courseId = courseOf("ej-recorrentes");
+        UUID anterior = openProcess(token, "PS 2025.2", null);
+        UUID atual = openProcess(token, "PS 2026.1", null);
+        submitNamed("ej-recorrentes", anterior, "Carla Souza", "carla@example.com", courseId);
+        submitNamed("ej-recorrentes", atual, "Carla Souza", "carla@example.com", courseId);
+        submitNamed("ej-recorrentes", atual, "Outro Alguém", "outro@example.com", courseId);
+
+        JsonNode encontrados = searchAll(token, "carla");
+        assertThat(names(encontrados)).containsExactlyInAnyOrder("Carla Souza", "Carla Souza");
+        assertThat(encontrados.path("content").findValuesAsText("name"))
+                .contains("PS 2025.2", "PS 2026.1");
+
+        assertThat(names(searchAll(token, null))).hasSize(3);
+    }
+
+    @Test
+    @DisplayName("a busca da EJ inteira não enxerga candidato de outra EJ")
+    void shouldNotSearchAcrossTenants() {
+        String tokenA = ownerOf("EJ Busca Alpha", "ej-busca-alpha", "dono@busca-alpha.dev");
+        String tokenB = ownerOf("EJ Busca Beta", "ej-busca-beta", "dono@busca-beta.dev");
+        UUID processoA = openProcess(tokenA, "PS Alpha", null);
+        submitNamed("ej-busca-alpha", processoA, "Exclusiva Alpha", "exclusiva@example.com", courseOf("ej-busca-alpha"));
+
+        assertThat(names(searchAll(tokenA, "exclusiva"))).containsExactly("Exclusiva Alpha");
+        assertThat(names(searchAll(tokenB, "exclusiva"))).isEmpty();
+    }
+
     private void grantToRole(String token, UUID roleId, String... permissions) {
         put("/v1/roles/" + roleId + "/permissions",
                 Map.of("permissions", List.of(permissions)), token, String.class);
@@ -486,5 +570,46 @@ class CandidateApplicationIntegrationTest extends AbstractIntegrationTest {
     private static SubmitCandidateApplicationRequest application(String email, UUID courseId) {
         return new SubmitCandidateApplicationRequest("João Silva", email, "31999998888",
                 courseId, (short) 3, null, true);
+    }
+
+    private void submitNamed(String slug, UUID processId, String fullName, String email, UUID courseId) {
+        var response = post(publicProcess(slug, processId) + "/applications",
+                new SubmitCandidateApplicationRequest(fullName, email, "31999998888",
+                        courseId, (short) 3, null, true),
+                null, String.class);
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+    }
+
+    private JsonNode search(String token, UUID processId, String q) {
+        return getJson(internalApplications(processId) + "?q={q}", token, q);
+    }
+
+    private JsonNode searchAll(String token, String q) {
+        return q == null
+                ? getJson("/v1/recruitment/applications", token)
+                : getJson("/v1/recruitment/applications?q={q}", token, q);
+    }
+
+    /**
+     * O termo vai como variável de URI, não concatenado: assim o Spring o codifica uma vez só.
+     * Pré-codificar aqui faria o RestTemplate codificar de novo, e o servidor receberia o %XX cru.
+     */
+    private JsonNode getJson(String path, String token, Object... uriVariables) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(token);
+        return readJson(rest.exchange(path, HttpMethod.GET, new HttpEntity<>(headers), String.class,
+                uriVariables).getBody());
+    }
+
+    private static java.util.List<String> names(JsonNode page) {
+        return page.path("content").findValuesAsText("full_name");
+    }
+
+    private JsonNode readJson(String body) {
+        try {
+            return mapper.readTree(body);
+        } catch (Exception e) {
+            throw new IllegalStateException(e);
+        }
     }
 }

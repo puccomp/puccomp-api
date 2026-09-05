@@ -10,7 +10,7 @@ import java.util.UUID;
 
 public record CandidateApplicationResponse(
         UUID id,
-        @Schema(name = "process_id") UUID processId,
+        NamedRef process,
         @Schema(name = "full_name") String fullName,
         String email,
         String phone,
@@ -25,7 +25,7 @@ public record CandidateApplicationResponse(
                                             String courseName) {
         return new CandidateApplicationResponse(
                 application.getId(),
-                application.getProcess().getId(),
+                NamedRef.of(application.getProcess().getId(), application.getProcess().getTitle()),
                 application.getFullName(),
                 application.getEmail(),
                 application.getPhone(),

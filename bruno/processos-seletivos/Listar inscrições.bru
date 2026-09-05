@@ -27,3 +27,12 @@ docs {
   download_url permite GET direto no S3, sem Authorization da API, por 5 minutos.
   Consulte a listagem novamente para renovar URLs expiradas; não persista essas URLs.
 }
+
+docs {
+  q busca por nome ou e-mail dentro deste processo, ignorando acento e caixa: "joao" acha "João",
+  e "João" também. Termo com menos de 2 caracteres é ignorado, e a listagem volta inteira.
+  % e _ digitados valem como texto, não como curinga.
+
+  Para procurar a pessoa em TODOS os processos da EJ ("ela já se inscreveu antes?"),
+  use "Buscar inscrições na EJ".
+}

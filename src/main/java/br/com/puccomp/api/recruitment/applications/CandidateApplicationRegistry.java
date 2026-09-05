@@ -38,11 +38,25 @@ class CandidateApplicationRegistry {
                       String course, String processTitle) { }
 
     @Transactional(readOnly = true)
-    Page<CandidateApplicationResponse> listByProcess(UUID processId, Pageable pageable) {
+    Page<CandidateApplicationResponse> listByProcess(UUID processId, String query, Pageable pageable) {
         if (!processes.exists(processId))
             throw new ResourceNotFoundException("Processo seletivo não encontrado");
 
-        var page = applications.findByProcessId(processId, pageable);
+        var page = SearchTerm.like(query)
+                .map(term -> applications.searchByProcessId(processId, term, pageable))
+                .orElseGet(() -> applications.findByProcessId(processId, pageable));
+        return present(page);
+    }
+
+    @Transactional(readOnly = true)
+    Page<CandidateApplicationResponse> searchAcrossProcesses(String query, Pageable pageable) {
+        var page = SearchTerm.like(query)
+                .map(term -> applications.search(term, pageable))
+                .orElseGet(() -> applications.findBy(pageable));
+        return present(page);
+    }
+
+    private Page<CandidateApplicationResponse> present(Page<CandidateApplication> page) {
         var downloads = files.downloads(page.stream().map(CandidateApplication::getCvFileId)
                 .filter(Objects::nonNull).toList());
         Map<UUID, String> courseNames = courses.namesOf(

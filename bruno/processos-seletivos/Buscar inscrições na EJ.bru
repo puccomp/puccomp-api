@@ -1,0 +1,32 @@
+meta {
+  name: Buscar inscrições na EJ
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{base_url}}/v1/recruitment/applications?q=joao&page=0&size=20&sort=createdAt,desc
+  body: none
+  auth: bearer
+}
+
+params:query {
+  q: joao
+  page: 0
+  size: 20
+  sort: createdAt,desc
+}
+
+auth:bearer {
+  token: {{access_token}}
+}
+
+docs {
+  Varre o histórico inteiro da EJ, não um processo só — responde "essa pessoa já se inscreveu
+  antes?". Cada linha traz o processo em que a inscrição caiu (process.id e process.name).
+
+  q casa nome ou e-mail ignorando acento e caixa. Sem q, devolve o histórico completo paginado.
+
+  Requer recruitment:read, e a resposta vai com Cache-Control: private, no-store — são dados
+  pessoais de candidato.
+}

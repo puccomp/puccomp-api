@@ -16,6 +16,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import jakarta.servlet.http.HttpServletResponse;
 
@@ -31,17 +32,20 @@ public class CandidateApplicationController {
 
     @Operation(summary = "Lista as inscrições recebidas em um processo seletivo",
             description = "cv contém metadados e download_url pré-assinada, válida até download_expires_at. "
-                    + "É null para inscrições sem currículo. Consulte novamente para renovar o acesso.")
+                    + "É null para inscrições sem currículo. Consulte novamente para renovar o acesso. "
+                    + "q busca por nome ou e-mail, ignorando acento e caixa; termos com menos de "
+                    + "2 caracteres são desconsiderados.")
     @ApiResponse(responseCode = "404", description = "Processo seletivo não encontrado",
             content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     @PreAuthorize("hasAuthority('recruitment:read')")
     @GetMapping
     public Page<CandidateApplicationResponse> listByProcess(
             @PathVariable UUID processId,
+            @RequestParam(required = false) String q,
             @ParameterObject @PageableDefault(size = 20, sort = {"createdAt", "id"},
                     direction = Sort.Direction.DESC) Pageable pageable,
             HttpServletResponse response) {
         response.setHeader("Cache-Control", "private, no-store");
-        return service.listByProcess(processId, pageable);
+        return service.listByProcess(processId, q, pageable);
     }
 }
