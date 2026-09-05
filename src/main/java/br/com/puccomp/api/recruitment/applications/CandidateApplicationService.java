@@ -34,7 +34,7 @@ class CandidateApplicationService {
 
     CandidateApplicationReceiptResponse submit(UUID processId, SubmitCandidateApplicationRequest request,
                                                FileUpload cv) {
-        registry.requireSubmittable(processId, request.email().trim());
+        registry.requireSubmittable(processId, request);
         // Antivírus e S3 levam dezenas de segundos: rodam sem transação aberta, e o arquivo só
         // vira currículo válido no register. Reserva abandonada é recolhida pela limpeza.
         UUID cvFileId = cv == null ? null : files.stage(cv);

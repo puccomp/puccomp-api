@@ -1,5 +1,6 @@
 package br.com.puccomp.api.recruitment;
 
+import br.com.puccomp.api.organization.CourseCatalog;
 import br.com.puccomp.api.recruitment.applications.SubmitCandidateApplicationRequest;
 import br.com.puccomp.api.recruitment.processes.ChangeStatusRequest;
 import br.com.puccomp.api.recruitment.processes.SelectionProcessRequest;
@@ -18,8 +19,11 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
+import org.springframework.core.ParameterizedTypeReference;
+
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -264,9 +268,12 @@ class SelectionProcessIntegrationTest extends AbstractIntegrationTest {
     }
 
     private void submitApplication(String slug, UUID processId, String email) {
+        UUID courseId = get("/v1/public/" + slug + "/courses", null,
+                new ParameterizedTypeReference<List<CourseCatalog.CourseOption>>() { })
+                .getBody().getFirst().id();
         post("/v1/public/" + slug + "/processes/" + processId + "/applications",
                 new SubmitCandidateApplicationRequest("Candidato Teste", email, "31999998888",
-                        "Sistemas de Informação", "3º período", null, true),
+                        courseId, (short) 3, null, true),
                 null, String.class);
     }
 }

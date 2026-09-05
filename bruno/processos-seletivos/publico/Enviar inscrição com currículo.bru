@@ -1,7 +1,7 @@
 meta {
   name: Enviar inscrição com currículo
   type: http
-  seq: 4
+  seq: 5
 }
 
 post {
@@ -11,7 +11,7 @@ post {
 }
 
 body:multipart-form {
-  application: {"full_name":"Ana Lima","email":"ana@example.com","phone":"31999990000","course":"Computação","privacy_consent":true} @contentType(application/json)
+  application: {"full_name":"Ana Lima","email":"ana@example.com","phone":"31999990000","course_id": "{{course_id}}","privacy_consent":true} @contentType(application/json)
   cv: @file({{cv_path}}) @contentType(application/pdf)
 }
 

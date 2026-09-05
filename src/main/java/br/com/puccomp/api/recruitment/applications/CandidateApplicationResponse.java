@@ -1,6 +1,7 @@
 package br.com.puccomp.api.recruitment.applications;
 
 import br.com.puccomp.api.files.FileDownload;
+import br.com.puccomp.api.shared.reference.NamedRef;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.time.Instant;
@@ -13,21 +14,22 @@ public record CandidateApplicationResponse(
         @Schema(name = "full_name") String fullName,
         String email,
         String phone,
-        String course,
-        @Schema(name = "current_term") String currentTerm,
+        NamedRef course,
+        @Schema(name = "current_term") Short currentTerm,
         List<String> links,
         FileDownload cv,
         @Schema(name = "privacy_consent_at") Instant privacyConsentAt,
         @Schema(name = "submitted_at") Instant submittedAt
 ) {
-    static CandidateApplicationResponse from(CandidateApplication application, FileDownload cv) {
+    static CandidateApplicationResponse from(CandidateApplication application, FileDownload cv,
+                                            String courseName) {
         return new CandidateApplicationResponse(
                 application.getId(),
                 application.getProcess().getId(),
                 application.getFullName(),
                 application.getEmail(),
                 application.getPhone(),
-                application.getCourse(),
+                NamedRef.of(application.getCourseId(), courseName),
                 application.getCurrentTerm(),
                 application.getLinks(),
                 cv,

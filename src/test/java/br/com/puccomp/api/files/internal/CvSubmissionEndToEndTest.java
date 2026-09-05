@@ -92,6 +92,7 @@ class CvSubmissionEndToEndTest extends AbstractIntegrationTest {
         when(mailSender.createMimeMessage()).thenAnswer(invocation -> new MimeMessage((Session) null));
         String slug = "cv-e2e-" + UUID.randomUUID();
         UUID tenant = seeder.seedTenant("EJ Integração", slug);
+        UUID courseId = seeder.seedCourse(tenant, "Computação");
         seeder.seedAccount(tenant, "owner@cv-e2e.dev", "senha123", Standing.OWNER);
         String token = login("owner@cv-e2e.dev", "senha123");
         UUID role = seeder.seedCargo(tenant, "Recrutamento");
@@ -108,7 +109,7 @@ class CvSubmissionEndToEndTest extends AbstractIntegrationTest {
         var jsonHeaders = new HttpHeaders();
         jsonHeaders.setContentType(MediaType.APPLICATION_JSON);
         body.add("application", new HttpEntity<>(Map.of("full_name", "Ana Lima", "email", "candidate@cv-e2e.dev",
-                "phone", "31999990000", "course", "Computação", "privacy_consent", true), jsonHeaders));
+                "phone", "31999990000", "course_id", courseId.toString(), "privacy_consent", true), jsonHeaders));
         var fileHeaders = new HttpHeaders();
         fileHeaders.setContentType(MediaType.APPLICATION_PDF);
         body.add("cv", new HttpEntity<>(new ByteArrayResource(pdf) {

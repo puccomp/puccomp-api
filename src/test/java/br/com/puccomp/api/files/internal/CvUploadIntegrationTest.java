@@ -42,6 +42,7 @@ class CvUploadIntegrationTest extends AbstractIntegrationTest {
 
     private UUID tenant;
     private UUID process;
+    private UUID courseId;
     private String slug;
     private String token;
 
@@ -49,6 +50,7 @@ class CvUploadIntegrationTest extends AbstractIntegrationTest {
     void prepare() {
         slug = "cv-" + UUID.randomUUID();
         tenant = seeder.seedTenant("EJ CV", slug);
+        courseId = seeder.seedCourse(tenant, "Computação");
         String email = slug + "@example.com";
         seeder.seedAccount(tenant, email, "senha123", Standing.OWNER);
         token = login(email, "senha123");
@@ -183,7 +185,7 @@ class CvUploadIntegrationTest extends AbstractIntegrationTest {
         var jsonHeaders = new HttpHeaders();
         jsonHeaders.setContentType(MediaType.APPLICATION_JSON);
         body.add("application", new HttpEntity<>(Map.of("full_name", "Ana", "email", "candidato@example.com",
-                "phone", "31999990000", "course", "Computação", "privacy_consent", true), jsonHeaders));
+                "phone", "31999990000", "course_id", courseId.toString(), "privacy_consent", true), jsonHeaders));
         var fileHeaders = new HttpHeaders();
         fileHeaders.setContentType(MediaType.parseMediaType(contentType));
         body.add("cv", new HttpEntity<>(new ByteArrayResource(bytes) {

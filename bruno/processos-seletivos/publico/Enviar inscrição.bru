@@ -1,7 +1,7 @@
 meta {
   name: Enviar inscrição
   type: http
-  seq: 3
+  seq: 4
 }
 
 post {
@@ -15,8 +15,8 @@ body:json {
     "full_name": "Candidato Zero",
     "email": "candidato0@email.com",
     "phone": "31999999999",
-    "course": "Ciencia da computacao",
-    "current_term": "7º período",
+    "course_id": "{{course_id}}",
+    "current_term": 7,
     "links": [
       "https://linkedin.com/in/candidato-zero",
       "https://github.com/candidato-zero"
@@ -27,13 +27,14 @@ body:json {
 
 docs {
   Variante sem currículo. Para anexar PDF, use "Enviar inscrição com currículo" (multipart).
-  full_name, email e course aceitam até 255 caracteres.
+  course_id sai de "Listar cursos aceitos" — é o catálogo da própria EJ, não texto livre.
+  Curso desativado é recusado com 400, sem invalidar quem já se inscreveu com ele.
   Superfície anônima — sem Authorization. A resposta é somente um comprovante
   com id e submitted_at; não ecoa a PII enviada.
 
   Cada envio cria um snapshot independente. O mesmo e-mail pode participar de
   processos diferentes, mas não pode enviar duas inscrições ao mesmo processo.
 
-  "current_term" é texto livre e opcional ("7º período", "formando", "irregular").
+  "current_term" é o número do período, de 1 a 12, e continua opcional.
   "links" aceita até 5 URLs e preserva a ordem enviada.
 }

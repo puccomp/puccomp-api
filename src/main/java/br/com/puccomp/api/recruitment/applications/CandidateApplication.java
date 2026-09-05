@@ -55,11 +55,12 @@ public class CandidateApplication extends Auditable {
     @Column(nullable = false, updatable = false, length = 50)
     private String phone;
 
-    @Column(nullable = false, updatable = false)
-    private String course;
+    /** Referência solta ao catálogo de {@code organization}: id, não a entidade de outro módulo. */
+    @Column(name = "course_id", nullable = false, updatable = false)
+    private UUID courseId;
 
-    @Column(name = "current_term", updatable = false, length = 50)
-    private String currentTerm;
+    @Column(name = "current_term", updatable = false)
+    private Short currentTerm;
 
     @Column(name = "cv_file_id", updatable = false)
     private UUID cvFileId;

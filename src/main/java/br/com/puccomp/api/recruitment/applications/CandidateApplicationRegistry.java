@@ -1,10 +1,12 @@
 package br.com.puccomp.api.recruitment.applications;
 
 import br.com.puccomp.api.files.FileService;
+import br.com.puccomp.api.organization.CourseCatalog;
 import br.com.puccomp.api.recruitment.processes.ProcessDirectory;
 import br.com.puccomp.api.recruitment.processes.SelectionProcess;
 import br.com.puccomp.api.shared.exception.ConflictException;
 import br.com.puccomp.api.shared.exception.ResourceNotFoundException;
+import br.com.puccomp.api.shared.exception.ValidationException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
@@ -14,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -27,6 +30,7 @@ class CandidateApplicationRegistry {
 
     private final CandidateApplicationRepository applications;
     private final ProcessDirectory processes;
+    private final CourseCatalog courses;
     private final FileService files;
 
     /** O que o envio de email precisa, materializado antes da transação fechar. */
@@ -41,21 +45,36 @@ class CandidateApplicationRegistry {
         var page = applications.findByProcessId(processId, pageable);
         var downloads = files.downloads(page.stream().map(CandidateApplication::getCvFileId)
                 .filter(Objects::nonNull).toList());
+        Map<UUID, String> courseNames = courses.namesOf(
+                page.stream().map(CandidateApplication::getCourseId).toList());
         return page.map(application -> CandidateApplicationResponse.from(application,
-                application.getCvFileId() == null ? null : downloads.get(application.getCvFileId())));
+                application.getCvFileId() == null ? null : downloads.get(application.getCvFileId()),
+                courseNames.get(application.getCourseId())));
     }
 
     /** Falha cedo, antes de gastar antivírus e S3 num envio que já seria recusado. */
     @Transactional(readOnly = true)
-    void requireSubmittable(UUID processId, String email) {
+    void requireSubmittable(UUID processId, SubmitCandidateApplicationRequest request) {
         if (processes.findOpen(processId).isEmpty()) throw new ConflictException(PROCESSO_FECHADO);
-        if (applications.existsByProcessIdAndEmailIgnoreCase(processId, email)) throw new ConflictException(JA_INSCRITO);
+        requireAcceptedCourse(request.courseId());
+        if (applications.existsByProcessIdAndEmailIgnoreCase(processId, request.email().trim()))
+            throw new ConflictException(JA_INSCRITO);
+    }
+
+    /**
+     * Curso desativado deixa de ser aceito daqui pra frente sem invalidar quem já se inscreveu com
+     * ele — é exatamente o que a desativação (em vez de remoção) do catálogo existe para permitir.
+     */
+    private void requireAcceptedCourse(UUID courseId) {
+        if (!courses.isAssignable(courseId))
+            throw new ValidationException("Este curso não é aceito por esta empresa júnior");
     }
 
     @Transactional
     Registered register(UUID processId, SubmitCandidateApplicationRequest request, UUID cvFileId) {
         SelectionProcess process = processes.findOpen(processId)
                 .orElseThrow(() -> new ConflictException(PROCESSO_FECHADO));
+        requireAcceptedCourse(request.courseId());
         if (cvFileId != null) files.confirm(cvFileId);
 
         var application = CandidateApplication.builder()
@@ -63,8 +82,8 @@ class CandidateApplicationRegistry {
                 .fullName(request.fullName().trim())
                 .email(request.email().trim())
                 .phone(request.phone().trim())
-                .course(request.course().trim())
-                .currentTerm(trimmed(request.currentTerm()))
+                .courseId(request.courseId())
+                .currentTerm(request.currentTerm())
                 .cvFileId(cvFileId)
                 .links(sanitized(request.links()))
                 .privacyConsentAt(Instant.now())
@@ -76,12 +95,10 @@ class CandidateApplicationRegistry {
         } catch (DataIntegrityViolationException exception) {
             throw new ConflictException(JA_INSCRITO);
         }
+        String courseName = courses.namesOf(List.of(saved.getCourseId()))
+                .getOrDefault(saved.getCourseId(), "");
         return new Registered(CandidateApplicationReceiptResponse.from(saved), saved.getFullName(),
-                saved.getEmail(), saved.getCourse(), process.getTitle());
-    }
-
-    private static String trimmed(String value) {
-        return value == null || value.isBlank() ? null : value.trim();
+                saved.getEmail(), courseName, process.getTitle());
     }
 
     private static List<String> sanitized(List<String> links) {
