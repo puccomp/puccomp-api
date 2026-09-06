@@ -23,3 +23,10 @@ puccomp:
     key: test-admin-key
   cors:
     allowed-origins: https://puccomp.com.br,http://localhost:5173
+
+management:
+  health:
+    # O contributor de mail exige um JavaMailSenderImpl concreto; os testes que precisam observar
+    # o envio trocam o transporte por mock, e sem isso o contexto nem sobe.
+    mail:
+      enabled: false

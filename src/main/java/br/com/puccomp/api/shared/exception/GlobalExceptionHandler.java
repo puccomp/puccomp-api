@@ -17,9 +17,36 @@ import java.util.stream.Collectors;
 @RestControllerAdvice
 class GlobalExceptionHandler {
 
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
     private final Tracer tracer;
 
     GlobalExceptionHandler(Tracer tracer) { this.tracer = tracer; }
+
+    @ExceptionHandler(ValidationException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    ErrorResponse handleDomainValidation(ValidationException ex) {
+        return ErrorResponse.of(400, ex.getMessage(), currentTraceId());
+    }
+
+    @ExceptionHandler(ServiceUnavailableException.class)
+    @ResponseStatus(HttpStatus.SERVICE_UNAVAILABLE)
+    ErrorResponse handleUnavailable(ServiceUnavailableException ex) {
+        return ErrorResponse.of(503, ex.getMessage(), currentTraceId());
+    }
+
+    @ExceptionHandler(org.springframework.web.multipart.MaxUploadSizeExceededException.class)
+    @ResponseStatus(HttpStatus.CONTENT_TOO_LARGE)
+    ErrorResponse handleUploadSize() {
+        return ErrorResponse.of(413, "Arquivo ou requisição excede o limite permitido", currentTraceId());
+    }
+
+    @ExceptionHandler({org.springframework.web.multipart.MultipartException.class,
+            org.springframework.web.multipart.support.MissingServletRequestPartException.class})
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    ErrorResponse handleMultipart() {
+        return ErrorResponse.of(400, "Multipart inválido; envie application (JSON) e cv (PDF)", currentTraceId());
+    }
 
     @ExceptionHandler(ResourceNotFoundException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
@@ -39,10 +66,12 @@ class GlobalExceptionHandler {
         return ErrorResponse.of(HttpStatus.UNAUTHORIZED.value(), ex.getMessage(), currentTraceId());
     }
 
+    /** Não é recusa de domínio: a mensagem é interna (JDK ou biblioteca) e fica só no log. */
     @ExceptionHandler(IllegalArgumentException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     ErrorResponse handleIllegalArgument(IllegalArgumentException ex) {
-        return ErrorResponse.of(HttpStatus.BAD_REQUEST.value(), ex.getMessage(), currentTraceId());
+        log.warn("IllegalArgumentException nao tratada", ex);
+        return ErrorResponse.of(HttpStatus.BAD_REQUEST.value(), "Requisição inválida", currentTraceId());
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)

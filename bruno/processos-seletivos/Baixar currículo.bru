@@ -1,0 +1,21 @@
+meta {
+  name: Baixar currículo
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{cv_download_url}}
+  body: none
+  auth: none
+}
+
+vars:pre-request {
+  cv_download_url: https://substitua-pela-url-da-listagem.example
+}
+
+docs {
+  Copie integralmente cv.download_url da listagem autenticada para cv_download_url.
+  A URL pré-assinada já contém a autorização temporária; não envie bearer token.
+  A resposta é o PDF como attachment. Após expirar, busque uma URL nova na API.
+}

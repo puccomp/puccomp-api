@@ -3,8 +3,9 @@ package br.com.puccomp.api.identity.invitation;
 import br.com.puccomp.api.identity.account.AccountRepository;
 import br.com.puccomp.api.identity.account.AuthPrincipal;
 import br.com.puccomp.api.identity.account.LoginResponse;
-import br.com.puccomp.api.identity.notification.Mailer;
-import br.com.puccomp.api.identity.tenant.Tenant;
+import br.com.puccomp.api.email.EmailMessage;
+import br.com.puccomp.api.email.Mailer;
+import br.com.puccomp.api.identity.tenant.OrganizationView;
 import br.com.puccomp.api.identity.tenant.TenantRepository;
 import br.com.puccomp.api.identity.token.JwtService;
 import br.com.puccomp.api.organization.CourseCatalog;
@@ -12,6 +13,7 @@ import br.com.puccomp.api.organization.MemberDirectory;
 import br.com.puccomp.api.organization.MemberProvisioning;
 import br.com.puccomp.api.shared.exception.ConflictException;
 import br.com.puccomp.api.shared.exception.ResourceNotFoundException;
+import br.com.puccomp.api.shared.exception.ValidationException;
 import br.com.puccomp.api.shared.reference.Standing;
 import br.com.puccomp.api.shared.tenant.TenantContext;
 import br.com.puccomp.api.shared.token.TokenSecrets;
@@ -23,6 +25,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -72,7 +75,7 @@ class InvitationService implements InvitationIssuer {
                 .build();
         repository.save(invitation);
 
-        sendInvitationEmail(email, acceptUrl(token.raw()));
+        sendInvitationEmail(admin.tenantId(), email, acceptUrl(token.raw()));
         return InvitationResponse.from(invitation, Instant.now());
     }
 
@@ -94,7 +97,7 @@ class InvitationService implements InvitationIssuer {
         repository.save(invitation);
 
         String acceptUrl = acceptUrl(token.raw());
-        sendInvitationEmail(normalizedEmail, acceptUrl);
+        sendInvitationEmail(tenantId, normalizedEmail, acceptUrl);
         return new IssuedInvitation(invitation.getId(), acceptUrl, invitation.getExpiresAt());
     }
 
@@ -125,7 +128,7 @@ class InvitationService implements InvitationIssuer {
         IssuedToken token = newToken();
         invitation.reissue(token.hash(), token.prefix(), Instant.now().plus(properties.invitationTtl()));
 
-        sendInvitationEmail(invitation.getEmail(), acceptUrl(token.raw()));
+        sendInvitationEmail(invitation.getTenantId(), invitation.getEmail(), acceptUrl(token.raw()));
         return InvitationResponse.from(invitation, Instant.now());
     }
 
@@ -149,17 +152,17 @@ class InvitationService implements InvitationIssuer {
     InvitationPreviewResponse preview(String token) {
         Invitation invitation = repository.findByTokenHash(TokenSecrets.sha256Hex(token.trim()))
                 .filter(i -> i.isUsable(Instant.now()))
-                .orElseThrow(() -> new IllegalArgumentException("Convite inválido ou expirado"));
+                .orElseThrow(() -> new ValidationException("Convite inválido ou expirado"));
 
         TenantContext.set(invitation.getTenantId());
-        String ejName = tenants.findById(invitation.getTenantId()).map(Tenant::getName).orElse(null);
-        return new InvitationPreviewResponse(ejName, invitation.getEmail(), courseCatalog.listActive());
+        var organization = tenants.findById(invitation.getTenantId()).map(OrganizationView::from).orElse(null);
+        return new InvitationPreviewResponse(organization, invitation.getEmail(), courseCatalog.listActive());
     }
 
     LoginResponse accept(AcceptInvitationRequest request) {
         Invitation invitation = repository.findByTokenHash(TokenSecrets.sha256Hex(request.token().trim()))
                 .filter(i -> i.isUsable(Instant.now()))
-                .orElseThrow(() -> new IllegalArgumentException("Convite inválido ou expirado"));
+                .orElseThrow(() -> new ValidationException("Convite inválido ou expirado"));
 
         TenantContext.set(invitation.getTenantId());
         var provisioned = acceptor.provision(invitation.getId(), request);
@@ -175,14 +178,18 @@ class InvitationService implements InvitationIssuer {
         return properties.acceptUrlBase() + "?token=" + rawToken;
     }
 
-    private void sendInvitationEmail(String to, String link) {
-        String body = """
-                Você foi convidado para o sistema da sua Empresa Júnior.
-
-                Para aceitar, acesse o link abaixo, defina sua senha e complete seu perfil:
-                %s
-
-                O convite expira em %d horas.""".formatted(link, properties.invitationTtl().toHours());
-        mailer.send(properties.fromAddress(), to, "Convite para o sistema da sua EJ", body);
+    private void sendInvitationEmail(UUID tenantId, String to, String link) {
+        String organizationName = tenants.findById(tenantId)
+                .map(t -> t.getName())
+                .orElse("sua Empresa Júnior");
+        long validityHours = properties.invitationTtl().toHours();
+        mailer.send(new EmailMessage(
+                to,
+                "Convite para " + organizationName,
+                "convite",
+                Map.of(
+                        "organizationName", organizationName,
+                        "acceptUrl", link,
+                        "validFor", validityHours == 1 ? "1 hora" : validityHours + " horas")));
     }
 }

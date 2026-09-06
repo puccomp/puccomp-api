@@ -98,20 +98,13 @@ class BearerAuthenticationFilter extends OncePerRequestFilter {
     }
 
     private Set<String> effectivePermissions(AuthPrincipal principal) {
-        if (principal.memberId() != null && memberDirectory.isReadOnly(principal.memberId()))
-            return permissionResolver.readOnlyAuthorities();
-        if (hasOwnerStanding(principal.standing()))
-            return permissionResolver.allAuthorities();
-        return permissionResolver.resolveAuthorities(principal.memberId(), roleId(principal));
-    }
-
-    private boolean hasOwnerStanding(Standing standing) {
-        return standing == Standing.OWNER;
-    }
-
-    private UUID roleId(AuthPrincipal principal) {
-        return principal.memberId() == null ? null
-                : memberDirectory.findRoleId(principal.memberId()).orElse(null);
+        MemberDirectory.MemberAccess access = principal.memberId() == null ? null
+                : memberDirectory.findAccess(principal.memberId()).orElse(null);
+        return permissionResolver.effectiveAuthorities(new PermissionResolver.Subject(
+                principal.memberId(),
+                access != null ? access.roleId() : null,
+                principal.standing(),
+                access != null && access.readOnly()));
     }
 
     private String bearerToken(HttpServletRequest request) {

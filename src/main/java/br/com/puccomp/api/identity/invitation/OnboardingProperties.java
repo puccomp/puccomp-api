@@ -5,4 +5,4 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import java.time.Duration;
 
 @ConfigurationProperties("puccomp.onboarding")
-public record OnboardingProperties(String acceptUrlBase, String fromAddress, Duration invitationTtl) { }
+public record OnboardingProperties(String acceptUrlBase, Duration invitationTtl) { }
