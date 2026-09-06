@@ -1,0 +1,43 @@
+meta {
+  name: Criar
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{base_url}}/v1/recruitment/processes
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{access_token}}
+}
+
+body:json {
+  {
+    "title": "Processo Seletivo 2026.2",
+    "description": "Processo seletivo para novos membros da EJ COMP 2026.2",
+    "opens_at": "2026-09-10T12:00:00Z",
+    "closes_at": "2026-09-30T02:59:59Z",
+    "result_at": "2026-10-15T21:00:00Z",
+    "min_term": 1,
+    "max_term": 6
+  }
+}
+
+script:post-response {
+  if (res.getStatus() === 201)
+    bru.setEnvVar("process_id", res.getBody().id);
+}
+
+docs {
+  A janela é opcional, mas quando preenchida ela manda: fora dela o processo não aceita inscrição,
+  mesmo gravado como OPEN. As datas são UTC — "até 30/09 23h59 de Brasília" é 2026-10-01T02:59:59Z.
+
+  closes_at precisa ser depois de opens_at, e result_at não pode ser antes do fim das inscrições.
+
+  min_term/max_term declaram a elegibilidade por período ("aceitamos do 1º ao 6º"). São opcionais,
+  mas quando declarados valem de verdade: inscrição fora da faixa é recusada com 400, e inscrição
+  sem current_term também — sem o número não há como conferir a regra.
+}

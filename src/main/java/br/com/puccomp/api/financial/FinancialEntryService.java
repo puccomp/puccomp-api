@@ -1,6 +1,7 @@
 package br.com.puccomp.api.financial;
 
 import br.com.puccomp.api.shared.exception.ResourceNotFoundException;
+import br.com.puccomp.api.shared.exception.ValidationException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -36,7 +37,7 @@ class FinancialEntryService {
     @Transactional(readOnly = true)
     Page<FinancialEntryResponse> findAll(LocalDate from, LocalDate to, FinancialEntryType type, Pageable pageable) {
         if (from != null && to != null && from.isAfter(to))
-            throw new IllegalArgumentException("Período inválido: from deve ser menor ou igual a to");
+            throw new ValidationException("Período inválido: from deve ser menor ou igual a to");
 
         return repository.findAll(FinancialEntryFilters.of(from, to, type), newestFirstBy(pageable))
                 .map(FinancialEntryResponse::from);

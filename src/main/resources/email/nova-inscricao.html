@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #121212; color: #E2E8F0; }
+        .container { max-width: 600px; margin: 40px auto; background-color: #1A1C23; border: 1px solid #2D3748; border-radius: 8px; overflow: hidden; }
+        .header { background-color: #121212; padding: 30px 20px; text-align: center; border-bottom: 1px solid #2D3748; }
+        .content { padding: 40px 30px; line-height: 1.6; font-size: 16px; }
+        .content h2 { color: #FFFFFF; font-size: 24px; margin-top: 0; font-weight: 600; }
+        .cyan-text { color: #5EEAD4; font-weight: bold; }
+        .details {
+            background-color: #121212;
+            border: 1px solid #2D3748;
+            border-radius: 6px;
+            padding: 20px;
+            margin: 30px 0;
+        }
+        .details dt { color: #718096; font-size: 13px; text-transform: uppercase; letter-spacing: 0.03em; }
+        .details dd { margin: 0 0 16px 0; color: #FFFFFF; font-size: 16px; }
+        .details dd:last-child { margin-bottom: 0; }
+        .footer { background-color: #121212; padding: 25px 20px; text-align: center; font-size: 13px; color: #718096; border-top: 1px solid #2D3748; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header"></div>
+
+        <div class="content">
+            <h2>Nova inscrição recebida 📥</h2>
+            <p>Chegou uma nova candidatura para <span class="cyan-text">{{processTitle}}</span>.</p>
+
+            <dl class="details">
+                <dt>Nome</dt>
+                <dd>{{candidateName}}</dd>
+                <dt>E-mail</dt>
+                <dd>{{candidateEmail}}</dd>
+                <dt>Curso</dt>
+                <dd>{{course}}</dd>
+            </dl>
+
+            <p>Você está recebendo este e-mail por ter acesso de leitura ao processo seletivo.</p>
+        </div>
+
+        <div class="footer">
+            Empresa Júnior de Computação<br>
+            Este é um e-mail automático. Por favor, não responda.
+        </div>
+    </div>
+</body>
+</html>

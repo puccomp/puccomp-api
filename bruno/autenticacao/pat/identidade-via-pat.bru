@@ -18,5 +18,8 @@ docs {
   Mesma rota da identidade, autenticada com o PAT em vez do access_token: o filtro reconhece
   o prefixo "pat_" e resolve a conta pelo token. É o que prova que o PAT funciona como credencial.
 
+  Compare o "permissions" desta resposta com o da chamada autenticada por senha: o PAT vem
+  limitado aos seus scopes e nunca traz permissão de escrita, mesmo pertencendo a um OWNER.
+
   Depois de "Revogar PAT", esta chamada deve responder 401.
 }

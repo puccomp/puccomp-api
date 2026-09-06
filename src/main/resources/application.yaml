@@ -1,10 +1,11 @@
 spring:
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 6MB
+      file-size-threshold: 0
   application:
     name: puccomp-api
-  cloud:
-    aws:
-      region:
-        static: ${AWS_REGION:us-east-1}
   datasource:
     url: ${DB_URL}
     username: ${DB_USERNAME}
@@ -33,6 +34,11 @@ spring:
           starttls:
             enable: true
             required: true
+  task:
+    execution:
+      # O pool de e-mail publica um Executor, o que sozinho faria o applicationTaskExecutor do Boot
+      # sumir do contexto. "force" mantém os dois.
+      mode: force
   data:
     web:
       pageable:
@@ -41,14 +47,31 @@ spring:
         serialization-mode: via-dto
 
 puccomp:
+  files:
+    enabled: ${FILES_ENABLED:false}
+    bucket: ${FILES_BUCKET:}
+    region: ${AWS_REGION:sa-east-1}
+    endpoint: ${FILES_ENDPOINT:}
+    path-style: ${FILES_PATH_STYLE:false}
+    download-ttl-seconds: 300
+    clamav-host: ${CLAMAV_HOST:localhost}
+    clamav-port: ${CLAMAV_PORT:3310}
+    max-pages: ${FILES_MAX_PAGES:20}
+    # Uma página A4 escaneada a 300 dpi RGB já descomprime ~26 MiB: o orçamento acompanha as
+    # páginas reais, e max-decompressed é o teto que segura zip bomb em documento longo.
+    decompressed-per-page: ${FILES_DECOMPRESSED_PER_PAGE:32MB}
+    max-decompressed: ${FILES_MAX_DECOMPRESSED:256MB}
   security:
     jwt:
       secret: ${JWT_SECRET}
       access-token-ttl: 8h
   onboarding:
     accept-url-base: ${ONBOARDING_ACCEPT_URL}
-    from-address: ${ONBOARDING_FROM:nao-responda@puccomp.com.br}
     invitation-ttl: 72h
+  email:
+    # Remetente de todo email transacional; em produção precisa estar verificado no SES.
+    # Aceita ONBOARDING_FROM para não quebrar quem já tem esse nome no .env de produção.
+    from: ${MAIL_FROM:${ONBOARDING_FROM:nao-responda@puccomp.com.br}}
   admin:
     key: ${PUCCOMP_ADMIN_KEY:}
   cors:
@@ -75,3 +98,6 @@ management:
 springdoc:
   swagger-ui:
     path: /docs
+  # Sem isso o springdoc publica as respostas sob o media type `*/*`, que geradores de cliente
+  # não sabem interpretar.
+  default-produces-media-type: application/json

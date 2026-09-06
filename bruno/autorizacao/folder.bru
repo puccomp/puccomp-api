@@ -1,14 +1,19 @@
 meta {
   name: autorizacao
+  seq: 4
 }
 
 docs {
+  As permissões são sub-recurso de quem as detém: /v1/roles/{id}/permissions e
+  /v1/members/{id}/permissions, com o catálogo em /v1/permissions. As permissões EFETIVAS de
+  quem está logado saem prontas no /v1/auth/me — não monte esse cálculo no cliente.
+  
   Autorização fine-grained por tenant. O OWNER (standing do membro) pode tudo (superpoder de
   plataforma); os demais recebem permissões do cargo (organization.Role) + grants extras do membro.
-
+  
   Só existe um access_token por vez: cada login sobrescreve o anterior. Por isso o roteiro
   alterna entre dono e membro em vez de manter dois tokens em paralelo.
-
+  
   Fluxo sugerido para testar a barreira de permissão (os requests de login e identidade ficam
   em /autenticacao):
   1. Login com {{account_email}} (dono)          → access_token que pode tudo

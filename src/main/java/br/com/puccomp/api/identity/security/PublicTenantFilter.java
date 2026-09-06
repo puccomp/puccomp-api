@@ -30,7 +30,7 @@ import java.util.Optional;
 @RequiredArgsConstructor
 class PublicTenantFilter extends OncePerRequestFilter {
 
-    private static final String PUBLIC_PATTERN = "/v1/public/{ejSlug}/**";
+    private static final String PUBLIC_PATTERN = "/v1/public/{orgSlug}/**";
 
     private final AntPathMatcher matcher = new AntPathMatcher();
     private final TenantRepository tenants;
@@ -45,7 +45,7 @@ class PublicTenantFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
-        String slug = matcher.extractUriTemplateVariables(PUBLIC_PATTERN, request.getRequestURI()).get("ejSlug");
+        String slug = matcher.extractUriTemplateVariables(PUBLIC_PATTERN, request.getRequestURI()).get("orgSlug");
 
         Optional<Tenant> tenant = tenants.findBySlug(slug)
                 .filter(t -> t.getStatus() == TenantStatus.ACTIVE);

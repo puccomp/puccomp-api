@@ -9,6 +9,7 @@ import br.com.puccomp.api.organization.MemberProvisioning;
 import br.com.puccomp.api.shared.exception.ConflictException;
 import br.com.puccomp.api.shared.exception.ResourceNotFoundException;
 import br.com.puccomp.api.shared.exception.UnauthorizedException;
+import br.com.puccomp.api.shared.exception.ValidationException;
 import br.com.puccomp.api.shared.reference.Standing;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -33,7 +34,7 @@ class InvitationAcceptor {
     Provisioned provision(UUID invitationId, AcceptInvitationRequest request) {
         var invitation = repository.findById(invitationId)
                 .filter(i -> i.isUsable(Instant.now()))
-                .orElseThrow(() -> new IllegalArgumentException("Convite inválido ou expirado"));
+                .orElseThrow(() -> new ValidationException("Convite inválido ou expirado"));
 
         var account = accounts.findByEmailIgnoreCase(invitation.getEmail())
                 .map(existing -> linkExisting(existing, request, invitation.getTenantId()))

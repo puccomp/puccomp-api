@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #121212; color: #E2E8F0; }
+        .container { max-width: 600px; margin: 40px auto; background-color: #1A1C23; border: 1px solid #2D3748; border-radius: 8px; overflow: hidden; }
+        .header { background-color: #121212; padding: 30px 20px; text-align: center; border-bottom: 1px solid #2D3748; }
+        .content { padding: 40px 30px; line-height: 1.6; font-size: 16px; }
+        .content h2 { color: #FFFFFF; font-size: 24px; margin-top: 0; font-weight: 600; }
+        .highlight-box {
+            background-color: #FDE047;
+            color: #000000;
+            padding: 18px 20px;
+            margin: 30px 0;
+            font-weight: 700;
+            border: 2px solid #000000;
+            box-shadow: 4px 4px 0px #000000;
+            border-radius: 2px;
+            text-align: center;
+            font-size: 18px;
+        }
+        .cyan-text { color: #5EEAD4; font-weight: bold; }
+        .footer { background-color: #121212; padding: 25px 20px; text-align: center; font-size: 13px; color: #718096; border-top: 1px solid #2D3748; }
+        .button {
+            display: inline-block;
+            padding: 14px 32px;
+            background-color: #1A5CFF;
+            color: #FFFFFF !important;
+            text-decoration: none;
+            border-radius: 4px;
+            font-weight: bold;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header"></div>
+
+        <div class="content">
+            <h2>Olá, {{candidateName}}! 🚀</h2>
+            <p>Recebemos a sua candidatura para <span class="cyan-text">{{processTitle}}</span>.</p>
+
+            <div class="highlight-box">
+                INSCRIÇÃO CONFIRMADA ✅
+            </div>
+
+            <p>Aqui, aprender deixa rastro. Fique de olho nesta caixa de entrada, pois em breve enviaremos novas atualizações sobre os próximos passos e desafios práticos.</p>
+            <p>Enquanto isso, que tal explorar um pouco mais sobre o que você vai viver com a gente?</p>
+
+            <div style="text-align: center; margin-top: 40px; margin-bottom: 20px;">
+                <a href="https://puccomp.com.br" class="button">Quero ver o site</a>
+            </div>
+        </div>
+
+        <div class="footer">
+            Empresa Júnior de Computação<br>
+            Este é um e-mail automático. Por favor, não responda.
+        </div>
+    </div>
+</body>
+</html>

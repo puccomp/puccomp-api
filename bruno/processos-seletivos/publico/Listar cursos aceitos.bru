@@ -1,0 +1,24 @@
+meta {
+  name: Listar cursos aceitos
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{base_url}}/v1/public/{{org_slug}}/courses
+  body: none
+  auth: none
+}
+
+script:post-response {
+  if (res.getStatus() === 200 && res.getBody().length > 0)
+    bru.setEnvVar("course_id", res.getBody()[0].id);
+}
+
+docs {
+  Superfície anônima: é daqui que o formulário de inscrição tira o course_id.
+
+  Devolve só os cursos ativos da EJ. Desativar um curso (PATCH /v1/courses/{id} com
+  active: false) o retira desta lista sem apagar histórico — as inscrições antigas
+  continuam exibindo o nome do curso que a pessoa escolheu na época.
+}

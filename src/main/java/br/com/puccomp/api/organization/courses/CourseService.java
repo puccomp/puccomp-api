@@ -9,8 +9,11 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -54,6 +57,14 @@ class CourseService implements CourseCatalog, CourseProvisioning {
         return repository.findByActiveTrueOrderByNameAsc().stream()
                 .map(course -> new CourseOption(course.getId(), course.getName()))
                 .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Map<UUID, String> namesOf(Collection<UUID> courseIds) {
+        if (courseIds.isEmpty()) return Map.of();
+        return repository.findAllById(courseIds).stream()
+                .collect(Collectors.toMap(Course::getId, Course::getName));
     }
 
     @Override

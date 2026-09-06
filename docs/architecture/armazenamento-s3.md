@@ -3,8 +3,13 @@
 Referência de implementação da arquitetura de armazenamento. O **porquê** das escolhas está
 no [ADR 0002](../adr/0002-armazenamento-s3.md); aqui ficam os detalhes concretos.
 
-> Nada neste documento foi criado na AWS ainda. É a base para os cards de implementação
-> (ver "Próximos passos").
+> Os quatro buckets já existem na conta, em `sa-east-1`, com Block Public Access completo,
+> SSE-S3 (AES256) e versionamento ligado nos privados (verificado em 2026-09-05). O que ainda
+> não existe é o IAM próprio da aplicação, o CloudFront/DNS e o lifecycle (ver abaixo).
+
+> A API agora implementa armazenamento privado de currículos no módulo `files`.
+> O upload inicial passa pela API para validação e antivírus; download usa URL pré-assinada.
+> Veja [arquivos](arquivos.md) e [ADR 0004](../adr/0004-curriculos-privados.md).
 
 ## Visão geral
 
@@ -41,7 +46,9 @@ flowchart LR
 Layout de chaves (exemplos):
 
 - Público: `projetos/{projectSlug}/{assetId}.png`
-- Privado: `{tenantId}/documentos/{documentId}-{nome}.pdf` (ex.: `ej-comp/documentos/42-contrato.pdf`)
+- Privado: `{tenantId}/{tipo}/{uuid}.{ext}` (ex.: `a1b2.../files/9f8e....pdf`, layout que o
+  módulo `files` já grava). O nome enviado pelo usuário nunca entra na chave: fica só nos
+  metadados e volta no `Content-Disposition` da URL pré-assinada.
 
 ## Configurações recomendadas dos buckets
 
@@ -68,8 +75,32 @@ Layout de chaves (exemplos):
 
   (As origens exatas do front-end são um item a confirmar.)
 - **Validade das URLs pré-assinadas:** curta, sugestão de 5 a 15 minutos.
-- **Ciclo de vida:** opcional, por exemplo expirar versões antigas do bucket privado após N
-  dias para controlar custo.
+- **Ciclo de vida:** obrigatório no bucket privado. Com versionamento ligado, o DELETE que a
+  limpeza de reservas faz só cria um marcador: sem lifecycle os bytes do currículo ficam no
+  bucket para sempre, pagos e ainda recuperáveis. Nunca expire a versão **atual** — a retenção
+  das candidaturas é decisão de negócio, não de infraestrutura.
+
+  ```json
+  {
+    "Rules": [
+      {
+        "ID": "remover-versoes-nao-atuais-e-marcadores",
+        "Status": "Enabled",
+        "Filter": { "Prefix": "" },
+        "NoncurrentVersionExpiration": { "NoncurrentDays": 30 },
+        "Expiration": { "ExpiredObjectDeleteMarker": true }
+      },
+      {
+        "ID": "abortar-multipart-incompleto",
+        "Status": "Enabled",
+        "Filter": { "Prefix": "" },
+        "AbortIncompleteMultipartUpload": { "DaysAfterInitiation": 7 }
+      }
+    ]
+  }
+  ```
+
+  Aplicar nos dois buckets privados com `aws s3api put-bucket-lifecycle-configuration`.
 
 ## Permissões IAM (menor privilégio)
 
@@ -208,8 +239,9 @@ Notas:
 ## Próximos passos (cards futuros)
 
 - Anexar a política de S3 do `CloudOps` (acima) ao grupo, na #2.
-- Card para criar o **IAM próprio da aplicação**.
-- Card para **criar os buckets** com as configurações desta página.
+- Card para criar o **IAM próprio da aplicação** (define se é role de compute ou usuário com chaves).
+- Aplicar o **lifecycle** dos buckets privados (única configuração de bucket ainda pendente).
+- **Trocar as chaves de acesso do root** por uma identidade IAM dedicada e apagar a chave do root.
 - Card para **criar a distribuição CloudFront**, o certificado ACM e o registro DNS.
 - Card para implementar na API o **serviço de armazenamento** (URLs pré-assinadas, layout de
   chaves por tenant).
