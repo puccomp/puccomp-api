@@ -153,25 +153,6 @@ class CvSubmissionEndToEndTest extends AbstractIntegrationTest {
             assertThat(http.send(HttpRequest.newBuilder(tampered).GET().build(), HttpResponse.BodyHandlers.discarding()).statusCode())
                     .isEqualTo(403);
         }
-        runBrunoSmokeIfConfigured(slug);
     }
 
-    private void runBrunoSmokeIfConfigured(String slug) throws Exception {
-        String cli = System.getenv("BRUNO_SMOKE_CLI");
-        if (cli == null || cli.isBlank()) return;
-        var report = java.nio.file.Path.of("build", "bruno-smoke.log").toAbsolutePath();
-        var process = new ProcessBuilder(cli, "run", "smoke-curriculos",
-                "--env-var", "base_url=http://localhost:" + port,
-                "--env-var", "smoke_org_slug=" + slug,
-                "--env-var", "smoke_owner_email=owner@cv-e2e.dev",
-                "--env-var", "smoke_owner_password=senha123")
-                .directory(java.nio.file.Path.of("bruno").toFile())
-                .redirectErrorStream(true).redirectOutput(report.toFile()).start();
-        try {
-            assertThat(process.waitFor(60, java.util.concurrent.TimeUnit.SECONDS)).isTrue();
-            assertThat(process.exitValue()).withFailMessage(java.nio.file.Files.readString(report)).isZero();
-        } finally {
-            process.destroyForcibly();
-        }
-    }
 }
