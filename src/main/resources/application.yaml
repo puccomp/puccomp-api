@@ -79,6 +79,10 @@ puccomp:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:3000}
 
 server:
+  tomcat:
+    # Sem isso o Tomcat aborta o upload grande e fecha a conexão antes de terminar de ler o corpo,
+    # e quem enviou recebe reset em vez do 413 — o limite multipart é 5MB, o padrão daqui é 2MB.
+    max-swallow-size: -1
   error:
     include-stacktrace: never
     include-exception: false
