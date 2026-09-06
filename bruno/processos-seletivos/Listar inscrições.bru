@@ -1,0 +1,38 @@
+meta {
+  name: Listar inscrições
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{base_url}}/v1/recruitment/processes/{{process_id}}/applications?page=0&size=20&sort=createdAt,desc
+  body: none
+  auth: bearer
+}
+
+params:query {
+  page: 0
+  size: 20
+  sort: createdAt,desc
+}
+
+auth:bearer {
+  token: {{access_token}}
+}
+
+docs {
+  Exige recruitment:read e pertence ao tenant autenticado. Resposta sem cache.
+  Cada inscrição inclui cv: null quando não há currículo, ou:
+  { id, filename, content_type, size, download_url, download_expires_at }.
+  download_url permite GET direto no S3, sem Authorization da API, por 5 minutos.
+  Consulte a listagem novamente para renovar URLs expiradas; não persista essas URLs.
+}
+
+docs {
+  q busca por nome ou e-mail dentro deste processo, ignorando acento e caixa: "joao" acha "João",
+  e "João" também. Termo com menos de 2 caracteres é ignorado, e a listagem volta inteira.
+  % e _ digitados valem como texto, não como curinga.
+
+  Para procurar a pessoa em TODOS os processos da EJ ("ela já se inscreveu antes?"),
+  use "Buscar inscrições na EJ".
+}

@@ -1,7 +1,8 @@
 package br.com.puccomp.api.identity.invitation;
 
 import br.com.puccomp.api.identity.account.*;
-import br.com.puccomp.api.identity.notification.Mailer;
+import br.com.puccomp.api.email.EmailMessage;
+import br.com.puccomp.api.email.Mailer;
 import br.com.puccomp.api.identity.tenant.TenantRepository;
 import br.com.puccomp.api.identity.token.JwtService;
 import br.com.puccomp.api.organization.CourseCatalog;
@@ -76,7 +77,6 @@ class InvitationServiceTest {
         when(accounts.findByEmailIgnoreCase("novato@ej.dev")).thenReturn(Optional.empty());
         when(properties.invitationTtl()).thenReturn(Duration.ofHours(72));
         when(properties.acceptUrlBase()).thenReturn("http://localhost/aceitar");
-        when(properties.fromAddress()).thenReturn("nao-responda@ej.dev");
 
         InvitationResponse response = service.create(admin(),
                 new CreateInvitationRequest("novato@ej.dev", Standing.MEMBER, null));
@@ -87,7 +87,8 @@ class InvitationServiceTest {
         ArgumentCaptor<Invitation> saved = ArgumentCaptor.forClass(Invitation.class);
         verify(repository).save(saved.capture());
         assertThat(saved.getValue().getTokenHash()).hasSize(64);
-        verify(mailer).send(eq("nao-responda@ej.dev"), eq("novato@ej.dev"), any(), contains("http://localhost/aceitar"));
+        assertThat(sentInvitation().variables().get("acceptUrl").toString())
+                .startsWith("http://localhost/aceitar");
     }
 
     @Test
@@ -114,7 +115,6 @@ class InvitationServiceTest {
         when(memberDirectory.findMembership(existing.getId(), admin.tenantId())).thenReturn(Optional.empty());
         when(properties.invitationTtl()).thenReturn(Duration.ofHours(72));
         when(properties.acceptUrlBase()).thenReturn("http://localhost/aceitar");
-        when(properties.fromAddress()).thenReturn("nao-responda@ej.dev");
 
         InvitationResponse response = service.create(admin,
                 new CreateInvitationRequest("veterano@ej.dev", Standing.MEMBER, null));
@@ -141,7 +141,6 @@ class InvitationServiceTest {
         when(accounts.findByEmailIgnoreCase("novato@ej.dev")).thenReturn(Optional.empty());
         when(properties.invitationTtl()).thenReturn(Duration.ofHours(72));
         when(properties.acceptUrlBase()).thenReturn("http://localhost/aceitar");
-        when(properties.fromAddress()).thenReturn("nao-responda@ej.dev");
 
         service.create(admin(), new CreateInvitationRequest("novato@ej.dev", null, null));
 
@@ -167,7 +166,6 @@ class InvitationServiceTest {
         when(accounts.findByEmailIgnoreCase("novato@ej.dev")).thenReturn(Optional.empty());
         when(properties.invitationTtl()).thenReturn(Duration.ofHours(72));
         when(properties.acceptUrlBase()).thenReturn("http://localhost/aceitar");
-        when(properties.fromAddress()).thenReturn("nao-responda@ej.dev");
 
         InvitationResponse response = service.create(admin(),
                 new CreateInvitationRequest("novato@ej.dev", Standing.OWNER, null));
@@ -201,8 +199,15 @@ class InvitationServiceTest {
 
         assertThatThrownBy(() -> service.accept(
                 new AcceptInvitationRequest("inv_token", "senha123", "Novato", UUID.randomUUID())))
-                .isInstanceOf(IllegalArgumentException.class);
+                .isInstanceOf(br.com.puccomp.api.shared.exception.ValidationException.class);
         verify(acceptor, never()).provision(any(), any());
+    }
+
+    private EmailMessage sentInvitation() {
+        ArgumentCaptor<EmailMessage> sent = ArgumentCaptor.forClass(EmailMessage.class);
+        verify(mailer).send(sent.capture());
+        assertThat(sent.getValue().template()).isEqualTo("convite");
+        return sent.getValue();
     }
 
     private Invitation outstanding(UUID tenantId) {
@@ -243,7 +248,6 @@ class InvitationServiceTest {
         when(repository.findById(invitation.getId())).thenReturn(Optional.of(invitation));
         when(properties.invitationTtl()).thenReturn(Duration.ofHours(72));
         when(properties.acceptUrlBase()).thenReturn("http://localhost/aceitar");
-        when(properties.fromAddress()).thenReturn("nao-responda@ej.dev");
 
         InvitationResponse response = service.resend(tenant, invitation.getId());
 
@@ -251,8 +255,8 @@ class InvitationServiceTest {
         assertThat(invitation.getTokenPrefix()).startsWith("inv_");
         assertThat(invitation.getExpiresAt()).isAfter(validadeAntiga);
         assertThat(response.status()).isEqualTo(InvitationStatus.PENDING);
-        verify(mailer).send(eq("nao-responda@ej.dev"), eq("novato@ej.dev"), any(),
-                contains("http://localhost/aceitar"));
+        assertThat(sentInvitation().variables().get("acceptUrl").toString())
+                .startsWith("http://localhost/aceitar");
     }
 
     @Test
@@ -265,7 +269,7 @@ class InvitationServiceTest {
 
         assertThatThrownBy(() -> service.resend(tenant, invitation.getId()))
                 .isInstanceOf(ConflictException.class);
-        verify(mailer, never()).send(any(), any(), any(), any());
+        verify(mailer, never()).send(any());
     }
 
     @Test
@@ -278,7 +282,7 @@ class InvitationServiceTest {
 
         assertThatThrownBy(() -> service.resend(tenant, invitation.getId()))
                 .isInstanceOf(ConflictException.class);
-        verify(mailer, never()).send(any(), any(), any(), any());
+        verify(mailer, never()).send(any());
     }
 
     @Test

@@ -7,15 +7,19 @@ public record PublicProcessResponse(
         UUID id,
         String title,
         String description,
-        Instant opensAt,
-        Instant closesAt
+        Instant closesAt,
+        Instant resultAt,
+        Short minTerm,
+        Short maxTerm
 ) {
     static PublicProcessResponse from(SelectionProcess process) {
         return new PublicProcessResponse(
                 process.getId(),
                 process.getTitle(),
                 process.getDescription(),
-                process.getOpensAt(),
-                process.getClosesAt());
+                process.getClosesAt(),
+                process.getResultAt(),
+                process.getMinTerm(),
+                process.getMaxTerm());
     }
 }

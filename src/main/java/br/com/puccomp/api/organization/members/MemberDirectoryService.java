@@ -1,6 +1,7 @@
 package br.com.puccomp.api.organization.members;
 
 import br.com.puccomp.api.organization.MemberDirectory;
+import br.com.puccomp.api.shared.reference.NamedRef;
 import br.com.puccomp.api.shared.reference.Standing;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -18,16 +19,9 @@ class MemberDirectoryService implements MemberDirectory {
 
     @Override
     @Transactional(readOnly = true)
-    public Optional<UUID> findRoleId(UUID memberId) {
-        return members.findRoleIdById(memberId);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public boolean isReadOnly(UUID memberId) {
-        return members.findStatusById(memberId)
-                .map(status -> status == MemberStatus.ALUMNUS)
-                .orElse(false);
+    public Optional<MemberAccess> findAccess(UUID memberId) {
+        return members.findAccessById(memberId)
+                .map(row -> new MemberAccess(row.getRoleId(), row.getStatus() == MemberStatus.ALUMNUS));
     }
 
     @Override
@@ -44,13 +38,27 @@ class MemberDirectoryService implements MemberDirectory {
 
     @Override
     @Transactional(readOnly = true)
+    public List<ActiveMember> listActiveMembers() {
+        return members.findByStatus(MemberStatus.ACTIVE).stream()
+                .filter(m -> m.getAccountId() != null)
+                .map(m -> new ActiveMember(
+                        m.getId(),
+                        m.getAccountId(),
+                        m.getRole() != null ? m.getRole().getId() : null,
+                        m.getStanding()))
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public Optional<MemberProfile> findProfile(UUID memberId) {
         return members.findById(memberId).map(m -> new MemberProfile(
                 m.getId(),
                 m.getName(),
-                m.getCourse().getName(),
-                m.getRole() != null ? m.getRole().getName() : null,
-                m.getDepartment() != null ? m.getDepartment().getName() : null));
+                NamedRef.of(m.getCourse().getId(), m.getCourse().getName()),
+                m.getRole() != null ? NamedRef.of(m.getRole().getId(), m.getRole().getName()) : null,
+                m.getDepartment() != null
+                        ? NamedRef.of(m.getDepartment().getId(), m.getDepartment().getName()) : null));
     }
 
     private Membership toMembership(MemberRepository.MembershipRow row) {

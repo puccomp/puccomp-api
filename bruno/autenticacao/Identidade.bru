@@ -1,0 +1,45 @@
+meta {
+  name: Identidade
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{base_url}}/v1/auth/me
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{access_token}}
+}
+
+script:post-response {
+  if (res.getStatus() === 200) {
+    const body = res.getBody();
+    if (body.member) bru.setEnvVar("member_id", body.member.id);
+    if (body.organization) {
+      bru.setEnvVar("org_id", body.organization.id);
+      bru.setEnvVar("org_slug", body.organization.slug);
+    }
+  }
+}
+
+docs {
+  Contexto da sessão — é daqui que qualquer cliente (painel ou servidor MCP) monta o boot:
+  {
+    organization: { id, name, slug },
+    email,
+    member: { id, name, course: {id,name}, role: {id,name}, department: {id,name}, standing },
+    permissions: ["members:read", ...]
+  }
+
+  "permissions" são as EFETIVAS, já com as duas regras que só existem dentro do filtro de
+  autenticação: PAT é sempre rebaixado a somente-leitura e OWNER recebe o catálogo inteiro.
+  Nenhum cliente consegue recalcular isso — por isso não se deve ramificar em standing.
+
+  O "organization.slug" é o mesmo das rotas anônimas (/v1/public/{org_slug}/...), então dá para
+  montar o link público do próprio processo seletivo. O script guarda org_id, org_slug e member_id.
+
+  Não expõe account_id: a API identifica a pessoa pelo member_id.
+}

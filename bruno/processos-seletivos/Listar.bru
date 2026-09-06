@@ -1,0 +1,37 @@
+meta {
+  name: Listar
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{base_url}}/v1/recruitment/processes?page=0&size=20&sort=createdAt,desc
+  body: none
+  auth: bearer
+}
+
+params:query {
+  page: 0
+  size: 20
+  sort: createdAt,desc
+  ~status: OPEN
+}
+
+auth:bearer {
+  token: {{access_token}}
+}
+
+script:post-response {
+  if (res.getStatus() === 200 && res.getBody().content.length > 0)
+    bru.setEnvVar("process_id", res.getBody().content[0].id);
+}
+
+docs {
+  Resposta paginada (content + page), no mesmo formato das outras listagens da API.
+
+  A linha não traz description — é TEXT e pode ser um edital inteiro. Use o Buscar para o detalhe.
+  Traz application_count e last_application_at, resolvidos em uma consulta agregada só.
+
+  O filtro status casa com o status EFETIVO: OPEN devolve só quem está dentro do prazo, e IN_REVIEW
+  inclui quem ainda está gravado como OPEN mas já passou do closes_at.
+}

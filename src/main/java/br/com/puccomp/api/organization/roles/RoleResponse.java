@@ -1,11 +1,11 @@
 package br.com.puccomp.api.organization.roles;
 
+import br.com.puccomp.api.shared.reference.NamedRef;
+
 import java.util.UUID;
 
-public record RoleResponse(UUID id, String name, String description, DepartmentSummary department,
+public record RoleResponse(UUID id, String name, String description, NamedRef department,
                            Integer maxSeats, boolean active) {
-
-    public record DepartmentSummary(UUID id, String name) { }
 
     static RoleResponse from(Role role) {
         var department = role.getDepartment();
@@ -13,7 +13,7 @@ public record RoleResponse(UUID id, String name, String description, DepartmentS
                 role.getId(),
                 role.getName(),
                 role.getDescription(),
-                department != null ? new DepartmentSummary(department.getId(), department.getName()) : null,
+                department != null ? NamedRef.of(department.getId(), department.getName()) : null,
                 role.getMaxSeats(),
                 role.isActive()
         );

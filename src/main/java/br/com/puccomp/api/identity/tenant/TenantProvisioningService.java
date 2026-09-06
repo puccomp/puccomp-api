@@ -3,6 +3,7 @@ package br.com.puccomp.api.identity.tenant;
 import br.com.puccomp.api.identity.invitation.InvitationIssuer;
 import br.com.puccomp.api.organization.CourseProvisioning;
 import br.com.puccomp.api.shared.exception.ConflictException;
+import br.com.puccomp.api.shared.exception.ValidationException;
 import br.com.puccomp.api.shared.tenant.TenantContext;
 import br.com.puccomp.api.shared.text.Slugs;
 import lombok.RequiredArgsConstructor;
@@ -22,10 +23,10 @@ public class TenantProvisioningService {
     private final TransactionTemplate transactionTemplate;
     private final JdbcTemplate jdbc;
 
-    public ProvisionedTenantResponse provision(ProvisionTenantRequest request) {
+    public ProvisionedOrganizationResponse provision(ProvisionOrganizationRequest request) {
         String slug = Slugs.slugify(request.slug());
         if (!Slugs.isValid(slug))
-            throw new IllegalArgumentException("slug: informe um valor válido");
+            throw new ValidationException("slug: informe um valor válido");
         if (tenants.existsBySlug(slug))
             throw new ConflictException("Já existe uma EJ com esse slug");
 
@@ -45,7 +46,7 @@ public class TenantProvisioningService {
                         """, tenant.getId(), tenant.getName(), tenant.getSlug(), tenant.getStatus().name());
                 request.courses().forEach(courseProvisioning::createCourse);
                 var invitation = invitationIssuer.issueForOwner(tenant.getId(), request.ownerEmail());
-                return ProvisionedTenantResponse.from(tenant, invitation);
+                return ProvisionedOrganizationResponse.from(tenant, invitation);
             });
         } finally {
             TenantContext.clear();

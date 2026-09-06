@@ -41,7 +41,7 @@ class CorsIntegrationTest extends AbstractIntegrationTest {
     @Test
     @DisplayName("a superfície administrativa também responde ao preflight, com o header da chave")
     void shouldAllowAdminPreflight() {
-        ResponseEntity<String> response = preflight("/v1/admin/tenants", FRONT,
+        ResponseEntity<String> response = preflight("/v1/admin/organizations", FRONT,
                 List.of("x-puccomp-key", "content-type"));
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);

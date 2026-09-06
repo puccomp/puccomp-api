@@ -1,6 +1,7 @@
 package br.com.puccomp.api.authorization.grant;
 
 import br.com.puccomp.api.shared.exception.ErrorResponse;
+import br.com.puccomp.api.shared.exception.ValidationException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -17,7 +18,7 @@ import java.util.stream.Collectors;
 
 @Tag(name = "Autorização")
 @RestController
-@RequestMapping("/v1/authz")
+@RequestMapping("/v1")
 @PreAuthorize("hasAuthority('permissions:manage')")
 @RequiredArgsConstructor
 public class PermissionController {
@@ -65,7 +66,7 @@ public class PermissionController {
     private Set<Permission> parse(SetPermissionsRequest request) {
         return request.permissions().stream()
                 .map(code -> Permission.fromCode(code)
-                        .orElseThrow(() -> new IllegalArgumentException("Permissão desconhecida: " + code)))
+                        .orElseThrow(() -> new ValidationException("Permissão desconhecida: " + code)))
                 .collect(Collectors.toSet());
     }
 }
