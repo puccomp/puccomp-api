@@ -38,14 +38,17 @@ public class SelectionProcessController {
 
     @Operation(summary = "Lista os processos seletivos da EJ",
             description = "O filtro status casa com o status efetivo: OPEN traz só quem está dentro do "
-                    + "prazo, e IN_REVIEW inclui quem ainda está gravado como OPEN mas já venceu.")
+                    + "prazo, e IN_REVIEW inclui quem ainda está gravado como OPEN mas já venceu. "
+                    + "q busca no título ignorando acento e caixa; termos com menos de 2 caracteres "
+                    + "são desconsiderados.")
     @PreAuthorize("hasAuthority('recruitment:read')")
     @GetMapping
     public Page<SelectionProcessSummaryResponse> getAll(
             @RequestParam(required = false) SelectionProcessStatus status,
+            @RequestParam(required = false) String q,
             @ParameterObject @PageableDefault(size = 20, sort = {"createdAt", "id"},
                     direction = Sort.Direction.DESC) Pageable pageable) {
-        return service.findAll(status, pageable);
+        return service.findAll(status, q, pageable);
     }
 
     @Operation(summary = "Busca um processo seletivo por ID")
