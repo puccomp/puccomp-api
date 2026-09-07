@@ -1,0 +1,29 @@
+meta {
+  name: Redefinir senha
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{base_url}}/v1/auth/password/reset
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "token": "{{reset_token}}",
+    "password": "{{new_password}}"
+  }
+}
+
+docs {
+  Fecha o fluxo de "esqueci minha senha": grava a senha nova e queima o token (204 No Content).
+
+  O token vale UMA vez e por 1h. Repetir a mesma chamada dá 400 — mesmo erro de token
+  desconhecido ou expirado, para não distinguir os casos.
+
+  A senha precisa ter entre 8 e 72 caracteres (o teto é o do BCrypt, que trunca em 72 bytes).
+
+  Depois disto, use "Login" com {{new_password}} para pegar um access_token novo.
+}

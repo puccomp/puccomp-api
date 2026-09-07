@@ -1,5 +1,6 @@
 package br.com.puccomp.api.identity.security;
 
+import br.com.puccomp.api.identity.password.PasswordResetProperties;
 import br.com.puccomp.api.identity.invitation.OnboardingProperties;
 import br.com.puccomp.api.identity.token.JwtProperties;
 import lombok.RequiredArgsConstructor;
@@ -24,7 +25,7 @@ import java.util.List;
 @Configuration
 @EnableMethodSecurity
 @EnableConfigurationProperties({JwtProperties.class, OnboardingProperties.class, PlatformAdminProperties.class,
-        CorsProperties.class})
+        CorsProperties.class, PasswordResetProperties.class})
 @RequiredArgsConstructor
 class SecurityConfig {
 
@@ -60,6 +61,8 @@ class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/v1/auth/login").permitAll()
+                        // Só forgot e reset: /v1/auth/password/change continua exigindo sessão.
+                        .requestMatchers("/v1/auth/password/forgot", "/v1/auth/password/reset").permitAll()
                         .requestMatchers("/v1/invitations/accept").permitAll()
                         .requestMatchers("/v1/public/**").permitAll()
                         .requestMatchers("/docs/**", "/swagger-ui/**", "/v3/api-docs/**").permitAll()

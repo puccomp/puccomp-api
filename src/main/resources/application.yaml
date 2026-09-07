@@ -65,6 +65,10 @@ puccomp:
     jwt:
       secret: ${JWT_SECRET}
       access-token-ttl: 8h
+    password-reset:
+      # Página do front que recebe o ?token= do e-mail; a API não serve essa tela.
+      url-base: ${PASSWORD_RESET_URL}
+      ttl: 1h
   onboarding:
     accept-url-base: ${ONBOARDING_ACCEPT_URL}
     invitation-ttl: 72h

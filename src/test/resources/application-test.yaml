@@ -17,6 +17,8 @@ puccomp:
   security:
     jwt:
       secret: test-secret-pelo-menos-32-bytes-para-hs256-0123456789
+    password-reset:
+      url-base: http://localhost/redefinir-senha
   onboarding:
     accept-url-base: http://localhost/aceitar-convite
   admin:
