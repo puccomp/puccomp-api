@@ -156,7 +156,9 @@ class InvitationService implements InvitationIssuer {
 
         TenantContext.set(invitation.getTenantId());
         var organization = tenants.findById(invitation.getTenantId()).map(OrganizationView::from).orElse(null);
-        return new InvitationPreviewResponse(organization, invitation.getEmail(), courseCatalog.listActive());
+        boolean accountExists = accounts.findByEmailIgnoreCase(invitation.getEmail()).isPresent();
+        return new InvitationPreviewResponse(organization, invitation.getEmail(), accountExists,
+                courseCatalog.listActive());
     }
 
     LoginResponse accept(AcceptInvitationRequest request) {

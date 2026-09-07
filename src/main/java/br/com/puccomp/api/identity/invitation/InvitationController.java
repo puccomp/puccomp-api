@@ -77,7 +77,7 @@ public class InvitationController {
         return service.resend(admin.tenantId(), id);
     }
 
-    @Operation(summary = "Prévia pública do convite: nome da EJ e cursos disponíveis para preencher o aceite")
+    @Operation(summary = "Prévia pública do convite: nome da EJ, cursos e se o e-mail já tem conta")
     @ApiResponse(responseCode = "400", description = "Convite inválido ou expirado",
             content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     @SecurityRequirements
@@ -86,8 +86,14 @@ public class InvitationController {
         return service.preview(token);
     }
 
-    @Operation(summary = "Aceita um convite: define senha + perfil, cria a conta e já autentica")
+    @Operation(summary = "Aceita um convite: senha + perfil, cria ou vincula a conta e já autentica")
     @ApiResponse(responseCode = "400", description = "Convite inválido ou expirado",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    @ApiResponse(responseCode = "401", description = "E-mail já tem conta e a senha informada não confere",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    @ApiResponse(responseCode = "404", description = "Curso não encontrado",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    @ApiResponse(responseCode = "409", description = "Conta desativada, ou já membro desta EJ",
             content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     @SecurityRequirements
     @PostMapping("/accept")

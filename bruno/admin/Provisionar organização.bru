@@ -1,5 +1,5 @@
 meta {
-  name: Provisionar EJ
+  name: Provisionar organização
   type: http
   seq: 1
 }
@@ -34,8 +34,8 @@ body:json {
 }
 
 vars:pre-request {
-  org_name: Comp
-  org_slug: puccomp
+  org_name: TESTE
+  org_slug: teste
   owner_email: thom.nmaciel.baron@gmail.com
 }
 
@@ -58,4 +58,8 @@ docs {
   Requer PUCCOMP_ADMIN_KEY configurado no backend e a mesma chave em puccomp_admin_key.
   A resposta devolve { organization: { id, name, slug }, invitation: { id, accept_url, expires_at } };
   o script encadeia org_id, org_slug, invitation_id e invite_token para aceitar o convite.
+
+  O provisionamento não toca em `accounts`: um owner_email que já tem conta passa sem erro aqui e
+  só é conciliado no "Aceitar convite" — que então vai pedir a senha ATUAL dessa conta, não uma
+  nova. Confira `account_exists` na "Prévia do convite" antes de montar o body do aceite.
 }
