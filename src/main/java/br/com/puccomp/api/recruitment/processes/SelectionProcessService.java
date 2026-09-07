@@ -21,9 +21,10 @@ class SelectionProcessService implements ProcessDirectory {
     private final ApplicationCounts applicationCounts;
 
     @Transactional(readOnly = true)
-    Page<SelectionProcessSummaryResponse> findAll(SelectionProcessStatus status, Pageable pageable) {
+    Page<SelectionProcessSummaryResponse> findAll(SelectionProcessStatus status, String query,
+                                                   Pageable pageable) {
         Instant now = Instant.now();
-        Page<SelectionProcess> page = pageOf(status, now, pageable);
+        Page<SelectionProcess> page = pageOf(status, ProcessSearchTerm.like(query), now, pageable);
         Map<UUID, ApplicationCounts.ApplicationStats> stats = statsFor(page.getContent().stream()
                 .map(SelectionProcess::getId).toList());
 
@@ -34,12 +35,23 @@ class SelectionProcessService implements ProcessDirectory {
      * O filtro casa com o status efetivo, não com o gravado — senão um processo cujo prazo venceu
      * sumiria de {@code IN_REVIEW} e apareceria em {@code OPEN}, contradizendo o que a resposta diz.
      */
-    private Page<SelectionProcess> pageOf(SelectionProcessStatus status, Instant now, Pageable pageable) {
-        if (status == null) return repository.findAll(pageable);
+    private Page<SelectionProcess> pageOf(SelectionProcessStatus status, Optional<String> term,
+                                          Instant now, Pageable pageable) {
+        if (term.isEmpty()) {
+            if (status == null) return repository.findAll(pageable);
+            return switch (status) {
+                case OPEN -> repository.findEffectivelyOpen(now, pageable);
+                case IN_REVIEW -> repository.findEffectivelyInReview(now, pageable);
+                default -> repository.findByStatus(status, pageable);
+            };
+        }
+
+        String search = term.get();
+        if (status == null) return repository.searchByTitle(search, pageable);
         return switch (status) {
-            case OPEN -> repository.findEffectivelyOpen(now, pageable);
-            case IN_REVIEW -> repository.findEffectivelyInReview(now, pageable);
-            default -> repository.findByStatus(status, pageable);
+            case OPEN -> repository.searchEffectivelyOpen(search, now, pageable);
+            case IN_REVIEW -> repository.searchEffectivelyInReview(search, now, pageable);
+            default -> repository.searchByStatusAndTitle(status, search, pageable);
         };
     }
 

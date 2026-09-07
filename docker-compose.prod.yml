@@ -28,13 +28,18 @@ services:
       - db
 
   db:
-    image: postgres:15-alpine
+    image: postgres:17-alpine
+    ports:
+      # Só o loopback da instância: é o que permite chegar no banco pelo túnel do SSM sem abrir
+      # porta nenhuma. Sem o 127.0.0.1 na frente o Docker publica em 0.0.0.0 e escreve regra de
+      # iptables por baixo do security group, expondo o banco para a internet.
+      - "127.0.0.1:5432:5432"
     environment:
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASS}
       POSTGRES_DB: puccomp
     volumes:
-      - pgdata:/var/lib/postgresql/data # Garante que os dados não somem
+      - pgdata17:/var/lib/postgresql/data # Garante que os dados não somem
     # O Flyway vai rodar automaticamente quando a API do Spring Boot iniciar
 
   prometheus:
@@ -68,5 +73,8 @@ services:
     # Sem ports
 
 volumes:
+  # Volume do PostgreSQL 15, anterior ao upgrade. Mantido em produção como rollback; pode sair
+  # daqui e ser removido com `docker volume rm puccomp-api_pgdata` quando o 17 estiver assentado.
   pgdata:
+  pgdata17:
   grafana_data:

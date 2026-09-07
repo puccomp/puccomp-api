@@ -15,6 +15,7 @@ params:query {
   size: 20
   sort: createdAt,desc
   ~status: OPEN
+  ~q: selecao
 }
 
 auth:bearer {
@@ -31,6 +32,10 @@ docs {
 
   A linha não traz description — é TEXT e pode ser um edital inteiro. Use o Buscar para o detalhe.
   Traz application_count e last_application_at, resolvidos em uma consulta agregada só.
+
+  q busca no título ignorando acento e caixa, nas duas direções: "selecao" acha "Seleção" e
+  "Seleção" também. Termo com menos de 2 caracteres é ignorado, e % ou _ digitados valem como
+  texto. Combina com o status.
 
   O filtro status casa com o status EFETIVO: OPEN devolve só quem está dentro do prazo, e IN_REVIEW
   inclui quem ainda está gravado como OPEN mas já passou do closes_at.
