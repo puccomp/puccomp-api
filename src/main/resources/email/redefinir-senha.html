@@ -10,7 +10,7 @@
     <meta name="x-apple-disable-message-reformatting"/>
     <meta name="color-scheme" content="dark"/>
     <meta name="supported-color-schemes" content="dark"/>
-    <title>Convite para {{organizationName}}</title>
+    <title>Redefinição de senha</title>
     <!--[if mso]>
     <noscript>
         <xml>
@@ -43,9 +43,7 @@
     </style>
 </head>
 <!--
-    Paleta e tipografia do puccomp ops (tema escuro).
-    Os tokens do app são oklch; aqui vão convertidos para hex, que é o que
-    cliente de e-mail entende:
+    Mesma paleta e tipografia do convite.html (tema escuro do puccomp ops):
       background #0A0A0A, card #171717, borda #2E2E2E
       texto #FAFAFA, texto suave #A1A1A1
       primary #005F78 sobre #ECFEFF, acento da marca #00B8DB
@@ -56,7 +54,7 @@
 
 <!-- Prévia na caixa de entrada, invisível no corpo. -->
 <div style="display:none; max-height:0; overflow:hidden; mso-hide:all; font-size:1px; line-height:1px; color:#0A0A0A; opacity:0;">
-    Defina sua senha e complete seu perfil para entrar na {{organizationName}}.
+    Crie uma nova senha para sua conta. O link vale por {{validFor}}.
     &#8203;&#847;&#8203;&#847;&#8203;&#847;&#8203;&#847;&#8203;&#847;&#8203;&#847;&#8203;&#847;&#8203;&#847;
 </div>
 
@@ -81,10 +79,10 @@
                                 <td class="sm-pad" style="padding:28px 28px 0 28px;">
                                     <h1 class="sm-title"
                                         style="margin:0 0 8px 0; font-family:Geist,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-size:22px; line-height:30px; font-weight:600; color:#FAFAFA;">
-                                        Convite para {{organizationName}}
+                                        Redefinição de senha
                                     </h1>
                                     <p style="margin:0; font-family:Geist,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-size:14px; line-height:22px; color:#A1A1A1;">
-                                        Complete seu perfil e defina uma senha para entrar.
+                                        Crie uma nova senha para entrar no sistema.
                                     </p>
                                 </td>
                             </tr>
@@ -92,12 +90,13 @@
                             <tr>
                                 <td class="sm-pad" style="padding:24px 28px 0 28px;">
                                     <p style="margin:0 0 16px 0; font-family:Geist,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-size:16px; line-height:26px; color:#FAFAFA;">
-                                        Você recebeu um convite para entrar no sistema da
-                                        <strong style="font-weight:600; color:#FAFAFA;">{{organizationName}}</strong>.
+                                        Recebemos um pedido para redefinir a senha desta conta. Use o botão abaixo
+                                        para escolher uma nova.
                                     </p>
                                     <p style="margin:0; font-family:Geist,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-size:16px; line-height:26px; color:#FAFAFA;">
-                                        O convite expira em
-                                        <strong style="font-weight:600; color:#FAFAFA;">{{validFor}}</strong>.
+                                        O link expira em
+                                        <strong style="font-weight:600; color:#FAFAFA;">{{validFor}}</strong>
+                                        e só funciona uma vez.
                                     </p>
                                 </td>
                             </tr>
@@ -109,32 +108,47 @@
                                     <!--[if mso]>
                                     <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml"
                                                  xmlns:w="urn:schemas-microsoft-com:office:word"
-                                                 href="{{acceptUrl}}"
+                                                 href="{{resetUrl}}"
                                                  style="height:48px; v-text-anchor:middle; width:544px;"
                                                  arcsize="50%" stroke="f" fillcolor="#005F78">
                                         <w:anchorlock/>
                                         <center style="color:#ECFEFF; font-family:'Segoe UI',Arial,sans-serif; font-size:16px; font-weight:600;">
-                                            Aceitar convite
+                                            Redefinir senha
                                         </center>
                                     </v:roundrect>
                                     <![endif]-->
                                     <!--[if !mso]><!-->
-                                    <a href="{{acceptUrl}}"
+                                    <a href="{{resetUrl}}"
                                        style="display:block; width:100%; padding:14px 0; background-color:#005F78; color:#ECFEFF; font-family:Geist,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-size:16px; line-height:20px; font-weight:600; text-align:center; text-decoration:none; border-radius:999px; max-width:600px;">
-                                        Aceitar convite
+                                        Redefinir senha
                                     </a>
                                     <!--<![endif]-->
                                 </td>
                             </tr>
 
                             <tr>
-                                <td class="sm-pad" style="padding:24px 28px 28px 28px;">
+                                <td class="sm-pad" style="padding:24px 28px 0 28px;">
                                     <p style="margin:0 0 6px 0; font-family:Geist,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-size:13px; line-height:20px; color:#A1A1A1;">
                                         Se o botão não funcionar, copie este endereço no navegador:
                                     </p>
                                     <p style="margin:0; font-family:Geist,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-size:13px; line-height:20px; word-break:break-all;">
-                                        <a href="{{acceptUrl}}" style="color:#00B8DB; text-decoration:underline; word-break:break-all;">{{acceptUrl}}</a>
+                                        <a href="{{resetUrl}}" style="color:#00B8DB; text-decoration:underline; word-break:break-all;">{{resetUrl}}</a>
                                     </p>
+                                </td>
+                            </tr>
+
+                            <!-- Único aviso que o dono da conta tem de que alguém pediu a troca. -->
+                            <tr>
+                                <td class="sm-pad" style="padding:24px 28px 28px 28px;">
+                                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+                                           style="border-top:1px solid #2E2E2E;">
+                                        <tr>
+                                            <td style="padding:20px 0 0 0; font-family:Geist,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-size:13px; line-height:20px; color:#A1A1A1;">
+                                                Se você não pediu isso, ignore este e-mail: sua senha continua a
+                                                mesma enquanto o link não for usado.
+                                            </td>
+                                        </tr>
+                                    </table>
                                 </td>
                             </tr>
                         </table>

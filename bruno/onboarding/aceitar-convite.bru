@@ -23,3 +23,18 @@ script:post-response {
   if (res.getStatus() === 200) 
     bru.setEnvVar("access_token", res.getBody().access_token);
 }
+
+docs {
+  Cria o Member + Account do convidado e já devolve o access_token dele.
+
+  O `password` muda de sentido conforme o `account_exists` da "Prévia do convite":
+    account_exists=false → senha nova, que passa a ser a da conta criada
+    account_exists=true  → senha ATUAL da conta existente; ela só prova a posse da conta, não é
+                           trocada. É o caso de quem já é membro de outra EJ.
+
+  Erros:
+    400 convite inválido, expirado ou já usado
+    401 já existe conta com esse e-mail e a senha enviada não confere (mande a senha atual dela)
+    404 course_id não existe ou está desativado
+    409 conta desativada, ou você já é membro desta EJ
+}

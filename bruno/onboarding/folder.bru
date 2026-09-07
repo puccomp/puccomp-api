@@ -13,7 +13,11 @@ docs {
   3. "Criar convite" (convida {{invitee_email}} para o cargo {{role_id}})  → o email cai no
      Mailpit: http://localhost:8025
   4. Copie o token (inv_...) do email para a variável de ambiente invite_token
-  5. "Prévia do convite"  → mostra a EJ e o cargo e salva course_id, exigido no passo seguinte
+  5. "Prévia do convite"  → mostra a EJ e o cargo, salva course_id (exigido no passo seguinte) e
+     diz em account_exists se o e-mail já tem conta
   6. "Aceitar convite"  → cria a conta do convidado e sobrescreve access_token com o token dele,
      que já herda as permissões do cargo
+
+  Convidar um e-mail que JÁ tem conta é permitido de propósito (é o caminho multi-EJ), mas aí o
+  aceite pede a senha atual dessa conta, não uma nova — veja os docs dos dois requests.
 }

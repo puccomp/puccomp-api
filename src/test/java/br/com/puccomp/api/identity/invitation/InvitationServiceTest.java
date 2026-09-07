@@ -12,6 +12,8 @@ import br.com.puccomp.api.organization.MemberProvisioning;
 import br.com.puccomp.api.shared.exception.ConflictException;
 import br.com.puccomp.api.shared.exception.ResourceNotFoundException;
 import br.com.puccomp.api.shared.reference.Standing;
+import br.com.puccomp.api.shared.tenant.TenantContext;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -49,6 +51,11 @@ class InvitationServiceTest {
     @Mock private Mailer mailer;
     @Mock private OnboardingProperties properties;
     @InjectMocks private InvitationService service;
+
+    @AfterEach
+    void clearTenant() {
+        TenantContext.clear();
+    }
 
     private AuthPrincipal admin() {
         return new AuthPrincipal(UUID.randomUUID(), "dono@ej.dev", UUID.randomUUID(), null, Standing.OWNER, null);
@@ -190,6 +197,28 @@ class InvitationServiceTest {
 
         assertThat(response.accessToken()).isEqualTo("jwt-token");
         verify(acceptor).provision(any(), any());
+    }
+
+    @Test
+    @DisplayName("prévia sem conta prévia para o e-mail: account_exists=false (o aceite define a senha)")
+    void shouldPreviewWithoutExistingAccount() {
+        when(repository.findByTokenHash(any())).thenReturn(Optional.of(invitation(Instant.now().plusSeconds(3600))));
+        when(accounts.findByEmailIgnoreCase("novato@ej.dev")).thenReturn(Optional.empty());
+
+        InvitationPreviewResponse preview = service.preview("inv_token");
+
+        assertThat(preview.accountExists()).isFalse();
+        assertThat(preview.email()).isEqualTo("novato@ej.dev");
+    }
+
+    @Test
+    @DisplayName("prévia com conta já existente: account_exists=true (o aceite pede a senha atual)")
+    void shouldPreviewWithExistingAccount() {
+        when(repository.findByTokenHash(any())).thenReturn(Optional.of(invitation(Instant.now().plusSeconds(3600))));
+        when(accounts.findByEmailIgnoreCase("novato@ej.dev")).thenReturn(Optional.of(
+                Account.builder().id(UUID.randomUUID()).email("novato@ej.dev").build()));
+
+        assertThat(service.preview("inv_token").accountExists()).isTrue();
     }
 
     @Test

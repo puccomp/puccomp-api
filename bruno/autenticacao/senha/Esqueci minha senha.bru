@@ -1,0 +1,28 @@
+meta {
+  name: Esqueci minha senha
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{base_url}}/v1/auth/password/forgot
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "email": "{{owner_email}}"
+  }
+}
+
+docs {
+  202 Accepted sem corpo, em todos os casos: e-mail cadastrado, desconhecido ou de conta
+  desativada respondem igual. É de propósito — resposta diferente transformaria o endpoint
+  num verificador de quem tem conta na plataforma.
+
+  Só o e-mail cadastrado e ATIVO recebe mensagem. Confira no Mailpit (http://localhost:8025)
+  e copie o pwd_... do link para a variável de ambiente reset_token.
+
+  400 só para e-mail malformado (validação de formato).
+}

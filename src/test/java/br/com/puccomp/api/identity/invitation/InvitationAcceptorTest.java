@@ -131,6 +131,26 @@ class InvitationAcceptorTest {
     }
 
     @Test
+    @DisplayName("conta existente desativada: rejeita (409) em vez de 401, pois senha nenhuma resolve")
+    void shouldRejectInactiveExistingAccount() {
+        UUID invId = UUID.randomUUID();
+        Account inativa = Account.builder()
+                .id(UUID.randomUUID())
+                .email("novato@ej.dev")
+                .passwordHash("hash")
+                .status(AccountStatus.DISABLED)
+                .build();
+        when(repository.findById(invId)).thenReturn(Optional.of(invitation(UUID.randomUUID(), null)));
+        when(accounts.findByEmailIgnoreCase("novato@ej.dev")).thenReturn(Optional.of(inativa));
+
+        assertThatThrownBy(() -> acceptor.provision(invId,
+                new AcceptInvitationRequest("inv_token", "senha123", "Novato", UUID.randomUUID())))
+                .isInstanceOf(ConflictException.class);
+        verify(passwordEncoder, never()).matches(any(), any());
+        verify(memberProvisioning, never()).createMember(any(), any(), any(), any(), any());
+    }
+
+    @Test
     @DisplayName("conta existente com senha errada: rejeita (401), sem criar vínculo")
     void shouldRejectWrongPasswordForExistingAccount() {
         UUID invId = UUID.randomUUID();

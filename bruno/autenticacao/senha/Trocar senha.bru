@@ -1,0 +1,37 @@
+meta {
+  name: Trocar senha
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{base_url}}/v1/auth/password/change
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{access_token}}
+}
+
+body:json {
+  {
+    "current_password": "{{owner_password}}",
+    "new_password": "{{new_password}}"
+  }
+}
+
+docs {
+  Troca a senha de quem já está autenticado (204 No Content). Exige a senha atual mesmo com
+  access_token válido: um token roubado não pode virar troca de senha.
+
+  Erros (todos 400, nunca 401):
+    current_password: senha atual incorreta
+    new_password: a nova senha deve ser diferente da atual
+    new_password: deve ter entre 8 e 72 caracteres
+
+  O 400 na senha atual errada é escolha de contrato: a SESSÃO continua válida, e um 401 faria
+  o front tratar como token expirado e deslogar quem só errou a digitação.
+
+  Também derruba os links de "esqueci minha senha" que estiverem pendentes da conta.
+}
