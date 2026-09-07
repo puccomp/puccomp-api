@@ -29,10 +29,10 @@ import java.util.UUID;
 class DevDataSeeder implements ApplicationRunner {
 
     private static final String OWNER_EMAIL = "dono@ejcomp.dev";
-    private static final String OWNER_PASSWORD = "dono123";
+    private static final String OWNER_PASSWORD = "Dono@123";
     private static final String OWNER_NAME = "Dono da EJ";
     private static final String MEMBER_EMAIL = "membro@ejcomp.dev";
-    private static final String MEMBER_PASSWORD = "membro123";
+    private static final String MEMBER_PASSWORD = "Membro@123";
     private static final String MEMBER_NAME = "Membro da EJ";
 
     private final TenantRepository tenants;

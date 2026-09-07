@@ -32,8 +32,9 @@ docs {
     account_exists=true  → senha ATUAL da conta existente; ela só prova a posse da conta, não é
                            trocada. É o caso de quem já é membro de outra EJ.
 
-  A senha nova precisa ter entre 8 e 72 caracteres — mesma regra de "Redefinir senha" e
-  "Trocar senha". Quando account_exists=true o limite NÃO se aplica: ali o campo é a senha
+  A senha nova segue a MESMA regra de "Redefinir senha" e "Trocar senha": 8 a 72 caracteres,
+  ao menos uma maiúscula e ao menos um caractere especial. Quando account_exists=true a regra
+  NÃO se aplica: ali o campo é a senha
   atual da conta, que pode ser mais antiga e mais curta.
 
   Erros:

@@ -135,10 +135,10 @@ class PasswordServiceTest {
         PasswordResetToken token = token(account.getId(), Instant.now().plusSeconds(3600));
         when(tokens.findByTokenHash(TokenSecrets.sha256Hex("pwd_token"))).thenReturn(Optional.of(token));
         when(accounts.findById(account.getId())).thenReturn(Optional.of(account));
-        when(passwordEncoder.encode("senha-nova-123")).thenReturn("hash-novo");
+        when(passwordEncoder.encode("Senha@nova123")).thenReturn("hash-novo");
         when(tokens.findByAccountIdAndUsedAtIsNull(account.getId())).thenReturn(List.of());
 
-        service.reset(new ResetPasswordRequest("pwd_token", "senha-nova-123"));
+        service.reset(new ResetPasswordRequest("pwd_token", "Senha@nova123"));
 
         assertThat(account.getPasswordHash()).isEqualTo("hash-novo");
         assertThat(token.getUsedAt()).isNotNull();
@@ -151,7 +151,7 @@ class PasswordServiceTest {
         token.markUsed(Instant.now());
         when(tokens.findByTokenHash(any())).thenReturn(Optional.of(token));
 
-        assertThatThrownBy(() -> service.reset(new ResetPasswordRequest("pwd_token", "senha-nova-123")))
+        assertThatThrownBy(() -> service.reset(new ResetPasswordRequest("pwd_token", "Senha@nova123")))
                 .isInstanceOf(ValidationException.class);
         verify(accounts, never()).findById(any());
     }
@@ -162,7 +162,7 @@ class PasswordServiceTest {
         when(tokens.findByTokenHash(any()))
                 .thenReturn(Optional.of(token(UUID.randomUUID(), Instant.now().minusSeconds(1))));
 
-        assertThatThrownBy(() -> service.reset(new ResetPasswordRequest("pwd_token", "senha-nova-123")))
+        assertThatThrownBy(() -> service.reset(new ResetPasswordRequest("pwd_token", "Senha@nova123")))
                 .isInstanceOf(ValidationException.class);
         verify(accounts, never()).findById(any());
     }
@@ -172,7 +172,7 @@ class PasswordServiceTest {
     void shouldRejectUnknownToken() {
         when(tokens.findByTokenHash(any())).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service.reset(new ResetPasswordRequest("pwd_token", "senha-nova-123")))
+        assertThatThrownBy(() -> service.reset(new ResetPasswordRequest("pwd_token", "Senha@nova123")))
                 .isInstanceOf(ValidationException.class);
     }
 
@@ -183,12 +183,12 @@ class PasswordServiceTest {
         PasswordResetToken pendente = token(account.getId(), Instant.now().plusSeconds(3600));
         when(accounts.findById(account.getId())).thenReturn(Optional.of(account));
         when(passwordEncoder.matches("senha-atual", "hash-atual")).thenReturn(true);
-        when(passwordEncoder.matches("senha-nova-123", "hash-atual")).thenReturn(false);
-        when(passwordEncoder.encode("senha-nova-123")).thenReturn("hash-novo");
+        when(passwordEncoder.matches("Senha@nova123", "hash-atual")).thenReturn(false);
+        when(passwordEncoder.encode("Senha@nova123")).thenReturn("hash-novo");
         when(tokens.findByAccountIdAndUsedAtIsNull(account.getId())).thenReturn(List.of(pendente));
 
         service.change(principal(account.getId()),
-                new ChangePasswordRequest("senha-atual", "senha-nova-123"));
+                new ChangePasswordRequest("senha-atual", "Senha@nova123"));
 
         assertThat(account.getPasswordHash()).isEqualTo("hash-novo");
         assertThat(pendente.getUsedAt()).isNotNull();
@@ -202,7 +202,7 @@ class PasswordServiceTest {
         when(passwordEncoder.matches("errada", "hash-atual")).thenReturn(false);
 
         assertThatThrownBy(() -> service.change(principal(account.getId()),
-                new ChangePasswordRequest("errada", "senha-nova-123")))
+                new ChangePasswordRequest("errada", "Senha@nova123")))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining("current_password");
         assertThat(account.getPasswordHash()).isEqualTo("hash-atual");

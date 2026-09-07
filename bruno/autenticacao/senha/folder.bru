@@ -8,7 +8,7 @@ auth {
 }
 
 vars:pre-request {
-  new_password: senha-nova-123
+  new_password: Senha@nova123
 }
 
 docs {
@@ -27,6 +27,9 @@ docs {
 
   Pedir um link novo, redefinir ou trocar a senha derruba todos os links de reset pendentes
   da conta — só um vale por vez.
+
+  Redefinir OU trocar a senha dispara um e-mail de aviso "Sua senha foi alterada" para o
+  endereço da conta — é o sinal que chega ao dono se quem trocou foi outra pessoa.
 
   ATENÇÃO: access_token já emitido continua válido até expirar (8h). Trocar a senha não
   desloga as sessões abertas; hoje não há revogação de JWT.
