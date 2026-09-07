@@ -3,6 +3,7 @@ package br.com.puccomp.api.identity.invitation;
 import br.com.puccomp.api.identity.account.Account;
 import br.com.puccomp.api.identity.account.AccountRepository;
 import br.com.puccomp.api.identity.account.AccountStatus;
+import br.com.puccomp.api.identity.password.PasswordPolicy;
 import br.com.puccomp.api.organization.CourseCatalog;
 import br.com.puccomp.api.organization.MemberDirectory;
 import br.com.puccomp.api.organization.MemberProvisioning;
@@ -38,11 +39,14 @@ class InvitationAcceptor {
 
         var account = accounts.findByEmailIgnoreCase(invitation.getEmail())
                 .map(existing -> linkExisting(existing, request, invitation.getTenantId()))
-                .orElseGet(() -> accounts.save(Account.builder()
-                        .email(invitation.getEmail())
-                        .passwordHash(passwordEncoder.encode(request.password()))
-                        .status(AccountStatus.ACTIVE)
-                        .build()));
+                .orElseGet(() -> {
+                    PasswordPolicy.validateNewPassword(request.password());
+                    return accounts.save(Account.builder()
+                            .email(invitation.getEmail())
+                            .passwordHash(passwordEncoder.encode(request.password()))
+                            .status(AccountStatus.ACTIVE)
+                            .build());
+                });
 
         if (!courseCatalog.isAssignable(request.courseId()))
             throw new ResourceNotFoundException("Curso não encontrado");

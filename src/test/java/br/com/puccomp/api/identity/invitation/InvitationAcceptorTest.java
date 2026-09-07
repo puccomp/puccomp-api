@@ -7,6 +7,7 @@ import br.com.puccomp.api.organization.MemberDirectory.Membership;
 import br.com.puccomp.api.organization.MemberProvisioning;
 import br.com.puccomp.api.shared.exception.ConflictException;
 import br.com.puccomp.api.shared.exception.UnauthorizedException;
+import br.com.puccomp.api.shared.exception.ValidationException;
 import br.com.puccomp.api.shared.reference.Standing;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -128,6 +129,40 @@ class InvitationAcceptorTest {
                 .isInstanceOf(ConflictException.class);
         verify(memberProvisioning, never()).createMember(any(), any(), any(), any(), any());
         verify(accounts, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("senha curta ao criar conta nova: rejeita (400) com a mesma regra da redefinição")
+    void shouldRejectShortPasswordWhenCreatingAccount() {
+        UUID invId = UUID.randomUUID();
+        when(repository.findById(invId)).thenReturn(Optional.of(invitation(UUID.randomUUID(), null)));
+        when(accounts.findByEmailIgnoreCase("novato@ej.dev")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> acceptor.provision(invId,
+                new AcceptInvitationRequest("inv_token", "curta1", "Novato", UUID.randomUUID())))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("password");
+        verify(accounts, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("vincular conta existente ignora o mínimo: a senha antiga pode ser mais curta")
+    void shouldNotApplyPolicyWhenLinkingExistingAccount() {
+        UUID invId = UUID.randomUUID();
+        UUID tenant = UUID.randomUUID();
+        UUID course = UUID.randomUUID();
+        Account existing = existingAccount();
+        when(repository.findById(invId)).thenReturn(Optional.of(invitation(tenant, null)));
+        when(accounts.findByEmailIgnoreCase("novato@ej.dev")).thenReturn(Optional.of(existing));
+        when(passwordEncoder.matches("velha7", "hash")).thenReturn(true);
+        when(memberDirectory.findMembership(existing.getId(), tenant)).thenReturn(Optional.empty());
+        when(courseCatalog.isAssignable(course)).thenReturn(true);
+        when(memberProvisioning.createMember(any(), any(), any(), any(), any()))
+                .thenReturn(UUID.randomUUID());
+
+        acceptor.provision(invId, new AcceptInvitationRequest("inv_token", "velha7", "Novato", course));
+
+        verify(memberProvisioning).createMember(any(), any(), any(), any(), any());
     }
 
     @Test

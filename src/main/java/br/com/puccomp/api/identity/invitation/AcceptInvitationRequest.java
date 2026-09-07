@@ -8,7 +8,8 @@ import java.util.UUID;
 
 public record AcceptInvitationRequest(
         @NotBlank String token,
-        @Schema(description = "Senha a definir; se a prévia trouxe account_exists=true, a senha atual da conta")
+        @Schema(description = "Senha a definir (8 a 72 caracteres); se a prévia trouxe "
+                + "account_exists=true, é a senha atual da conta e o limite não se aplica")
         @NotBlank String password,
         @NotBlank String name,
         @NotNull UUID courseId
