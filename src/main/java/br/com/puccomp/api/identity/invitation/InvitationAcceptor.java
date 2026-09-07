@@ -3,6 +3,7 @@ package br.com.puccomp.api.identity.invitation;
 import br.com.puccomp.api.identity.account.Account;
 import br.com.puccomp.api.identity.account.AccountRepository;
 import br.com.puccomp.api.identity.account.AccountStatus;
+import br.com.puccomp.api.identity.password.PasswordPolicy;
 import br.com.puccomp.api.organization.CourseCatalog;
 import br.com.puccomp.api.organization.MemberDirectory;
 import br.com.puccomp.api.organization.MemberProvisioning;
@@ -38,11 +39,14 @@ class InvitationAcceptor {
 
         var account = accounts.findByEmailIgnoreCase(invitation.getEmail())
                 .map(existing -> linkExisting(existing, request, invitation.getTenantId()))
-                .orElseGet(() -> accounts.save(Account.builder()
-                        .email(invitation.getEmail())
-                        .passwordHash(passwordEncoder.encode(request.password()))
-                        .status(AccountStatus.ACTIVE)
-                        .build()));
+                .orElseGet(() -> {
+                    PasswordPolicy.validateNewPassword(request.password());
+                    return accounts.save(Account.builder()
+                            .email(invitation.getEmail())
+                            .passwordHash(passwordEncoder.encode(request.password()))
+                            .status(AccountStatus.ACTIVE)
+                            .build());
+                });
 
         if (!courseCatalog.isAssignable(request.courseId()))
             throw new ResourceNotFoundException("Curso não encontrado");
@@ -55,9 +59,17 @@ class InvitationAcceptor {
         return new Provisioned(account, memberId, invitation.getStanding());
     }
 
+    /**
+     * Com conta já existente o {@code password} do aceite não define senha: ele prova a posse da conta,
+     * senão bastaria conhecer um email convidado para tomá-la. As duas recusas são separadas porque têm
+     * saídas diferentes — senha errada o convidado resolve sozinho, conta desativada não.
+     */
     private Account linkExisting(Account account, AcceptInvitationRequest request, UUID tenantId) {
-        if (!account.isActive() || !passwordEncoder.matches(request.password(), account.getPasswordHash()))
-            throw new UnauthorizedException("Não foi possível vincular a conta existente");
+        if (!account.isActive())
+            throw new ConflictException("A conta com este e-mail está desativada; procure a PUC COMP");
+        if (!passwordEncoder.matches(request.password(), account.getPasswordHash()))
+            throw new UnauthorizedException(
+                    "Você já tem uma conta com este e-mail; informe a senha atual dela para entrar nesta EJ");
         if (memberDirectory.findMembership(account.getId(), tenantId).isPresent())
             throw new ConflictException("Você já é membro desta EJ");
         return account;

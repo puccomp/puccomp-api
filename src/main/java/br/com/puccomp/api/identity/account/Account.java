@@ -29,4 +29,8 @@ public class Account extends Auditable {
     private AccountStatus status;
 
     public boolean isActive() { return status == AccountStatus.ACTIVE; }
+
+    public void changePassword(String passwordHash) {
+        this.passwordHash = passwordHash;
+    }
 }

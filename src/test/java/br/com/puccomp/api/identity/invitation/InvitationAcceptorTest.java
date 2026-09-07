@@ -7,6 +7,7 @@ import br.com.puccomp.api.organization.MemberDirectory.Membership;
 import br.com.puccomp.api.organization.MemberProvisioning;
 import br.com.puccomp.api.shared.exception.ConflictException;
 import br.com.puccomp.api.shared.exception.UnauthorizedException;
+import br.com.puccomp.api.shared.exception.ValidationException;
 import br.com.puccomp.api.shared.reference.Standing;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -70,14 +71,14 @@ class InvitationAcceptorTest {
         Invitation invitation = invitation(tenant, cargo);
         when(repository.findById(invId)).thenReturn(Optional.of(invitation));
         when(accounts.findByEmailIgnoreCase("novato@ej.dev")).thenReturn(Optional.empty());
-        when(passwordEncoder.encode("senha123")).thenReturn("hash");
+        when(passwordEncoder.encode("Senha@123")).thenReturn("hash");
         when(accounts.save(any())).thenAnswer(inv -> inv.getArgument(0));
         when(courseCatalog.isAssignable(course)).thenReturn(true);
         when(memberProvisioning.createMember(any(), eq("Novato"), eq(course), eq(cargo),
                 eq(Standing.MEMBER))).thenReturn(memberId);
 
         InvitationAcceptor.Provisioned result = acceptor.provision(invId,
-                new AcceptInvitationRequest("inv_token", "senha123", "Novato", course));
+                new AcceptInvitationRequest("inv_token", "Senha@123", "Novato", course));
 
         assertThat(invitation.getAcceptedAt()).isNotNull();
         assertThat(result.memberId()).isEqualTo(memberId);
@@ -128,6 +129,60 @@ class InvitationAcceptorTest {
                 .isInstanceOf(ConflictException.class);
         verify(memberProvisioning, never()).createMember(any(), any(), any(), any(), any());
         verify(accounts, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("senha curta ao criar conta nova: rejeita (400) com a mesma regra da redefinição")
+    void shouldRejectShortPasswordWhenCreatingAccount() {
+        UUID invId = UUID.randomUUID();
+        when(repository.findById(invId)).thenReturn(Optional.of(invitation(UUID.randomUUID(), null)));
+        when(accounts.findByEmailIgnoreCase("novato@ej.dev")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> acceptor.provision(invId,
+                new AcceptInvitationRequest("inv_token", "curta1", "Novato", UUID.randomUUID())))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("password");
+        verify(accounts, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("vincular conta existente ignora o mínimo: a senha antiga pode ser mais curta")
+    void shouldNotApplyPolicyWhenLinkingExistingAccount() {
+        UUID invId = UUID.randomUUID();
+        UUID tenant = UUID.randomUUID();
+        UUID course = UUID.randomUUID();
+        Account existing = existingAccount();
+        when(repository.findById(invId)).thenReturn(Optional.of(invitation(tenant, null)));
+        when(accounts.findByEmailIgnoreCase("novato@ej.dev")).thenReturn(Optional.of(existing));
+        when(passwordEncoder.matches("velha7", "hash")).thenReturn(true);
+        when(memberDirectory.findMembership(existing.getId(), tenant)).thenReturn(Optional.empty());
+        when(courseCatalog.isAssignable(course)).thenReturn(true);
+        when(memberProvisioning.createMember(any(), any(), any(), any(), any()))
+                .thenReturn(UUID.randomUUID());
+
+        acceptor.provision(invId, new AcceptInvitationRequest("inv_token", "velha7", "Novato", course));
+
+        verify(memberProvisioning).createMember(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("conta existente desativada: rejeita (409) em vez de 401, pois senha nenhuma resolve")
+    void shouldRejectInactiveExistingAccount() {
+        UUID invId = UUID.randomUUID();
+        Account inativa = Account.builder()
+                .id(UUID.randomUUID())
+                .email("novato@ej.dev")
+                .passwordHash("hash")
+                .status(AccountStatus.DISABLED)
+                .build();
+        when(repository.findById(invId)).thenReturn(Optional.of(invitation(UUID.randomUUID(), null)));
+        when(accounts.findByEmailIgnoreCase("novato@ej.dev")).thenReturn(Optional.of(inativa));
+
+        assertThatThrownBy(() -> acceptor.provision(invId,
+                new AcceptInvitationRequest("inv_token", "senha123", "Novato", UUID.randomUUID())))
+                .isInstanceOf(ConflictException.class);
+        verify(passwordEncoder, never()).matches(any(), any());
+        verify(memberProvisioning, never()).createMember(any(), any(), any(), any(), any());
     }
 
     @Test

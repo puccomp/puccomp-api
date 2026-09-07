@@ -1,0 +1,36 @@
+meta {
+  name: senha
+  seq: 4
+}
+
+auth {
+  mode: inherit
+}
+
+vars:pre-request {
+  new_password: Senha@nova123
+}
+
+docs {
+  Recuperação e troca de senha. A senha é da Account, que é global: trocar aqui vale para
+  todas as EJs em que a pessoa é membro.
+
+  Esqueceu a senha (não autenticado):
+  1. "Esqueci minha senha"  → 202 SEMPRE, mesmo para e-mail sem conta (não revela cadastro).
+     O link cai no Mailpit: http://localhost:8025
+  2. Copie o token (pwd_...) do link para a variável de ambiente reset_token
+  3. "Redefinir senha"      → 204; o token é de uso único e vale por 1h
+  4. "Login" (na pasta acima) com a senha nova
+
+  Já está dentro da plataforma:
+  - "Trocar senha"  → exige a senha atual junto, mesmo com access_token válido
+
+  Pedir um link novo, redefinir ou trocar a senha derruba todos os links de reset pendentes
+  da conta — só um vale por vez.
+
+  Redefinir OU trocar a senha dispara um e-mail de aviso "Sua senha foi alterada" para o
+  endereço da conta — é o sinal que chega ao dono se quem trocou foi outra pessoa.
+
+  ATENÇÃO: access_token já emitido continua válido até expirar (8h). Trocar a senha não
+  desloga as sessões abertas; hoje não há revogação de JWT.
+}

@@ -16,7 +16,13 @@ params:query {
 
 docs {
   Prévia pública do convite (autenticada apenas pelo token): retorna { organization: {id, name,
-  slug}, email, courses } para preencher o aceite. Guarda o primeiro curso em `course_id`.
+  slug}, email, account_exists, courses } para preencher o aceite. Guarda o primeiro curso em
+  `course_id`.
+
+  `account_exists` diz o que o campo `password` do aceite significa:
+    false → o e-mail ainda não tem conta; o aceite CRIA a conta com a senha enviada
+    true  → o e-mail já tem conta (ex.: a pessoa já é membro de outra EJ); o aceite exige a
+            SENHA ATUAL dessa conta para vincular. Senha diferente = 401.
 }
 
 script:post-response {

@@ -17,7 +17,22 @@ interface SelectionProcessRepository extends JpaRepository<SelectionProcess, UUI
 
     Optional<SelectionProcess> findByIdAndStatus(UUID id, SelectionProcessStatus status);
 
+    /** Tudo que já foi publicado alguma vez. DRAFT fica de fora: nunca existiu para o candidato. */
+    @Query("select p from SelectionProcess p where p.id = :id and p.status <> "
+            + "br.com.puccomp.api.recruitment.processes.SelectionProcessStatus.DRAFT")
+    Optional<SelectionProcess> findPublished(@Param("id") UUID id);
+
     Page<SelectionProcess> findByStatus(SelectionProcessStatus status, Pageable pageable);
+
+    @Query("select p from SelectionProcess p where p.searchTitle like :term escape '\\'")
+    Page<SelectionProcess> searchByTitle(@Param("term") String term, Pageable pageable);
+
+    @Query("""
+            select p from SelectionProcess p
+            where p.status = :status and p.searchTitle like :term escape '\\'
+            """)
+    Page<SelectionProcess> searchByStatusAndTitle(@Param("status") SelectionProcessStatus status,
+                                                  @Param("term") String term, Pageable pageable);
 
     /** OPEN de verdade: gravado como OPEN e ainda dentro do prazo. */
     @Query("""
@@ -27,6 +42,15 @@ interface SelectionProcessRepository extends JpaRepository<SelectionProcess, UUI
             """)
     Page<SelectionProcess> findEffectivelyOpen(@Param("now") Instant now, Pageable pageable);
 
+    @Query("""
+            select p from SelectionProcess p
+            where p.status = br.com.puccomp.api.recruitment.processes.SelectionProcessStatus.OPEN
+              and (p.closesAt is null or p.closesAt > :now)
+              and p.searchTitle like :term escape '\\'
+            """)
+    Page<SelectionProcess> searchEffectivelyOpen(@Param("term") String term,
+                                                 @Param("now") Instant now, Pageable pageable);
+
     /** IN_REVIEW inclui quem ainda está gravado como OPEN mas já passou do prazo. */
     @Query("""
             select p from SelectionProcess p
@@ -35,4 +59,14 @@ interface SelectionProcessRepository extends JpaRepository<SelectionProcess, UUI
                    and p.closesAt is not null and p.closesAt <= :now)
             """)
     Page<SelectionProcess> findEffectivelyInReview(@Param("now") Instant now, Pageable pageable);
+
+    @Query("""
+            select p from SelectionProcess p
+            where (p.status = br.com.puccomp.api.recruitment.processes.SelectionProcessStatus.IN_REVIEW
+               or (p.status = br.com.puccomp.api.recruitment.processes.SelectionProcessStatus.OPEN
+                   and p.closesAt is not null and p.closesAt <= :now))
+              and p.searchTitle like :term escape '\\'
+            """)
+    Page<SelectionProcess> searchEffectivelyInReview(@Param("term") String term,
+                                                     @Param("now") Instant now, Pageable pageable);
 }

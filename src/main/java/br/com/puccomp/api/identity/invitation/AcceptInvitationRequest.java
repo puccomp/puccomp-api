@@ -1,5 +1,6 @@
 package br.com.puccomp.api.identity.invitation;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
@@ -7,6 +8,8 @@ import java.util.UUID;
 
 public record AcceptInvitationRequest(
         @NotBlank String token,
+        @Schema(description = "Senha a definir (8 a 72 caracteres); se a prévia trouxe "
+                + "account_exists=true, é a senha atual da conta e o limite não se aplica")
         @NotBlank String password,
         @NotBlank String name,
         @NotNull UUID courseId

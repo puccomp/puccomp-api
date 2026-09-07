@@ -128,7 +128,7 @@ class CvSubmissionEndToEndTest extends AbstractIntegrationTest {
             String recipient = message.getAllRecipients()[0].toString();
             recipients.add(recipient);
             assertThat(message.getSubject()).isEqualTo(recipient.equals("candidate@cv-e2e.dev")
-                    ? "Inscrição confirmada — PS Currículos" : "Nova inscrição — PS Currículos");
+                    ? "Inscrição confirmada: PS Currículos" : "Nova inscrição: PS Currículos");
         }
         assertThat(recipients).containsExactlyInAnyOrder("candidate@cv-e2e.dev", "owner@cv-e2e.dev", "recruiter@cv-e2e.dev");
 
