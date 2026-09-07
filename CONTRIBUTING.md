@@ -247,8 +247,8 @@ No primeiro boot com o banco vazio, o `DevDataSeeder` cria a EJ `ej-comp` e duas
 
 | Conta  | Email               | Senha       | Standing | Cargo      |
 | ------ | ------------------- | ----------- | -------- | ---------- |
-| Dono   | `dono@ejcomp.dev`   | `dono123`   | `OWNER`  | Presidente |
-| Membro | `membro@ejcomp.dev` | `membro123` | `MEMBER` | —          |
+| Dono   | `dono@ejcomp.dev`   | `Dono@123`   | `OWNER`  | Presidente |
+| Membro | `membro@ejcomp.dev` | `Membro@123` | `MEMBER` | —          |
 
 **Serviços e portas:**
 

@@ -71,14 +71,14 @@ class InvitationAcceptorTest {
         Invitation invitation = invitation(tenant, cargo);
         when(repository.findById(invId)).thenReturn(Optional.of(invitation));
         when(accounts.findByEmailIgnoreCase("novato@ej.dev")).thenReturn(Optional.empty());
-        when(passwordEncoder.encode("senha123")).thenReturn("hash");
+        when(passwordEncoder.encode("Senha@123")).thenReturn("hash");
         when(accounts.save(any())).thenAnswer(inv -> inv.getArgument(0));
         when(courseCatalog.isAssignable(course)).thenReturn(true);
         when(memberProvisioning.createMember(any(), eq("Novato"), eq(course), eq(cargo),
                 eq(Standing.MEMBER))).thenReturn(memberId);
 
         InvitationAcceptor.Provisioned result = acceptor.provision(invId,
-                new AcceptInvitationRequest("inv_token", "senha123", "Novato", course));
+                new AcceptInvitationRequest("inv_token", "Senha@123", "Novato", course));
 
         assertThat(invitation.getAcceptedAt()).isNotNull();
         assertThat(result.memberId()).isEqualTo(memberId);

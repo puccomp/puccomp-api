@@ -57,6 +57,7 @@ class PasswordService {
         account.changePassword(passwordEncoder.encode(request.password()));
         token.markUsed(now);
         invalidateOutstanding(account.getId(), now);
+        notifyPasswordChanged(account);
     }
 
     /**
@@ -78,6 +79,7 @@ class PasswordService {
         Instant now = Instant.now();
         account.changePassword(passwordEncoder.encode(request.newPassword()));
         invalidateOutstanding(account.getId(), now);
+        notifyPasswordChanged(account);
     }
 
     private void issueResetToken(Account account) {
@@ -98,6 +100,22 @@ class PasswordService {
                 Map.of(
                         "resetUrl", properties.urlBase() + "?token=" + raw,
                         "validFor", humanizedTtl())));
+    }
+
+    /**
+     * Avisa que a senha mudou, sempre — inclusive quando foi a própria pessoa. É o único sinal que
+     * chega ao dono da conta quando quem trocou foi outro: o aviso vai para o endereço cadastrado,
+     * que o atacante não controla, e chega antes de ele terminar de tomar a conta.
+     *
+     * <p>Vai depois do commit (o {@code Mailer} adia até lá), então falha de SMTP não desfaz a troca
+     * de senha — perder o aviso é ruim, deixar a pessoa sem conseguir trocar a senha é pior.
+     */
+    private void notifyPasswordChanged(Account account) {
+        mailer.send(new EmailMessage(
+                account.getEmail(),
+                "Sua senha foi alterada",
+                "senha-alterada",
+                Map.of("email", account.getEmail())));
     }
 
     /** Só um link vale por vez: pedir de novo, redefinir ou trocar a senha derruba os anteriores. */

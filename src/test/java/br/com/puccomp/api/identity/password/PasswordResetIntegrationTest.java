@@ -64,12 +64,12 @@ class PasswordResetIntegrationTest extends AbstractIntegrationTest {
         assertThat(forgot("dono@reset.dev").getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
         String token = resetTokenFromEmail();
 
-        assertThat(reset(token, "senha-nova-123").getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
-        assertThat(login("dono@reset.dev", "senha-nova-123")).isNotBlank();
+        assertThat(reset(token, "Senha@nova123").getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+        assertThat(login("dono@reset.dev", "Senha@nova123")).isNotBlank();
         assertThat(loginStatus("dono@reset.dev", "senha-antiga-1")).isEqualTo(HttpStatus.UNAUTHORIZED);
 
         // Uso único: o mesmo link não redefine de novo.
-        assertThat(reset(token, "outra-senha-123").getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(reset(token, "Outra@senha123").getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
     }
 
     @Test
@@ -92,8 +92,8 @@ class PasswordResetIntegrationTest extends AbstractIntegrationTest {
         String segundo = resetTokenFromEmail();
 
         assertThat(primeiro).isNotEqualTo(segundo);
-        assertThat(reset(primeiro, "senha-nova-123").getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-        assertThat(reset(segundo, "senha-nova-123").getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+        assertThat(reset(primeiro, "Senha@nova123").getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(reset(segundo, "Senha@nova123").getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
     }
 
     @Test
@@ -103,21 +103,59 @@ class PasswordResetIntegrationTest extends AbstractIntegrationTest {
         String sessao = login("dono@change.dev", "senha-antiga-1");
 
         ResponseEntity<String> errada = post("/v1/auth/password/change",
-                Map.of("current_password", "chutando", "new_password", "senha-nova-123"), sessao, String.class);
+                Map.of("current_password", "chutando", "new_password", "Senha@nova123"), sessao, String.class);
         assertThat(errada.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
         assertThat(errada.getBody()).contains("current_password");
 
         ResponseEntity<String> ok = post("/v1/auth/password/change",
-                Map.of("current_password", "senha-antiga-1", "new_password", "senha-nova-123"), sessao, String.class);
+                Map.of("current_password", "senha-antiga-1", "new_password", "Senha@nova123"), sessao, String.class);
         assertThat(ok.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
-        assertThat(login("dono@change.dev", "senha-nova-123")).isNotBlank();
+        assertThat(login("dono@change.dev", "Senha@nova123")).isNotBlank();
+    }
+
+    @Test
+    @DisplayName("senha fora da política é 400 com a mensagem dizendo o que faltou")
+    void shouldRejectPasswordOutsidePolicy() {
+        seedOwner("EJ Política", "ej-politica", "dono@politica.dev", "senha-antiga-1");
+
+        ResponseEntity<String> semMaiuscula = reset("pwd_qualquer", "senha@nova123");
+        assertThat(semMaiuscula.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(semMaiuscula.getBody()).contains("letra maiúscula").doesNotContain("caractere especial");
+
+        ResponseEntity<String> curta = reset("pwd_qualquer", "Ab@1");
+        assertThat(curta.getBody()).contains("ao menos 8 caracteres");
+
+        // A política barra antes de o token ser consultado: nem chega a dizer se o link vale.
+        assertThat(semMaiuscula.getBody()).doesNotContain("Link de redefinição");
+    }
+
+    @Test
+    @DisplayName("redefinir e trocar avisam por e-mail que a senha mudou")
+    void shouldNotifyOnPasswordChange() {
+        seedOwner("EJ Aviso", "ej-aviso", "dono@aviso.dev", "senha-antiga-1");
+
+        forgot("dono@aviso.dev");
+        String token = resetTokenFromEmail();
+        Mockito.reset(mailSender);
+        Mockito.when(mailSender.createMimeMessage()).thenAnswer(i -> new MimeMessage((Session) null));
+
+        assertThat(reset(token, "Senha@nova123").getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+        assertThat(bodyOfSingleEmail()).contains("Sua senha foi alterada").contains("dono@aviso.dev");
+
+        Mockito.reset(mailSender);
+        Mockito.when(mailSender.createMimeMessage()).thenAnswer(i -> new MimeMessage((Session) null));
+        String sessao = login("dono@aviso.dev", "Senha@nova123");
+        assertThat(post("/v1/auth/password/change",
+                Map.of("current_password", "Senha@nova123", "new_password", "Outra@senha123"),
+                sessao, String.class).getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+        assertThat(bodyOfSingleEmail()).contains("Sua senha foi alterada");
     }
 
     @Test
     @DisplayName("change não é público: sem token é 401, mesmo com forgot e reset liberados")
     void shouldRequireAuthenticationToChange() {
         ResponseEntity<String> res = post("/v1/auth/password/change",
-                Map.of("current_password", "x", "new_password", "senha-nova-123"), null, String.class);
+                Map.of("current_password", "x", "new_password", "Senha@nova123"), null, String.class);
         assertThat(res.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
     }
 
@@ -139,6 +177,16 @@ class PasswordResetIntegrationTest extends AbstractIntegrationTest {
                 new HttpEntity<>(Map.of("email", email, "password", password)),
                 new ParameterizedTypeReference<Map<String, Object>>() { });
         return HttpStatus.valueOf(res.getStatusCode().value());
+    }
+
+    private String bodyOfSingleEmail() {
+        ArgumentCaptor<MimeMessage> sent = ArgumentCaptor.forClass(MimeMessage.class);
+        Mockito.verify(mailSender).send(sent.capture());
+        try {
+            return sent.getValue().getContent().toString();
+        } catch (Exception e) {
+            throw new IllegalStateException("não foi possível ler o corpo do e-mail", e);
+        }
     }
 
     /** O token cru só existe no e-mail: é de lá que o teste o lê, como o convidado leria. */

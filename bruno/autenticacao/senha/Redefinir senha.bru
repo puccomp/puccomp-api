@@ -23,7 +23,9 @@ docs {
   O token vale UMA vez e por 1h. Repetir a mesma chamada dá 400 — mesmo erro de token
   desconhecido ou expirado, para não distinguir os casos.
 
-  A senha precisa ter entre 8 e 72 caracteres (o teto é o do BCrypt, que trunca em 72 bytes).
+  A senha precisa ter de 8 a 72 caracteres, ao menos uma letra MAIÚSCULA e ao menos um
+  caractere especial (qualquer coisa que não seja letra nem dígito — acento não conta).
+  O erro diz só o que faltou, não a regra inteira.
 
   Depois disto, use "Login" com {{new_password}} para pegar um access_token novo.
 }
