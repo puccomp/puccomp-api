@@ -29,6 +29,9 @@ public class SelectionProcess extends Auditable {
     @Column(nullable = false)
     private String title;
 
+    @Column(name = "search_title", insertable = false, updatable = false)
+    private String searchTitle;
+
     @Column(columnDefinition = "TEXT")
     private String description;
 

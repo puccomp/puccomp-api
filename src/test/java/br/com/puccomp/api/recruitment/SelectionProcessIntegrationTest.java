@@ -16,6 +16,9 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
@@ -220,6 +223,31 @@ class SelectionProcessIntegrationTest extends AbstractIntegrationTest {
         assertThat(emAvaliacao.path("content").get(0).path("id").asText()).isEqualTo(vencido.toString());
     }
 
+    @Test
+    @DisplayName("busca processos por título sem diferenciar acento ou caixa e combina com status")
+    void shouldSearchProcessesByTitleAndStatus() {
+        String token = ownerOf("EJ Busca", "ej-busca", "dono@busca.dev");
+        UUID alvo = createProcess(token, "Seleção de Tecnologia");
+        createProcess(token, "Processo Comercial");
+
+        // Termo sem acento achando título com acento: quem normaliza é a coluna gerada.
+        JsonNode semAcento = listProcesses(token, "?q={q}", "SELECAO");
+        assertThat(semAcento.path("content")).hasSize(1);
+        assertThat(semAcento.path("content").get(0).path("id").asText()).isEqualTo(alvo.toString());
+
+        // Termo com acento: aqui quem tem que normalizar é o Java, senão não casa com a coluna.
+        assertThat(listProcesses(token, "?q={q}", "Seleção").path("content")).hasSize(1);
+        assertThat(listProcesses(token, "?q={q}", "TECNOLOGIA").path("content")).hasSize(1);
+
+        assertThat(listProcesses(token, "?q={q}&status=OPEN", "selecao").path("content")).isEmpty();
+        assertThat(listProcesses(token, "?q={q}", "s").path("content")).hasSize(2);
+
+        // Curinga digitado vale como texto. Sem escape, "%o" viraria "qualquer coisa + o" e casaria
+        // com os dois; "el_ç" viraria "el + um caractere + c", que casa dentro de "seleção".
+        assertThat(listProcesses(token, "?q={q}", "%o").path("content")).isEmpty();
+        assertThat(listProcesses(token, "?q={q}", "el_ç").path("content")).isEmpty();
+    }
+
     private String ownerOf(String ejName, String slug, String email) {
         UUID tenantId = seeder.seedTenant(ejName, slug);
         seeder.seedAccount(tenantId, email, "senha123", Standing.OWNER);
@@ -260,8 +288,21 @@ class SelectionProcessIntegrationTest extends AbstractIntegrationTest {
     }
 
     private JsonNode listProcesses(String token, String query) {
+        return listProcesses(token, query, new Object[0]);
+    }
+
+    /**
+     * O termo vai como variável de URI, não concatenado: assim o Spring o codifica uma vez só.
+     * Concatenar já codificado faz o RestTemplate codificar de novo, e o servidor recebe o %XX cru —
+     * o que transforma asserção de curinga em teste vazio.
+     */
+    private JsonNode listProcesses(String token, String query, Object... uriVariables) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(token);
+        var body = rest.exchange("/v1/recruitment/processes" + query, HttpMethod.GET,
+                new HttpEntity<>(headers), String.class, uriVariables).getBody();
         try {
-            return mapper.readTree(getWithToken("/v1/recruitment/processes" + query, token).getBody());
+            return mapper.readTree(body);
         } catch (Exception e) {
             throw new IllegalStateException(e);
         }
