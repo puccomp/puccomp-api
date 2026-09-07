@@ -53,3 +53,6 @@ bruno/environments/*.secrets.bru
 # Environment variables
 .env*
 !.env.example
+
+# Specs de trabalho pendente: locais, não versionadas
+.specs/
