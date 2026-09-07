@@ -1,63 +1,181 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:v="urn:schemas-microsoft-com:vml"
+      xmlns:o="urn:schemas-microsoft-com:office:office"
+      lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <style>
-        body { margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #121212; color: #E2E8F0; }
-        .container { max-width: 600px; margin: 40px auto; background-color: #1A1C23; border: 1px solid #2D3748; border-radius: 8px; overflow: hidden; }
-        .header { background-color: #121212; padding: 30px 20px; text-align: center; border-bottom: 1px solid #2D3748; }
-        .content { padding: 40px 30px; line-height: 1.6; font-size: 16px; }
-        .content h2 { color: #FFFFFF; font-size: 24px; margin-top: 0; font-weight: 600; }
-        .highlight-box {
-            background-color: #FDE047;
-            color: #000000;
-            padding: 18px 20px;
-            margin: 30px 0;
-            font-weight: 700;
-            border: 2px solid #000000;
-            box-shadow: 4px 4px 0px #000000;
-            border-radius: 2px;
-            text-align: center;
-            font-size: 18px;
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge"/>
+    <meta name="x-apple-disable-message-reformatting"/>
+    <meta name="color-scheme" content="dark"/>
+    <meta name="supported-color-schemes" content="dark"/>
+    <title>Inscrição confirmada</title>
+    <!--[if mso]>
+    <noscript>
+        <xml>
+            <o:OfficeDocumentSettings>
+                <o:PixelsPerInch>96</o:PixelsPerInch>
+            </o:OfficeDocumentSettings>
+        </xml>
+    </noscript>
+    <![endif]-->
+    <!--
+        Sem <link> para webfont de propósito. Gmail remove a tag, Outlook desktop não suporta
+        webfont, e onde ela funciona (Apple Mail) custa uma requisição a cada abertura e conta
+        para o Google quando e de onde o e-mail foi lido. Geist segue na pilha de fontes: quem
+        tiver instalada vê Geist, o resto cai na fonte do sistema, que é o que já acontecia na
+        maioria dos clientes.
+    -->
+    <style type="text/css">
+        /* Resets: cliente de e-mail injeta estilo próprio. */
+        body { margin: 0 !important; padding: 0 !important; width: 100% !important; }
+        table { border-collapse: collapse; mso-table-lspace: 0; mso-table-rspace: 0; }
+        img { border: 0; outline: none; text-decoration: none; -ms-interpolation-mode: bicubic; }
+        a { text-decoration: none; }
+
+        /* Gmail e Outlook.com recolorem datas e endereços detectados. */
+        a[x-apple-data-detectors], .unstyle-auto-detected-links a, .aBn {
+            color: inherit !important; text-decoration: none !important; border-bottom: 0 !important;
         }
-        .cyan-text { color: #5EEAD4; font-weight: bold; }
-        .footer { background-color: #121212; padding: 25px 20px; text-align: center; font-size: 13px; color: #718096; border-top: 1px solid #2D3748; }
-        .button {
-            display: inline-block;
-            padding: 14px 32px;
-            background-color: #1A5CFF;
-            color: #FFFFFF !important;
-            text-decoration: none;
-            border-radius: 4px;
-            font-weight: bold;
-            margin-top: 20px;
+
+        @media only screen and (max-width: 620px) {
+            .sm-full { width: 100% !important; max-width: 100% !important; }
+            .sm-pad { padding-left: 24px !important; padding-right: 24px !important; }
+            .sm-title { font-size: 20px !important; line-height: 28px !important; }
         }
     </style>
 </head>
-<body>
-    <div class="container">
-        <div class="header"></div>
+<!--
+    Mesma paleta e tipografia do convite.html (tema escuro do puccomp ops):
+      background #0A0A0A, card #171717, borda #2E2E2E
+      texto #FAFAFA, texto suave #A1A1A1
+      primary #005F78 sobre #ECFEFF, acento da marca #00B8DB
+    Cor repetida em bgcolor e style porque Outlook antigo ignora uma das duas.
+-->
+<body style="margin:0; padding:0; width:100%; background-color:#0A0A0A; color:#FAFAFA; font-family:Geist,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;"
+      bgcolor="#0A0A0A">
 
-        <div class="content">
-            <h2>Olá, {{candidateName}}! 🚀</h2>
-            <p>Recebemos a sua candidatura para <span class="cyan-text">{{processTitle}}</span>.</p>
+<!-- Prévia na caixa de entrada, invisível no corpo. -->
+<div style="display:none; max-height:0; overflow:hidden; mso-hide:all; font-size:1px; line-height:1px; color:#0A0A0A; opacity:0;">
+    Sua inscrição em {{processTitle}} foi registrada.
+    &#8203;&#847;&#8203;&#847;&#8203;&#847;&#8203;&#847;&#8203;&#847;&#8203;&#847;&#8203;&#847;&#8203;&#847;
+</div>
 
-            <div class="highlight-box">
-                INSCRIÇÃO CONFIRMADA ✅
-            </div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+       style="background-color:#0A0A0A;" bgcolor="#0A0A0A">
+    <tr>
+        <td align="center" style="padding:40px 12px;">
 
-            <p>Aqui, aprender deixa rastro. Fique de olho nesta caixa de entrada, pois em breve enviaremos novas atualizações sobre os próximos passos e desafios práticos.</p>
-            <p>Enquanto isso, que tal explorar um pouco mais sobre o que você vai viver com a gente?</p>
+            <!--[if mso]>
+            <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0"><tr><td>
+            <![endif]-->
 
-            <div style="text-align: center; margin-top: 40px; margin-bottom: 20px;">
-                <a href="https://puccomp.com.br" class="button">Quero ver o site</a>
-            </div>
-        </div>
+            <table role="presentation" class="sm-full" width="600" cellpadding="0" cellspacing="0" border="0"
+                   style="width:600px; max-width:600px;">
+                <tr>
+                    <td>
+                        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+                               style="background-color:#171717; border-radius:20px;"
+                               bgcolor="#171717">
 
-        <div class="footer">
-            Empresa Júnior de Computação<br>
-            Este é um e-mail automático. Por favor, não responda.
-        </div>
-    </div>
+                            <tr>
+                                <td class="sm-pad" style="padding:28px 28px 0 28px;">
+                                    <h1 class="sm-title"
+                                        style="margin:0 0 8px 0; font-family:Geist,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-size:22px; line-height:30px; font-weight:600; color:#FAFAFA;">
+                                        Inscrição confirmada
+                                    </h1>
+                                    <p style="margin:0; font-family:Geist,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-size:14px; line-height:22px; color:#A1A1A1;">
+                                        {{organizationName}}
+                                    </p>
+                                </td>
+                            </tr>
+
+                            <tr>
+                                <td class="sm-pad" style="padding:24px 28px 0 28px;">
+                                    <p style="margin:0 0 16px 0; font-family:Geist,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-size:16px; line-height:26px; color:#FAFAFA;">
+                                        {{candidateName}}, recebemos sua inscrição.
+                                    </p>
+                                    <p style="margin:0; font-family:Geist,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-size:16px; line-height:26px; color:#FAFAFA;">
+                                        Não é preciso fazer nada agora. Quando as próximas etapas forem definidas, avisamos neste mesmo endereço.
+                                    </p>
+                                </td>
+                            </tr>
+
+                            <tr>
+                                <td class="sm-pad" style="padding:24px 28px 0 28px;">
+                                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+                                           style="background-color:#0A0A0A; border:1px solid #2E2E2E; border-radius:12px;"
+                                           bgcolor="#0A0A0A">
+                                        <tr><td style="padding:20px 20px 0 20px;">
+                                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                                        <tr>
+                                            <td style="padding:0; font-family:Geist,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-size:12px; line-height:16px; color:#A1A1A1; text-transform:uppercase; letter-spacing:0.04em;">
+                                                Processo seletivo
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td style="padding:2px 0 0 0; font-family:Geist,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-size:16px; line-height:24px; color:#FAFAFA; word-break:break-word;">
+                                                {{processTitle}}
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td style="padding:14px 0 0 0; font-family:Geist,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-size:12px; line-height:16px; color:#A1A1A1; text-transform:uppercase; letter-spacing:0.04em;">
+                                                Data da inscrição
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td style="padding:2px 0 0 0; font-family:Geist,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-size:16px; line-height:24px; color:#FAFAFA; word-break:break-word;">
+                                                {{submittedAt}}
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td style="padding:14px 0 0 0; font-family:Geist,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-size:12px; line-height:16px; color:#A1A1A1; text-transform:uppercase; letter-spacing:0.04em;">
+                                                Protocolo
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td style="padding:2px 0 0 0; font-family:Geist,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-size:16px; line-height:24px; color:#FAFAFA; word-break:break-word;">
+                                                {{protocol}}
+                                            </td>
+                                        </tr>
+                                    </table>
+                                        </td></tr>
+                                        <tr><td style="padding:0 0 20px 0;"></td></tr>
+                                    </table>
+                                </td>
+                            </tr>
+
+                            <tr>
+                                <td class="sm-pad" style="padding:24px 28px 28px 28px;">
+                                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+                                           style="border-top:1px solid #2E2E2E;">
+                                        <tr>
+                                            <td style="padding:20px 0 0 0; font-family:Geist,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-size:13px; line-height:20px; color:#A1A1A1;">
+                                                Guarde o protocolo caso precise falar com a {{organizationName}} sobre esta inscrição.
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+
+                <tr>
+                    <td align="center" class="unstyle-auto-detected-links"
+                        style="padding:24px 24px 0 24px; font-family:Geist,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-size:13px; line-height:20px; color:#A1A1A1;">
+                        Este é um e-mail automático. Por favor, não responda.
+                    </td>
+                </tr>
+            </table>
+
+            <!--[if mso]>
+            </td></tr></table>
+            <![endif]-->
+
+        </td>
+    </tr>
+</table>
 </body>
 </html>

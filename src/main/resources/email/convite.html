@@ -20,9 +20,13 @@
         </xml>
     </noscript>
     <![endif]-->
-    <!--[if !mso]><!-->
-    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
-    <!--<![endif]-->
+    <!--
+        Sem <link> para webfont de propósito. Gmail remove a tag, Outlook desktop não suporta
+        webfont, e onde ela funciona (Apple Mail) custa uma requisição a cada abertura e conta
+        para o Google quando e de onde o e-mail foi lido. Geist segue na pilha de fontes: quem
+        tiver instalada vê Geist, o resto cai na fonte do sistema, que é o que já acontecia na
+        maioria dos clientes.
+    -->
     <style type="text/css">
         /* Resets: cliente de e-mail injeta estilo próprio. */
         body { margin: 0 !important; padding: 0 !important; width: 100% !important; }
