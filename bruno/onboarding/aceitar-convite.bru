@@ -32,8 +32,12 @@ docs {
     account_exists=true  → senha ATUAL da conta existente; ela só prova a posse da conta, não é
                            trocada. É o caso de quem já é membro de outra EJ.
 
+  A senha nova precisa ter entre 8 e 72 caracteres — mesma regra de "Redefinir senha" e
+  "Trocar senha". Quando account_exists=true o limite NÃO se aplica: ali o campo é a senha
+  atual da conta, que pode ser mais antiga e mais curta.
+
   Erros:
-    400 convite inválido, expirado ou já usado
+    400 convite inválido, expirado ou já usado, ou senha nova fora da política
     401 já existe conta com esse e-mail e a senha enviada não confere (mande a senha atual dela)
     404 course_id não existe ou está desativado
     409 conta desativada, ou você já é membro desta EJ
