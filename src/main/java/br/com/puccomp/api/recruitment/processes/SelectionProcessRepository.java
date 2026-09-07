@@ -17,6 +17,11 @@ interface SelectionProcessRepository extends JpaRepository<SelectionProcess, UUI
 
     Optional<SelectionProcess> findByIdAndStatus(UUID id, SelectionProcessStatus status);
 
+    /** Tudo que já foi publicado alguma vez. DRAFT fica de fora: nunca existiu para o candidato. */
+    @Query("select p from SelectionProcess p where p.id = :id and p.status <> "
+            + "br.com.puccomp.api.recruitment.processes.SelectionProcessStatus.DRAFT")
+    Optional<SelectionProcess> findPublished(@Param("id") UUID id);
+
     Page<SelectionProcess> findByStatus(SelectionProcessStatus status, Pageable pageable);
 
     @Query("select p from SelectionProcess p where p.searchTitle like :term escape '\\'")

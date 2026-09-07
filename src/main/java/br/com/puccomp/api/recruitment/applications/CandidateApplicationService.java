@@ -19,17 +19,26 @@ class CandidateApplicationService {
 
     private static final String RECRUITMENT_READ = "recruitment:read";
 
+    /** Agrupar a curva de chegada em UTC empurraria o fim da noite para o dia seguinte,
+     *  bem onde o pico de prazo acontece. Vira configuração por EJ quando houver a primeira de fora. */
+    private static final java.time.ZoneId EJ_ZONE = java.time.ZoneId.of("America/Sao_Paulo");
+
     private final CandidateApplicationRegistry registry;
     private final AudienceNotifier notifier;
     private final Mailer mailer;
     private final FileService files;
 
-    Page<CandidateApplicationResponse> listByProcess(UUID processId, String query, Pageable pageable) {
-        return registry.listByProcess(processId, query, pageable);
+    Page<CandidateApplicationResponse> listByProcess(UUID processId, CandidateApplicationFilter filter,
+                                                     Pageable pageable) {
+        return registry.listByProcess(processId, filter, pageable);
     }
 
-    Page<CandidateApplicationResponse> searchAcrossProcesses(String query, Pageable pageable) {
-        return registry.searchAcrossProcesses(query, pageable);
+    Page<CandidateApplicationResponse> searchAcrossProcesses(CandidateApplicationFilter filter, Pageable pageable) {
+        return registry.searchAcrossProcesses(filter, pageable);
+    }
+
+    ApplicationSummaryResponse summarize(UUID processId) {
+        return registry.summarize(processId, EJ_ZONE);
     }
 
     CandidateApplicationReceiptResponse submit(UUID processId, SubmitCandidateApplicationRequest request) {

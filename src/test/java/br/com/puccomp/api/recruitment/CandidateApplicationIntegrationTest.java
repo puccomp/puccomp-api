@@ -514,6 +514,133 @@ class CandidateApplicationIntegrationTest extends AbstractIntegrationTest {
         assertThat(names(searchAll(tokenB, "exclusiva"))).isEmpty();
     }
 
+    @Test
+    @DisplayName("filtra a listagem por curso, período, currículo e janela de envio")
+    void shouldFilterApplications() {
+        UUID tenantId = seeder.seedTenant("EJ Filtros", "ej-filtros");
+        seeder.seedAccount(tenantId, "dono@filtros.dev", "senha123", Standing.OWNER);
+        String token = login("dono@filtros.dev", "senha123");
+        UUID processId = openProcess(token, "PS Filtros", null);
+        String path = publicProcess("ej-filtros", processId) + "/applications";
+
+        UUID computacao = courseOf("ej-filtros");
+        UUID design = seeder.seedCourse(tenantId, "Design");
+
+        post(path, candidate("terceiro@example.com", computacao, (short) 3), null, String.class);
+        post(path, candidate("oitavo@example.com", computacao, (short) 8), null, String.class);
+        post(path, candidate("designer@example.com", design, (short) 3), null, String.class);
+
+        assertThat(emails(filtered(token, processId, "?course_id={v}", computacao)))
+                .containsExactlyInAnyOrder("terceiro@example.com", "oitavo@example.com");
+        assertThat(emails(filtered(token, processId, "?course_id={v}", design)))
+                .containsExactly("designer@example.com");
+        assertThat(emails(filtered(token, processId, "?min_term={v}", "5")))
+                .containsExactly("oitavo@example.com");
+        assertThat(emails(filtered(token, processId, "?max_term={v}", "3")))
+                .containsExactlyInAnyOrder("terceiro@example.com", "designer@example.com");
+        assertThat(emails(filtered(token, processId, "?has_cv={v}", "true"))).isEmpty();
+        assertThat(emails(filtered(token, processId, "?has_cv={v}", "false"))).hasSize(3);
+    }
+
+    @Test
+    @DisplayName("os filtros combinam entre si e valem também na busca da EJ inteira")
+    void shouldCombineFiltersAndApplyThemToTenantWideSearch() {
+        UUID tenantId = seeder.seedTenant("EJ Combina", "ej-combina");
+        seeder.seedAccount(tenantId, "dono@combina.dev", "senha123", Standing.OWNER);
+        String token = login("dono@combina.dev", "senha123");
+        UUID processId = openProcess(token, "PS Combina", null);
+        String path = publicProcess("ej-combina", processId) + "/applications";
+
+        UUID computacao = courseOf("ej-combina");
+        UUID design = seeder.seedCourse(tenantId, "Design");
+        submitNamedWith(path, "Ana Alvo", "alvo@example.com", computacao, (short) 4);
+        submitNamedWith(path, "Bruno Curso", "curso@example.com", design, (short) 4);
+        submitNamedWith(path, "Carla Periodo", "periodo@example.com", computacao, (short) 9);
+
+        JsonNode combinado = getJson(internalApplications(processId) + "?course_id={c}&max_term={t}",
+                token, computacao, "5");
+        assertThat(emails(combinado)).containsExactly("alvo@example.com");
+
+        JsonNode naEjInteira = getJson("/v1/recruitment/applications?course_id={c}&max_term={t}",
+                token, computacao, "5");
+        assertThat(emails(naEjInteira)).containsExactly("alvo@example.com");
+    }
+
+    @Test
+    @DisplayName("o resumo agrega curso, período, currículo e a curva de chegada")
+    void shouldSummarizeApplications() {
+        UUID tenantId = seeder.seedTenant("EJ Resumo", "ej-resumo");
+        seeder.seedAccount(tenantId, "dono@resumo.dev", "senha123", Standing.OWNER);
+        String token = login("dono@resumo.dev", "senha123");
+        UUID processId = openProcess(token, "PS Resumo", null);
+        String path = publicProcess("ej-resumo", processId) + "/applications";
+
+        UUID computacao = courseOf("ej-resumo");
+        UUID design = seeder.seedCourse(tenantId, "Design");
+        post(path, candidate("a@example.com", computacao, (short) 2), null, String.class);
+        post(path, candidate("b@example.com", computacao, (short) 4), null, String.class);
+        post(path, candidate("c@example.com", computacao, (short) 6), null, String.class);
+        post(path, candidate("d@example.com", design, (short) 8), null, String.class);
+        post(path, new SubmitCandidateApplicationRequest("Sem Periodo", "e@example.com", "31999998888",
+                design, null, List.of("https://github.com/e"), true), null, String.class);
+
+        JsonNode resumo = getJson(internalApplications(processId) + "/summary", token);
+
+        assertThat(resumo.path("total").asInt()).isEqualTo(5);
+        assertThat(resumo.path("with_cv").asInt()).isZero();
+        assertThat(resumo.path("with_links").asInt()).isEqualTo(1);
+        assertThat(resumo.path("distinct_courses").asInt()).isEqualTo(2);
+
+        // Da maior contagem para a menor: Computação com 3, Design com 2.
+        assertThat(resumo.path("by_course").get(0).path("course").path("name").asText())
+                .isEqualTo("Ciência da Computação");
+        assertThat(resumo.path("by_course").get(0).path("count").asInt()).isEqualTo(3);
+        assertThat(resumo.path("by_course").get(1).path("count").asInt()).isEqualTo(2);
+
+        // Períodos 2, 4, 6, 8 e um nulo, que vai por último.
+        assertThat(resumo.path("by_term")).hasSize(5);
+        assertThat(resumo.path("by_term").get(0).path("term").asInt()).isEqualTo(2);
+        assertThat(resumo.path("by_term").get(4).path("term").isNull()).isTrue();
+
+        // Quatro informaram período: a mediana cai no segundo valor.
+        assertThat(resumo.path("median_term").asInt()).isEqualTo(4);
+
+        // Tudo enviado agora, então um dia só, que é o pico, com 100% do volume.
+        assertThat(resumo.path("by_day")).hasSize(1);
+        assertThat(resumo.path("peak_day").path("count").asInt()).isEqualTo(5);
+        assertThat(resumo.path("last_day_share").asDouble()).isEqualTo(1.0);
+        assertThat(resumo.path("first_submitted_at").isNull()).isFalse();
+    }
+
+    @Test
+    @DisplayName("resumo de processo sem inscrição volta zerado, não 404 nem nulo")
+    void shouldSummarizeEmptyProcess() {
+        String token = ownerOf("EJ Resumo Vazio", "ej-resumo-vazio", "dono@resumo-vazio.dev");
+        UUID processId = openProcess(token, "PS Vazio", null);
+
+        JsonNode resumo = getJson(internalApplications(processId) + "/summary", token);
+        assertThat(resumo.path("total").asInt()).isZero();
+        assertThat(resumo.path("by_course")).isEmpty();
+        assertThat(resumo.path("by_day")).isEmpty();
+        assertThat(resumo.path("peak_day").isNull()).isTrue();
+        assertThat(resumo.path("last_day_share").isNull()).isTrue();
+        assertThat(resumo.path("median_term").isNull()).isTrue();
+    }
+
+    @Test
+    @DisplayName("o resumo não enxerga inscrição de outra EJ")
+    void shouldNotSummarizeAcrossTenants() {
+        String tokenA = ownerOf("EJ Resumo Alpha", "ej-resumo-alpha", "dono@resumo-alpha.dev");
+        String tokenB = ownerOf("EJ Resumo Beta", "ej-resumo-beta", "dono@resumo-beta.dev");
+        UUID processoA = openProcess(tokenA, "PS Alpha", null);
+        submit("ej-resumo-alpha", processoA, "candidato@example.com");
+
+        assertThat(getJson(internalApplications(processoA) + "/summary", tokenA).path("total").asInt())
+                .isEqualTo(1);
+        assertThat(getWithToken(internalApplications(processoA) + "/summary", tokenB).getStatusCode())
+                .isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
     private void grantToRole(String token, UUID roleId, String... permissions) {
         put("/v1/roles/" + roleId + "/permissions",
                 Map.of("permissions", List.of(permissions)), token, String.class);
@@ -611,5 +738,18 @@ class CandidateApplicationIntegrationTest extends AbstractIntegrationTest {
         } catch (Exception e) {
             throw new IllegalStateException(e);
         }
+    }
+
+    private JsonNode filtered(String token, UUID processId, String query, Object value) {
+        return getJson(internalApplications(processId) + query, token, value);
+    }
+
+    private void submitNamedWith(String path, String fullName, String email, UUID courseId, Short term) {
+        post(path, new SubmitCandidateApplicationRequest(fullName, email, "31999998888",
+                courseId, term, null, true), null, String.class);
+    }
+
+    private static java.util.List<String> emails(JsonNode page) {
+        return page.path("content").findValuesAsText("email");
     }
 }

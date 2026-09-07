@@ -1,0 +1,34 @@
+meta {
+  name: Resumo das inscrições
+  type: http
+  seq: 9
+}
+
+get {
+  url: {{base_url}}/v1/recruitment/processes/{{process_id}}/applications/summary
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{access_token}}
+}
+
+docs {
+  Retrato agregado do funil, resolvido no banco. Existe porque responder "quantos de cada curso?"
+  pela listagem exigiria o cliente baixar todas as páginas e contar.
+
+  Traz total, with_cv, with_links, primeira e última inscrição, distribuição por curso (da maior
+  contagem para a menor) e por período (com quem não informou por último), e a curva de chegada
+  por dia.
+
+  Três recortes derivados que valem olhar:
+  - peak_day: o dia de maior volume, que quase sempre é o do prazo.
+  - last_day_share: fração do total que chegou no último dia com inscrição. Perto de 1 significa
+    que a divulgação só surtiu efeito no fim — sinal para antecipar o esforço no próximo processo.
+  - median_term: período mediano entre quem informou, útil para calibrar a faixa min_term/max_term
+    do processo seguinte.
+
+  A curva de chegada é agrupada no fuso da EJ (America/Sao_Paulo), e não em UTC: agrupar em UTC
+  jogaria toda inscrição entre 21h e meia-noite para o dia seguinte, justamente a faixa do pico.
+}

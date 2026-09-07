@@ -1,5 +1,5 @@
 meta {
-  name: Detalhar processo aberto
+  name: Detalhar processo publicado
   type: http
   seq: 2
 }
@@ -11,6 +11,14 @@ get {
 }
 
 docs {
-  É o que o candidato vê antes de se inscrever. Um processo em DRAFT responde
-  404 aqui — indistinguível de inexistente para quem está de fora.
+  Responde para qualquer processo já publicado — inclusive depois do prazo e encerrado. Só DRAFT
+  permanece invisível, indistinguível de inexistente.
+
+  Antes esta rota devolvia 404 assim que o closes_at vencia: quem tivesse guardado o link não
+  conseguia nem ler quando as inscrições encerraram ou quando sai o resultado.
+
+  accepting_applications vem calculado no servidor e é quem manda em "dá para se inscrever agora?"
+  — não dá para o cliente deduzir do status sozinho, porque a conta depende de relógio.
+
+  A listagem (Listar processos abertos da EJ) continua mostrando só quem aceita inscrição.
 }

@@ -106,14 +106,19 @@ class SelectionProcessService implements ProcessDirectory {
         Instant now = Instant.now();
         return repository.findByStatusOrderByCreatedAtDesc(SelectionProcessStatus.OPEN).stream()
                 .filter(process -> process.isAcceptingApplications(now))
-                .map(PublicProcessResponse::from)
+                .map(process -> PublicProcessResponse.from(process, now))
                 .toList();
     }
 
+    /**
+     * A listagem pública mostra só quem aceita inscrição, mas o detalhe responde para qualquer
+     * processo já publicado — encerrado inclusive. O candidato que voltar ao link depois do prazo
+     * precisa ler as datas, não um 404.
+     */
     @Transactional(readOnly = true)
-    PublicProcessResponse findOpenById(UUID id) {
-        return findOpen(id)
-                .map(PublicProcessResponse::from)
+    PublicProcessResponse findPublishedById(UUID id) {
+        return repository.findPublished(id)
+                .map(process -> PublicProcessResponse.from(process, Instant.now()))
                 .orElseThrow(() -> new ResourceNotFoundException("Processo seletivo não encontrado"));
     }
 

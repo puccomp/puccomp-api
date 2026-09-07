@@ -15,6 +15,10 @@ params:query {
   page: 0
   size: 20
   sort: createdAt,desc
+  ~course_id: {{course_id}}
+  ~min_term: 1
+  ~max_term: 6
+  ~has_cv: true
 }
 
 auth:bearer {
