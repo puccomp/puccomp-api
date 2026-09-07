@@ -12,7 +12,6 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @Tag(name = "Inscrições")
@@ -26,15 +25,16 @@ public class CandidateSearchController {
     @Operation(summary = "Busca inscrições em todos os processos seletivos da EJ",
             description = "Responde \"essa pessoa já se inscreveu antes?\": diferente da listagem por "
                     + "processo, varre o histórico inteiro da EJ. q casa nome ou e-mail ignorando acento "
-                    + "e caixa; sem q, devolve o histórico completo paginado.")
+                    + "e caixa; sem q, devolve o histórico completo paginado. Aceita os mesmos filtros da "
+                    + "listagem por processo: course_id, min_term, max_term, has_cv, from e to.")
     @PreAuthorize("hasAuthority('recruitment:read')")
     @GetMapping
     public Page<CandidateApplicationResponse> search(
-            @RequestParam(required = false) String q,
+            @ParameterObject CandidateApplicationFilter filter,
             @ParameterObject @PageableDefault(size = 20, sort = {"createdAt", "id"},
                     direction = Sort.Direction.DESC) Pageable pageable,
             HttpServletResponse response) {
         response.setHeader("Cache-Control", "private, no-store");
-        return service.searchAcrossProcesses(q, pageable);
+        return service.searchAcrossProcesses(filter, pageable);
     }
 }

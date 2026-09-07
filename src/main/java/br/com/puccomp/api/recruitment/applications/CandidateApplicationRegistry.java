@@ -7,6 +7,7 @@ import br.com.puccomp.api.recruitment.processes.SelectionProcess;
 import br.com.puccomp.api.shared.exception.ConflictException;
 import br.com.puccomp.api.shared.exception.ResourceNotFoundException;
 import br.com.puccomp.api.shared.exception.ValidationException;
+import br.com.puccomp.api.shared.reference.NamedRef;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
@@ -15,6 +16,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.time.ZoneId;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -38,22 +41,78 @@ class CandidateApplicationRegistry {
                       String course, String processTitle) { }
 
     @Transactional(readOnly = true)
-    Page<CandidateApplicationResponse> listByProcess(UUID processId, String query, Pageable pageable) {
-        if (!processes.exists(processId))
-            throw new ResourceNotFoundException("Processo seletivo não encontrado");
+    Page<CandidateApplicationResponse> listByProcess(UUID processId, CandidateApplicationFilter filter,
+                                                     Pageable pageable) {
+        requireProcess(processId);
+        return present(applications.findAll(CandidateApplicationSpecs.matching(processId, filter), pageable));
+    }
 
-        var page = SearchTerm.like(query)
-                .map(term -> applications.searchByProcessId(processId, term, pageable))
-                .orElseGet(() -> applications.findByProcessId(processId, pageable));
-        return present(page);
+    /** Sem processId no recorte: o filtro de tenant do Hibernate já limita à EJ de quem chama. */
+    @Transactional(readOnly = true)
+    Page<CandidateApplicationResponse> searchAcrossProcesses(CandidateApplicationFilter filter, Pageable pageable) {
+        return present(applications.findAll(CandidateApplicationSpecs.matching(null, filter), pageable));
     }
 
     @Transactional(readOnly = true)
-    Page<CandidateApplicationResponse> searchAcrossProcesses(String query, Pageable pageable) {
-        var page = SearchTerm.like(query)
-                .map(term -> applications.search(term, pageable))
-                .orElseGet(() -> applications.findBy(pageable));
-        return present(page);
+    ApplicationSummaryResponse summarize(UUID processId, ZoneId zone) {
+        requireProcess(processId);
+        var totals = applications.totalsByProcess(processId);
+        var byDay = applications.countByDay(processId, zone.getId()).stream()
+                .map(row -> new ApplicationSummaryResponse.DayCount(row.getDay(), row.getTotal()))
+                .toList();
+        var byTerm = applications.countByTerm(processId).stream()
+                .map(row -> new ApplicationSummaryResponse.TermCount(row.getTerm(), row.getTotal()))
+                .toList();
+
+        var counts = applications.countByCourse(processId);
+        Map<UUID, String> names = courses.namesOf(counts.stream()
+                .map(CandidateApplicationRepository.CourseCountRow::getCourseId).toList());
+        var byCourse = counts.stream()
+                .map(row -> new ApplicationSummaryResponse.CourseCount(
+                        NamedRef.of(row.getCourseId(), names.get(row.getCourseId())), row.getTotal()))
+                .toList();
+
+        long total = totals == null ? 0 : totals.getTotal();
+        var peak = byDay.stream().max(Comparator.comparingLong(ApplicationSummaryResponse.DayCount::count))
+                .orElse(null);
+        Double lastDayShare = total == 0 || byDay.isEmpty() ? null
+                : (double) byDay.getLast().count() / total;
+
+        return new ApplicationSummaryResponse(
+                processId,
+                total,
+                totals == null ? 0 : totals.getWithCv(),
+                totals == null || totals.getWithLinks() == null ? 0 : totals.getWithLinks(),
+                totals == null ? null : totals.getFirstSubmittedAt(),
+                totals == null ? null : totals.getLastSubmittedAt(),
+                byCourse,
+                byTerm,
+                byDay,
+                peak,
+                lastDayShare,
+                byCourse.size(),
+                medianTerm(byTerm));
+    }
+
+    /** Mediana a partir das contagens já agrupadas — quem não informou período fica de fora. */
+    private static Short medianTerm(List<ApplicationSummaryResponse.TermCount> byTerm) {
+        List<ApplicationSummaryResponse.TermCount> informed = byTerm.stream()
+                .filter(t -> t.term() != null).toList();
+        long informedTotal = informed.stream().mapToLong(ApplicationSummaryResponse.TermCount::count).sum();
+        if (informedTotal == 0) return null;
+
+        long middle = (informedTotal + 1) / 2;
+        long running = 0;
+        for (var entry : informed) {
+            running += entry.count();
+            if (running >= middle) return entry.term();
+        }
+        return null;
+    }
+
+    private void requireProcess(UUID processId) {
+        if (!processes.exists(processId))
+            throw new ResourceNotFoundException("Processo seletivo não encontrado");
     }
 
     private Page<CandidateApplicationResponse> present(Page<CandidateApplication> page) {

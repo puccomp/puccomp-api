@@ -220,6 +220,50 @@ class SelectionProcessIntegrationTest extends AbstractIntegrationTest {
         assertThat(emAvaliacao.path("content").get(0).path("id").asText()).isEqualTo(vencido.toString());
     }
 
+    @Test
+    @DisplayName("depois do prazo o processo segue visível ao candidato, sem aceitar inscrição")
+    void shouldKeepProcessVisibleToCandidatesAfterDeadline() {
+        String token = ownerOf("EJ Visível", "ej-visivel", "dono@visivel.dev");
+        Instant resultado = Instant.now().plus(20, ChronoUnit.DAYS);
+        UUID processId = createProcess(token, "PS Visível", null, Instant.now().plusSeconds(2), resultado);
+        open(token, processId);
+
+        JsonNode aberto = publicProcess("ej-visivel", processId);
+        assertThat(aberto.path("accepting_applications").asBoolean()).isTrue();
+        assertThat(aberto.path("status").asText()).isEqualTo("OPEN");
+
+        await(3);
+
+        // Antes, o candidato que voltasse ao link depois do prazo levava 404.
+        ResponseEntity<String> depois = get("/v1/public/ej-visivel/processes/" + processId, null, String.class);
+        assertThat(depois.getStatusCode()).isEqualTo(HttpStatus.OK);
+
+        JsonNode vencido = publicProcess("ej-visivel", processId);
+        assertThat(vencido.path("accepting_applications").asBoolean()).isFalse();
+        assertThat(vencido.path("status").asText()).isEqualTo("IN_REVIEW");
+        assertThat(vencido.path("result_at").isNull()).isFalse();
+
+        // Mas sai da vitrine: a listagem pública só mostra quem aceita inscrição.
+        assertThat(get("/v1/public/ej-visivel/processes", null, String.class).getBody()).doesNotContain(processId.toString());
+    }
+
+    @Test
+    @DisplayName("processo encerrado continua legível; DRAFT permanece invisível")
+    void shouldExposeClosedButNeverDraft() {
+        String token = ownerOf("EJ Encerrado", "ej-encerrado", "dono@encerrado.dev");
+        UUID rascunho = createProcess(token, "PS Rascunho", null, null, null);
+        UUID encerrado = createProcess(token, "PS Encerrado", null, null, null);
+        open(token, encerrado);
+        changeStatus(token, encerrado, SelectionProcessStatus.CLOSED);
+
+        assertThat(get("/v1/public/ej-encerrado/processes/" + encerrado, null, String.class).getStatusCode())
+                .isEqualTo(HttpStatus.OK);
+        assertThat(publicProcess("ej-encerrado", encerrado).path("accepting_applications").asBoolean()).isFalse();
+
+        assertThat(get("/v1/public/ej-encerrado/processes/" + rascunho, null, ErrorResponse.class).getStatusCode())
+                .isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
     private String ownerOf(String ejName, String slug, String email) {
         UUID tenantId = seeder.seedTenant(ejName, slug);
         seeder.seedAccount(tenantId, email, "senha123", Standing.OWNER);
@@ -275,5 +319,13 @@ class SelectionProcessIntegrationTest extends AbstractIntegrationTest {
                 new SubmitCandidateApplicationRequest("Candidato Teste", email, "31999998888",
                         courseId, (short) 3, null, true),
                 null, String.class);
+    }
+
+    private JsonNode publicProcess(String slug, UUID processId) {
+        try {
+            return mapper.readTree(get("/v1/public/" + slug + "/processes/" + processId, null, String.class).getBody());
+        } catch (Exception e) {
+            throw new IllegalStateException(e);
+        }
     }
 }

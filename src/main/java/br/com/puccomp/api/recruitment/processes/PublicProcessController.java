@@ -33,11 +33,12 @@ public class PublicProcessController {
         return service.listOpen();
     }
 
-    @Operation(summary = "Detalha um processo seletivo aberto — é o que o candidato vê antes de se inscrever")
+    @Operation(summary = "Detalha um processo seletivo publicado",
+            description = "Responde também depois do prazo, com accepting_applications falso, para quem voltar ao link conseguir ver quando encerrou e quando sai o resultado. Só DRAFT permanece invisível.")
     @ApiResponse(responseCode = "404", description = "EJ ou processo seletivo não encontrado",
             content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     @GetMapping("/{processId}")
-    public PublicProcessResponse getOpenById(@PathVariable UUID processId) {
-        return service.findOpenById(processId);
+    public PublicProcessResponse getPublishedById(@PathVariable UUID processId) {
+        return service.findPublishedById(processId);
     }
 }
