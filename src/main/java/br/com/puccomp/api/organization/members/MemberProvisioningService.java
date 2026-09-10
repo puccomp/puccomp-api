@@ -1,5 +1,6 @@
 package br.com.puccomp.api.organization.members;
 
+import br.com.puccomp.api.organization.members.history.MemberLifecycle;
 import br.com.puccomp.api.organization.MemberProvisioning;
 import br.com.puccomp.api.organization.courses.Course;
 import br.com.puccomp.api.organization.roles.Role;
@@ -17,6 +18,7 @@ class MemberProvisioningService implements MemberProvisioning {
 
     private final MemberRepository members;
     private final EntityManager entityManager;
+    private final MemberLifecycle lifecycle;
 
     @Override
     @Transactional(readOnly = true)
@@ -37,6 +39,8 @@ class MemberProvisioningService implements MemberProvisioning {
                 .role(role)
                 .department(role != null ? role.getDepartment() : null)
                 .build();
-        return members.save(member).getId();
+        Member saved = members.save(member);
+        lifecycle.recordCreation(saved);
+        return saved.getId();
     }
 }

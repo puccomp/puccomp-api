@@ -22,7 +22,7 @@ class ApplicationCountsService implements ApplicationCounts {
         if (processIds.isEmpty()) return Map.of();
         return applications.aggregateByProcessIds(processIds).stream()
                 .collect(Collectors.toMap(
-                        CandidateApplicationRepository.ProcessStatsRow::getProcessId,
+                        row -> row.getProcessId(),
                         row -> new ApplicationStats(row.getTotal(), row.getLastSubmittedAt()),
                         (a, b) -> a));
     }

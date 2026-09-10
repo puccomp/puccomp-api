@@ -14,9 +14,44 @@ params:query {
   ~page: 0
   ~size: 10
   ~sort: name,asc
+  ~department_id: {{department_id}}
+  ~role_id: {{role_id}}
+  ~course_id: {{course_id}}
+  ~status: ACTIVE
+  ~standing: MEMBER
+  ~has_role: true
+  ~has_department: true
   ~departmentId: {{department_id}}
 }
 
 auth:bearer {
   token: {{access_token}}
+}
+
+docs {
+  Exige members:read. Todos os filtros são opcionais e combinados por AND.
+
+  | Parâmetro | Recorte |
+  |---|---|
+  | department_id | diretoria atual do membro |
+  | role_id | cargo atual do membro |
+  | course_id | curso atual do membro |
+  | status | um valor de MemberStatus (ACTIVE, ALUMNUS, INACTIVE, PENDING) |
+  | standing | um valor de Standing (OWNER, MEMBER) |
+  | has_role | true só quem tem cargo; false só quem não tem |
+  | has_department | true só quem tem diretoria; false só quem não tem |
+
+  Sem status, todos os estados entram. UUID bem formado sem correspondência — inclusive de outra
+  EJ — devolve página vazia; UUID, enum ou booleano malformado é 400.
+
+  has_role=false com role_id, e has_department=false com department_id, são 400: a combinação não
+  descreve conjunto nenhum, e devolver zero fingiria que a pergunta fazia sentido. Já o id com
+  has_*=true é redundante, mas coerente, e passa.
+
+  departmentId continua aceito como alias DEPRECIADO de department_id, porque já foi publicado.
+  Enviar os dois com o mesmo valor é aceito; com valores diferentes é 400. A remoção do alias
+  exige mudança de versão.
+
+  Para o retrato agregado do mesmo recorte, use "Resumo do quadro" — ela aceita exatamente
+  estes filtros.
 }

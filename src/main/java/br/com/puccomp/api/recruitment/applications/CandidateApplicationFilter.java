@@ -18,6 +18,12 @@ public record CandidateApplicationFilter(
                 + "Termos com menos de 2 caracteres são desconsiderados.")
         String q,
 
+        @BindParam("process_id")
+        @Schema(name = "process_id", description = "Recorta um processo seletivo dentro do histórico "
+                + "da EJ. Nas rotas que já trazem o processo no caminho é redundante: combina com "
+                + "ele, então um id diferente simplesmente não seleciona nada")
+        UUID processId,
+
         @BindParam("course_id")
         @Schema(name = "course_id", description = "Curso do catálogo da EJ")
         UUID courseId,
@@ -33,6 +39,11 @@ public record CandidateApplicationFilter(
         @BindParam("has_cv")
         @Schema(name = "has_cv", description = "true traz só quem anexou currículo; false só quem não anexou")
         Boolean hasCv,
+
+        @BindParam("has_links")
+        @Schema(name = "has_links", description = "true traz só quem enviou ao menos um link; "
+                + "false só quem não enviou. Sobrepõe-se a has_cv: são anexos independentes")
+        Boolean hasLinks,
 
         @Schema(description = "Inscrições enviadas a partir deste instante, inclusive")
         Instant from,

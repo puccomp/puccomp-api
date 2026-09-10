@@ -22,6 +22,6 @@ class TenantDirectory implements OrganizationDirectory {
         UUID tenantId = TenantContext.get();
         if (tenantId == null)
             return UNKNOWN;
-        return tenants.findById(tenantId).map(Tenant::getName).orElse(UNKNOWN);
+        return tenants.findById(tenantId).map(tenant -> tenant.getName()).orElse(UNKNOWN);
     }
 }

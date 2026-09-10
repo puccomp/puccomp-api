@@ -31,18 +31,18 @@ class PermissionService implements PermissionResolver {
         Optional<Permission> required = Permission.fromCode(permission);
         if (subjects.isEmpty() || required.isEmpty()) return Set.of();
 
-        Set<UUID> roleIds = idsOf(subjects, Subject::roleId);
-        Set<UUID> memberIds = idsOf(subjects, Subject::memberId);
+        Set<UUID> roleIds = idsOf(subjects, subject -> subject.roleId());
+        Set<UUID> memberIds = idsOf(subjects, subject -> subject.memberId());
         Set<UUID> grantedRoles = roleIds.isEmpty() ? Set.of()
                 : rolePermissions.findByRoleIdInAndPermission(roleIds, required.get()).stream()
-                        .map(RolePermission::getRoleId).collect(Collectors.toSet());
+                        .map(grant -> grant.getRoleId()).collect(Collectors.toSet());
         Set<UUID> grantedMembers = memberIds.isEmpty() ? Set.of()
                 : memberPermissions.findByMemberIdInAndPermission(memberIds, required.get()).stream()
-                        .map(MemberPermission::getMemberId).collect(Collectors.toSet());
+                        .map(grant -> grant.getMemberId()).collect(Collectors.toSet());
 
         return subjects.stream()
                 .filter(subject -> holds(subject, required.get(), grantedRoles, grantedMembers))
-                .map(Subject::memberId)
+                .map(subject -> subject.memberId())
                 .collect(Collectors.toSet());
     }
 
@@ -70,12 +70,12 @@ class PermissionService implements PermissionResolver {
     }
 
     Set<String> allAuthorities() {
-        return Arrays.stream(Permission.values()).map(Permission::code)
+        return Arrays.stream(Permission.values()).map(entry -> entry.code())
                 .collect(Collectors.toCollection(LinkedHashSet::new));
     }
 
     Set<String> readOnlyAuthorities() {
-        return Arrays.stream(Permission.values()).map(Permission::code)
+        return Arrays.stream(Permission.values()).map(entry -> entry.code())
                 .filter(code -> code.endsWith(":read"))
                 .collect(Collectors.toCollection(LinkedHashSet::new));
     }
@@ -83,7 +83,7 @@ class PermissionService implements PermissionResolver {
     @Transactional(readOnly = true)
     List<String> getRolePermissions(UUID roleId) {
         return codesSorted(rolePermissions.findByRoleId(roleId).stream()
-                .map(RolePermission::getPermission));
+                .map(grant -> grant.getPermission()));
     }
 
     @Transactional
@@ -97,7 +97,7 @@ class PermissionService implements PermissionResolver {
     @Transactional(readOnly = true)
     List<String> getMemberPermissions(UUID memberId) {
         return codesSorted(memberPermissions.findByMemberId(memberId).stream()
-                .map(MemberPermission::getPermission));
+                .map(grant -> grant.getPermission()));
     }
 
     @Transactional
@@ -109,6 +109,6 @@ class PermissionService implements PermissionResolver {
     }
 
     private static List<String> codesSorted(java.util.stream.Stream<Permission> permissions) {
-        return permissions.map(Permission::code).sorted().toList();
+        return permissions.map(entry -> entry.code()).sorted().toList();
     }
 }

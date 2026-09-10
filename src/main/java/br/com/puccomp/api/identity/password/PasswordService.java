@@ -39,7 +39,7 @@ class PasswordService {
     @Transactional
     void forgot(ForgotPasswordRequest request) {
         accounts.findByEmailIgnoreCase(request.email().trim())
-                .filter(Account::isActive)
+                .filter(candidate -> candidate.isActive())
                 .ifPresent(this::issueResetToken);
     }
 
@@ -51,7 +51,7 @@ class PasswordService {
                 .orElseThrow(() -> new ValidationException(INVALID_TOKEN));
 
         Account account = accounts.findById(token.getAccountId())
-                .filter(Account::isActive)
+                .filter(candidate -> candidate.isActive())
                 .orElseThrow(() -> new ValidationException(INVALID_TOKEN));
 
         account.changePassword(passwordEncoder.encode(request.password()));
@@ -68,7 +68,7 @@ class PasswordService {
     @Transactional
     void change(AuthPrincipal principal, ChangePasswordRequest request) {
         Account account = accounts.findById(principal.accountId())
-                .filter(Account::isActive)
+                .filter(candidate -> candidate.isActive())
                 .orElseThrow(() -> new UnauthorizedException("Conta indisponível"));
 
         if (!passwordEncoder.matches(request.currentPassword(), account.getPasswordHash()))

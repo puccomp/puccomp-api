@@ -29,7 +29,7 @@ public enum Permission {
     PERMISSIONS_MANAGE("permissions:manage");
 
     private static final Map<String, Permission> BY_CODE = Arrays.stream(values())
-            .collect(Collectors.toUnmodifiableMap(Permission::code, Function.identity()));
+            .collect(Collectors.toUnmodifiableMap(entry -> entry.code(), Function.identity()));
 
     private final String code;
 

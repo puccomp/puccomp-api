@@ -28,6 +28,7 @@ class CandidateApplicationService {
             java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy 'às' HH:mm");
 
     private final CandidateApplicationRegistry registry;
+    private final ApplicationSummaryService summaries;
     private final AudienceNotifier notifier;
     private final Mailer mailer;
     private final FileService files;
@@ -42,8 +43,12 @@ class CandidateApplicationService {
         return registry.searchAcrossProcesses(filter, pageable);
     }
 
-    ApplicationSummaryResponse summarize(UUID processId) {
-        return registry.summarize(processId, EJ_ZONE);
+    ApplicationSummaryResponse summarize(UUID processId, CandidateApplicationFilter filter) {
+        return summaries.summarize(processId, filter, EJ_ZONE);
+    }
+
+    ApplicationHistorySummaryResponse summarizeHistory(CandidateApplicationFilter filter) {
+        return summaries.summarizeHistory(filter, EJ_ZONE);
     }
 
     CandidateApplicationReceiptResponse submit(UUID processId, SubmitCandidateApplicationRequest request) {
