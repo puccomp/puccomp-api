@@ -10,7 +10,6 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.Instant;
-import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
@@ -28,73 +27,25 @@ interface CandidateApplicationRepository extends JpaRepository<CandidateApplicat
             + "from CandidateApplication a where a.process.id in :processIds group by a.process.id")
     List<ProcessStatsRow> aggregateByProcessIds(@Param("processIds") Collection<UUID> processIds);
 
-    @Query("""
-            select count(a) as total,
-                   count(a.cvFileId) as withCv,
-                   sum(case when size(a.links) > 0 then 1 else 0 end) as withLinks,
-                   min(a.createdAt) as firstSubmittedAt,
-                   max(a.createdAt) as lastSubmittedAt
-            from CandidateApplication a where a.process.id = :processId
-            """)
-    TotalsRow totalsByProcess(@Param("processId") UUID processId);
-
-    @Query("""
-            select a.courseId as courseId, count(a) as total
-            from CandidateApplication a where a.process.id = :processId
-            group by a.courseId order by count(a) desc
-            """)
-    List<CourseCountRow> countByCourse(@Param("processId") UUID processId);
-
-    @Query("""
-            select a.currentTerm as term, count(a) as total
-            from CandidateApplication a where a.process.id = :processId
-            group by a.currentTerm order by a.currentTerm asc nulls last
-            """)
-    List<TermCountRow> countByTerm(@Param("processId") UUID processId);
-
-    /**
-     * Nativa por precisar de {@code at time zone}: agrupar em UTC jogaria toda inscrição entre 21h e
-     * meia-noite para o dia seguinte — justamente a faixa onde o pico de prazo acontece, que é o que
-     * este recorte existe para mostrar.
-     *
-     * <p>Consulta nativa não passa pelo filtro de tenant do Hibernate, mas aqui o recorte por
-     * {@code process_id} basta: a FK é composta {@code (tenant_id, process_id)}, então toda inscrição
-     * desse processo é forçosamente do mesmo tenant — e quem chama já validou que o processo é seu.
-     */
-    @Query(value = """
-            select (a.created_at at time zone :zone)::date as day, count(*) as total
-            from candidate_applications a
-            where a.process_id = :processId
-            group by 1 order by 1
-            """, nativeQuery = true)
-    List<DayCountRow> countByDay(@Param("processId") UUID processId, @Param("zone") String zone);
-
     interface ProcessStatsRow {
         UUID getProcessId();
         long getTotal();
         Instant getLastSubmittedAt();
     }
 
-    interface TotalsRow {
+    /**
+     * O histórico de cada e-mail na EJ inteira, para a página que está sendo apresentada. Agrupa
+     * por {@code lower(email)} porque a unicidade por processo também ignora caixa, e sem
+     * {@code process_id} no recorte: reincidência só existe entre processos.
+     */
+    @Query("select lower(a.email) as email, count(a) as total, min(a.createdAt) as firstAppliedAt "
+            + "from CandidateApplication a where lower(a.email) in :emails group by lower(a.email)")
+    List<CandidateHistoryRow> aggregateByEmails(@Param("emails") Collection<String> emails);
+
+    interface CandidateHistoryRow {
+        String getEmail();
         long getTotal();
-        long getWithCv();
-        Long getWithLinks();
-        Instant getFirstSubmittedAt();
-        Instant getLastSubmittedAt();
+        Instant getFirstAppliedAt();
     }
 
-    interface CourseCountRow {
-        UUID getCourseId();
-        long getTotal();
-    }
-
-    interface TermCountRow {
-        Short getTerm();
-        long getTotal();
-    }
-
-    interface DayCountRow {
-        LocalDate getDay();
-        long getTotal();
-    }
 }

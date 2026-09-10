@@ -1,5 +1,6 @@
 package br.com.puccomp.api.recruitment.processes;
 
+import br.com.puccomp.api.shared.text.SearchTerm;
 import br.com.puccomp.api.shared.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -24,9 +25,9 @@ class SelectionProcessService implements ProcessDirectory {
     Page<SelectionProcessSummaryResponse> findAll(SelectionProcessStatus status, String query,
                                                    Pageable pageable) {
         Instant now = Instant.now();
-        Page<SelectionProcess> page = pageOf(status, ProcessSearchTerm.like(query), now, pageable);
+        Page<SelectionProcess> page = pageOf(status, SearchTerm.like(query), now, pageable);
         Map<UUID, ApplicationCounts.ApplicationStats> stats = statsFor(page.getContent().stream()
-                .map(SelectionProcess::getId).toList());
+                .map(process -> process.getId()).toList());
 
         return page.map(process -> SelectionProcessSummaryResponse.from(process, statsOf(stats, process), now));
     }

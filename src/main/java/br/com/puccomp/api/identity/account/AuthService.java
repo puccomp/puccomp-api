@@ -27,7 +27,7 @@ class AuthService {
 
     LoginResponse login(LoginRequest request) {
         var account = accounts.findByEmailIgnoreCase(request.email().trim())
-                .filter(Account::isActive)
+                .filter(candidate -> candidate.isActive())
                 .orElseThrow(() -> new UnauthorizedException("Credenciais inválidas"));
 
         if (!passwordEncoder.matches(request.password(), account.getPasswordHash()))
@@ -53,7 +53,7 @@ class AuthService {
     /** O standing entra como {@code ROLE_*}; só os códigos de permissão são vocabulário público. */
     private static List<String> permissionCodes(Collection<? extends GrantedAuthority> authorities) {
         return authorities.stream()
-                .map(GrantedAuthority::getAuthority)
+                .map(authority -> authority.getAuthority())
                 .filter(authority -> !authority.startsWith("ROLE_"))
                 .sorted()
                 .toList();

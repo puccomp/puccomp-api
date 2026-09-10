@@ -21,6 +21,6 @@ class AccountDirectoryService implements AccountDirectory {
     public Map<UUID, String> findEmails(Collection<UUID> accountIds) {
         if (accountIds.isEmpty()) return Map.of();
         return accounts.findAllById(accountIds).stream()
-                .collect(Collectors.toMap(Account::getId, Account::getEmail));
+                .collect(Collectors.toMap(candidate -> candidate.getId(), candidate -> candidate.getEmail()));
     }
 }

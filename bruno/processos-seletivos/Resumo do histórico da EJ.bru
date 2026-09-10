@@ -1,0 +1,114 @@
+meta {
+  name: Resumo do histórico da EJ
+  type: http
+  seq: 11
+}
+
+get {
+  url: {{base_url}}/v1/recruitment/applications/summary
+  body: none
+  auth: bearer
+}
+
+params:query {
+  ~q: joão
+  ~process_id: {{process_id}}
+  ~course_id: {{course_id}}
+  ~min_term: 1
+  ~max_term: 12
+  ~has_cv: true
+  ~has_links: true
+  ~from: 2024-01-01T00:00:00-03:00
+  ~to: 2026-12-31T23:59:59-03:00
+}
+
+auth:bearer {
+  token: {{access_token}}
+}
+
+docs {
+  Retrato do funil da EJ inteira. Responde o que nenhum processo isolado responde: quantas pessoas
+  diferentes já passaram pelo funil, quantas voltaram, como o volume evoluiu entre processos, em
+  que meses as inscrições chegam e que cursos do catálogo a EJ nunca alcançou.
+  
+  Exige recruitment:read. Sem autenticação é 401; sem a permissão, 403. Resposta sem cache
+  (Cache-Control: private, no-store) — são dados pessoais de candidato.
+  
+  ## Irmão da busca
+  
+  Aceita exatamente os mesmos nove filtros de "Buscar inscrições na EJ" — q, process_id, course_id,
+  min_term, max_term, has_cv, has_links, from e to —, com a mesma normalização e as mesmas
+  rejeições. page, size e sort NÃO têm efeito: o resumo agrega o conjunto inteiro, não a página.
+  
+  ## Inscrições e pessoas são populações diferentes
+  
+  total e TODAS as distribuições estão em inscrições e fecham entre si. candidates está em pessoas
+  e não fecha com nenhuma delas: quem se inscreveu em três processos é três inscrições e uma
+  pessoa. Não some um no outro.
+  
+  candidates.returning é quantas PESSOAS têm mais de uma inscrição — não é total - distinct, que
+  conta inscrições excedentes. Três inscrições de uma mesma pessoa são 2 excedentes e 1 reincidente.
+  returning_share é returning/distinct, e é null quando o filtro não seleciona ninguém.
+  
+  ## Por que não é o resumo por processo sem o process_id
+  
+  Fora do prazo de um processo, by_day não teria teto (anos de dias corridos) e peak_day não
+  descreveria nada — "o último dia" do histórico é só o último dia do processo mais recente. No
+  lugar deles entram by_month (sazonalidade) e by_process (evolução).
+  
+  by_process vem do processo MAIS RECENTE para o mais antigo, e não do maior para o menor: é série,
+  não ranking, e ordenar por volume esconderia justamente a evolução. key.id é o UUID do processo
+  em texto e vai direto no filtro process_id — clicar na barra leva à tabela daquele PS.
+  
+  by_month é [{ date, value }] com o primeiro dia do mês local, agrupado no fuso da EJ
+  (America/Sao_Paulo). Só meses com inscrição: lacunas não são preenchidas.
+  
+  untouched_courses são os cursos ATIVOS do catálogo que não apareceram no conjunto filtrado, na
+  ordem do catálogo. Sem filtro, é a lista de quem a EJ nunca alcançou — o insight de divulgação
+  que a distribuição sozinha não daria, porque by_course só lista quem apareceu. Curso desativado
+  fica de fora dos dois lados.
+  
+  ## Qual dos dois resumos usar
+
+  Este é a visão ENTRE processos. process_id recorta um deles para o drill-down do painel, mas não
+  substitui o "Resumo das inscrições": assim filtrado, candidates.distinct iguala total e returning
+  é sempre zero — o mesmo e-mail não se inscreve duas vezes no mesmo processo —, e a curva de
+  chegada não existe aqui. Para acompanhar um processo aberto, use "Resumo das inscrições".
+
+  ## Sem correspondência
+  
+  EJ sem nenhum processo, ou filtro que não casa com ninguém, é 200 — não 404: contagens zero,
+  listas vazias, e median_term, returning_share e first/last_submitted_at nulos.
+  
+  ```json
+  {
+    "total": { "value": 412, "previous": null },
+    "candidates": { "distinct": 361, "returning": 38, "returning_share": 0.105 },
+    "with_cv": { "value": 300, "previous": null },
+    "with_links": { "value": 120, "previous": null },
+    "first_submitted_at": "2024-03-02T18:11:04Z",
+    "last_submitted_at": "2026-03-14T02:52:39Z",
+    "processes_covered": 5,
+    "distinct_courses": 7,
+    "median_term": 3,
+    "by_process": [
+      { "key": { "id": "7c1a...", "name": "PS 2026.1" }, "count": 125, "share": 0.303 },
+      { "key": { "id": "3f1c...", "name": "PS 2025.2" }, "count": 98, "share": 0.238 }
+    ],
+    "by_course": [
+      { "key": { "id": "9a2e...", "name": "Ciência da Computação" }, "count": 288, "share": 0.699 }
+    ],
+    "by_term": [
+      { "key": { "id": "2", "name": "2º período" }, "count": 120, "share": 0.291 },
+      { "key": { "id": null, "name": "Não informado" }, "count": 40, "share": 0.097 }
+    ],
+    "by_month": [
+      { "date": "2026-02-01", "value": 12 },
+      { "date": "2026-03-01", "value": 113 }
+    ],
+    "untouched_courses": [
+      { "id": "b71c...", "name": "Design" }
+    ]
+  }
+  ```
+}

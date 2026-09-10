@@ -64,7 +64,7 @@ class CourseService implements CourseCatalog, CourseProvisioning {
     public Map<UUID, String> namesOf(Collection<UUID> courseIds) {
         if (courseIds.isEmpty()) return Map.of();
         return repository.findAllById(courseIds).stream()
-                .collect(Collectors.toMap(Course::getId, Course::getName));
+                .collect(Collectors.toMap(course -> course.getId(), course -> course.getName()));
     }
 
     @Override

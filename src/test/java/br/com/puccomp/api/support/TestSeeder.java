@@ -9,6 +9,7 @@ import br.com.puccomp.api.identity.tenant.TenantStatus;
 import br.com.puccomp.api.organization.CourseCatalog;
 import br.com.puccomp.api.organization.CourseProvisioning;
 import br.com.puccomp.api.organization.MemberProvisioning;
+import br.com.puccomp.api.organization.MembershipHistoryProvisioning;
 import br.com.puccomp.api.organization.RoleProvisioning;
 import br.com.puccomp.api.shared.reference.Standing;
 import br.com.puccomp.api.shared.tenant.TenantContext;
@@ -27,10 +28,12 @@ public class TestSeeder {
     private final CourseProvisioning courseProvisioning;
     private final CourseCatalog courseCatalog;
     private final MemberProvisioning memberProvisioning;
+    private final MembershipHistoryProvisioning historyProvisioning;
 
     public TestSeeder(TenantRepository tenants, AccountRepository accounts, PasswordEncoder passwordEncoder,
                       RoleProvisioning roleProvisioning, CourseProvisioning courseProvisioning,
-                      CourseCatalog courseCatalog, MemberProvisioning memberProvisioning) {
+                      CourseCatalog courseCatalog, MemberProvisioning memberProvisioning,
+                      MembershipHistoryProvisioning historyProvisioning) {
         this.tenants = tenants;
         this.accounts = accounts;
         this.passwordEncoder = passwordEncoder;
@@ -38,11 +41,20 @@ public class TestSeeder {
         this.courseProvisioning = courseProvisioning;
         this.courseCatalog = courseCatalog;
         this.memberProvisioning = memberProvisioning;
+        this.historyProvisioning = historyProvisioning;
     }
 
+    /** Espelha o provisionamento real: EJ nasce com o histórico de vínculos já coberto. */
     public UUID seedTenant(String name, String slug) {
-        return tenants.save(Tenant.builder()
+        UUID tenantId = tenants.save(Tenant.builder()
                 .name(name).slug(slug).status(TenantStatus.ACTIVE).build()).getId();
+        TenantContext.set(tenantId);
+        try {
+            historyProvisioning.startTracking();
+        } finally {
+            TenantContext.clear();
+        }
+        return tenantId;
     }
 
     public UUID seedAccount(UUID tenantId, String email, String rawPassword, Standing standing) {

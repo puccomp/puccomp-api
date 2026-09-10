@@ -30,9 +30,9 @@ puccomp:
     jwt:
       secret: dev-secret-change-me-please-pelo-menos-32-bytes-0123456789
     password-reset:
-      url-base: http://localhost:8080/redefinir-senha
+      url-base: http://localhost:3000/redefinir-senha
   onboarding:
-    accept-url-base: http://localhost:8080/aceitar-convite
+    accept-url-base: http://localhost:3000/aceitar-convite
   admin:
     key: dev-admin-key
 

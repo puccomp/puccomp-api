@@ -1,14 +1,18 @@
 package br.com.puccomp.api.recruitment.applications;
 
+import br.com.puccomp.api.shared.text.SearchTerm;
+import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
 import org.springframework.data.jpa.domain.Specification;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
 /**
- * Filtros da listagem em Criteria, e não em JPQL com {@code :param is null or ...}: são seis
+ * Filtros da listagem em Criteria, e não em JPQL com {@code :param is null or ...}: são nove
  * recortes opcionais e combináveis, e a query única ficaria ilegível além de tropeçar na inferência
  * de tipo de parâmetro nulo do Postgres. Criteria também é gerenciado pelo Hibernate, então o filtro
  * de tenant continua valendo — o que consulta nativa perderia.
@@ -25,6 +29,11 @@ final class CandidateApplicationSpecs {
 
             if (processId != null)
                 predicates.add(builder.equal(root.get("process").get("id"), processId));
+
+            // Combina com o do caminho em vez de sobrescrevê-lo: a rota por processo é um recorte
+            // fechado, e um process_id divergente na query não pode alargá-lo.
+            if (filter.processId() != null)
+                predicates.add(builder.equal(root.get("process").get("id"), filter.processId()));
 
             SearchTerm.like(filter.q()).ifPresent(term -> predicates.add(builder.or(
                     builder.like(root.get("searchName"), term, ESCAPE),
@@ -44,6 +53,11 @@ final class CandidateApplicationSpecs {
                         ? builder.isNotNull(root.get("cvFileId"))
                         : builder.isNull(root.get("cvFileId")));
 
+            if (filter.hasLinks() != null)
+                predicates.add(filter.hasLinks()
+                        ? builder.isNotEmpty(links(root))
+                        : builder.isEmpty(links(root)));
+
             if (filter.from() != null)
                 predicates.add(builder.greaterThanOrEqualTo(root.get("createdAt"), filter.from()));
 
@@ -52,5 +66,15 @@ final class CandidateApplicationSpecs {
 
             return builder.and(predicates.toArray(Predicate[]::new));
         };
+    }
+
+    /**
+     * O caminho para a coleção de links, com o tipo que {@code isEmpty} e {@code isNotEmpty} pedem.
+     * Mora aqui, e não em cada consulta, porque filtrar e agregar por link têm de enxergar a mesma
+     * coleção.
+     */
+    @SuppressWarnings("unchecked")
+    static Expression<Collection<String>> links(Root<CandidateApplication> root) {
+        return (Expression<Collection<String>>) (Expression<?>) root.get("links");
     }
 }

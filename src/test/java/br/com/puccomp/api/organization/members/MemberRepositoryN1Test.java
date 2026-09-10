@@ -50,6 +50,10 @@ class MemberRepositoryN1Test extends AbstractIntegrationTest {
         statistics.clear();
     }
 
+    private static MemberFilter noFilter() {
+        return new MemberFilter(null, null, null, null, null, null, null, null);
+    }
+
     @Test
     @DisplayName("listagem de membros traz curso, cargo e diretoria na própria query, sem ida extra ao banco")
     void shouldNotGenerateAdditionalQueryPerCourse() {
@@ -59,7 +63,9 @@ class MemberRepositoryN1Test extends AbstractIntegrationTest {
         // de queries passaria a valer sobre uma lista vazia.
         TenantContext.set(tenantId);
         try {
-            var members = memberRepository.findAll(pageable).getContent();
+            // Pelo mesmo caminho da listagem: o grafo de fetch precisa sobreviver à Specification.
+            var members = memberRepository
+                    .findAll(MemberSpecs.matching(noFilter()), pageable).getContent();
             assertThat(members).hasSize(5);
             members.forEach(member -> member.getCourse().getName());
 
