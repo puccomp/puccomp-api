@@ -98,7 +98,7 @@ class GlobalExceptionHandler {
                 ? "campo"
                 : path.get(path.size() - 1).getPropertyName();
         String accepted = Arrays.stream(ex.getTargetType().getEnumConstants())
-                .map(Object::toString)
+                .map(value -> value.toString())
                 .collect(Collectors.joining(", "));
         return "%s: valor inválido '%s'; use um de: %s".formatted(field, ex.getValue(), accepted);
     }

@@ -1,0 +1,121 @@
+meta {
+  name: Resumo do quadro
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{base_url}}/v1/members/summary
+  body: none
+  auth: bearer
+}
+
+params:query {
+  ~department_id: {{department_id}}
+  ~role_id: {{role_id}}
+  ~course_id: {{course_id}}
+  ~status: ACTIVE
+  ~standing: MEMBER
+  ~has_role: false
+  ~has_department: false
+}
+
+auth:bearer {
+  token: {{access_token}}
+}
+
+docs {
+  Composição atual do quadro e contexto da estrutura da EJ, resolvidos no banco. Exige members:read.
+  Sem autenticação é 401; sem a permissão, 403. Resposta sem cache (private, no-store).
+  
+  ## Irmão da listagem
+  
+  Aceita exatamente os mesmos filtros de "Listar", com a mesma normalização e as mesmas rejeições —
+  inclusive o alias depreciado departmentId. page, size e sort NÃO têm efeito: o resumo agrega todo
+  o conjunto filtrado, não a página.
+  
+  ## Duas populações, de propósito
+  
+  total, active_headcount, as cinco distribuições e gaps descrevem o CONJUNTO FILTRADO.
+  
+  organization_context descreve a EJ INTEIRA, e nenhum filtro de membros o restringe. Um cargo com
+  cinco vagas e cinco ocupantes não passa a ter quatro vagas abertas porque só um ocupante
+  corresponde ao course_id. Trate esse bloco como contexto da EJ na interface; não use seus números
+  como totais da seleção.
+  
+  ## Composição
+  
+  total e active_headcount são { value, previous }, em pessoas; previous é sempre null, porque este
+  endpoint não compara períodos. total.value coincide com page.total_elements da listagem.
+  
+  by_department, by_role, by_course, by_status e by_standing são [{ key: { id, name }, count, share }].
+  Cada uma soma total.value, e é também o denominador do share. Membro sem cargo ou sem diretoria
+  entra como categoria de id nulo ("Sem cargo", "Sem diretoria") — para navegar até ela use
+  has_role=false ou has_department=false, nunca a string "null". Cargos e diretorias desativados
+  continuam nas distribuições: os membros continuam pertencendo ao recorte.
+  
+  Ordenação: recursos por contagem decrescente, desempate pelo id em ordem textual e a categoria sem
+  vínculo por último no empate; enums na ordem declarada (ACTIVE, ALUMNUS, INACTIVE, PENDING e
+  OWNER, MEMBER).
+  
+  gaps.without_role e gaps.without_department contam os membros ACTIVE do recorte sem esses vínculos.
+  Logo status=ALUMNUS devolve zero nos dois, mesmo havendo alumni sem cargo.
+  
+  Recorte vazio devolve métricas zero, distribuições [] e lacunas zero — o que não significa que a
+  estrutura da EJ esteja vazia.
+  
+  ## organization_context (scope: "TENANT")
+  
+  seats e unfilled_roles exigem TAMBÉM roles:read; empty_departments exige TAMBÉM departments:read.
+  Sem a permissão adicional o campo vem null — null aqui é falta de permissão, não EJ vazia. As
+  listas autorizadas nunca são nulas. A falta dessas permissões não impede o resumo de membros.
+  
+  seats percorre os cargos ATIVOS, inclusive os sem ocupante; cargo inativo não oferece capacidade e
+  fica de fora (seus membros continuam na composição).
+  
+  - by_role: { role (NamedRef), occupied, max, open } por cargo, ordenado por id em ordem textual.
+  - occupied conta todos os membros ativos do cargo, sem nenhum filtro da requisição.
+  - open = max - occupied, e o negativo é preservado: indica excesso de ocupação.
+  - max null é capacidade DESCONHECIDA — não zero, não ilimitada — e então open também é null.
+  - total, occupied e open agregados usam SOMENTE cargos ativos com capacidade conhecida, para que
+    open = total - occupied continue valendo. occupied_without_capacity informa à parte quantos
+    ocupam cargos ativos de max nulo. Membros sem cargo não entram em ocupação de cargos.
+  - open agregado é saldo líquido: excedente em um cargo compensa vaga em outro numericamente, mas
+    pessoas não são intercambiáveis. Para alocar, use os valores por cargo.
+  
+  empty_departments: diretorias ativas com zero membros ativos atribuídos diretamente a elas.
+  unfilled_roles: cargos ativos com zero membros ativos. Inclui cargo com capacidade desconhecida;
+  exclui cargo que declarou capacidade zero. As duas usam NamedRef, ordenadas por id em ordem
+  textual, e devolvem [] quando autorizadas e sem correspondências.
+  
+  Convites não entram aqui: Invitation pertence a identity, e no fluxo atual o membro só nasce no
+  aceite — um convite pendente não tem membro correspondente. Um resumo de convites, se houver
+  demanda, é próprio de identity e respeita as permissões de lá.
+  
+  ## EJ sem membros nem estrutura, com todas as permissões
+  
+  ```json
+  {
+    "total": { "value": 0, "previous": null },
+    "active_headcount": { "value": 0, "previous": null },
+    "by_department": [],
+    "by_role": [],
+    "by_course": [],
+    "by_status": [],
+    "by_standing": [],
+    "gaps": { "without_role": 0, "without_department": 0 },
+    "organization_context": {
+      "scope": "TENANT",
+      "seats": {
+        "total": 0,
+        "occupied": 0,
+        "open": 0,
+        "occupied_without_capacity": 0,
+        "by_role": []
+      },
+      "empty_departments": [],
+      "unfilled_roles": []
+    }
+  }
+  ```
+}

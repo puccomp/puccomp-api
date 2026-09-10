@@ -38,11 +38,13 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.test.context.bean.override.convention.TestBean;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.within;
 
 @Import(TestSeeder.class)
 class CandidateApplicationIntegrationTest extends AbstractIntegrationTest {
@@ -515,7 +517,7 @@ class CandidateApplicationIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
-    @DisplayName("filtra a listagem por curso, período, currículo e janela de envio")
+    @DisplayName("filtra a listagem por curso, período, currículo, links e janela de envio")
     void shouldFilterApplications() {
         UUID tenantId = seeder.seedTenant("EJ Filtros", "ej-filtros");
         seeder.seedAccount(tenantId, "dono@filtros.dev", "senha123", Standing.OWNER);
@@ -540,6 +542,72 @@ class CandidateApplicationIntegrationTest extends AbstractIntegrationTest {
                 .containsExactlyInAnyOrder("terceiro@example.com", "designer@example.com");
         assertThat(emails(filtered(token, processId, "?has_cv={v}", "true"))).isEmpty();
         assertThat(emails(filtered(token, processId, "?has_cv={v}", "false"))).hasSize(3);
+
+        // Link e currículo são anexos independentes: quem mandou um não entra no filtro do outro.
+        post(path, new SubmitCandidateApplicationRequest("Com Link", "portfolio@example.com",
+                "31999998888", design, (short) 3, List.of("https://github.com/exemplo"), true),
+                null, String.class);
+        assertThat(emails(filtered(token, processId, "?has_links={v}", "true")))
+                .containsExactly("portfolio@example.com");
+        assertThat(emails(filtered(token, processId, "?has_links={v}", "false")))
+                .containsExactlyInAnyOrder("terceiro@example.com", "oitavo@example.com",
+                        "designer@example.com");
+        assertThat(emails(filtered(token, processId, "?has_cv={v}", "true"))).isEmpty();
+    }
+
+    /**
+     * A pergunta que o endpoint de busca da EJ existe para responder — "essa pessoa já se inscreveu
+     * antes?" — agora está na própria linha, sem o cliente varrer as páginas atrás de e-mail repetido.
+     */
+    @Test
+    @DisplayName("cada linha traz quantas vezes o e-mail já se inscreveu na EJ, e desde quando")
+    void shouldReportCandidateRecurrence() {
+        String token = ownerOf("EJ Reincidencia", "ej-reincidencia", "dono@reincidencia.dev");
+        UUID courseId = courseOf("ej-reincidencia");
+        UUID anterior = openProcess(token, "PS 2025.2", null);
+        UUID atual = openProcess(token, "PS 2026.1", null);
+
+        submitNamed("ej-reincidencia", anterior, "Carla Souza", "carla@example.com", courseId);
+        // Caixa diferente é a mesma pessoa: o agrupamento normaliza como a unicidade por processo.
+        submitNamed("ej-reincidencia", atual, "Carla Souza", "CARLA@example.com", courseId);
+        submitNamed("ej-reincidencia", atual, "Estreante Silva", "estreante@example.com", courseId);
+
+        JsonNode pagina = getJson(internalApplications(atual), token);
+        JsonNode reincidente = row(pagina, "carla@example.com");
+        JsonNode estreante = row(pagina, "estreante@example.com");
+
+        assertThat(reincidente.path("applications_count").asInt()).isEqualTo(2);
+        assertThat(Instant.parse(reincidente.path("first_applied_at").asText()))
+                .isBefore(Instant.parse(reincidente.path("submitted_at").asText()));
+
+        assertThat(estreante.path("applications_count").asInt()).isEqualTo(1);
+        assertThat(estreante.path("first_applied_at").asText())
+                .isEqualTo(estreante.path("submitted_at").asText());
+
+        // O histórico descreve a EJ inteira: filtrar a página não o encolhe.
+        assertThat(row(getJson(internalApplications(atual) + "?q={q}", token, "carla"),
+                "carla@example.com").path("applications_count").asInt()).isEqualTo(2);
+        assertThat(row(searchAll(token, "carla"), "carla@example.com")
+                .path("applications_count").asInt()).isEqualTo(2);
+    }
+
+    @Test
+    @DisplayName("o mesmo e-mail em outra EJ não engorda o histórico de quem consulta")
+    void shouldCountRecurrenceWithinTheTenantOnly() {
+        String tokenA = ownerOf("EJ Historico Alpha", "ej-historico-alpha", "dono@historico-alpha.dev");
+        String tokenB = ownerOf("EJ Historico Beta", "ej-historico-beta", "dono@historico-beta.dev");
+        UUID processoA = openProcess(tokenA, "PS Alpha", null);
+        UUID processoB = openProcess(tokenB, "PS Beta", null);
+
+        submitNamed("ej-historico-alpha", processoA, "Multi EJ", "multi@example.com",
+                courseOf("ej-historico-alpha"));
+        submitNamed("ej-historico-beta", processoB, "Multi EJ", "multi@example.com",
+                courseOf("ej-historico-beta"));
+
+        assertThat(row(getJson(internalApplications(processoA), tokenA), "multi@example.com")
+                .path("applications_count").asInt()).isEqualTo(1);
+        assertThat(row(getJson(internalApplications(processoB), tokenB), "multi@example.com")
+                .path("applications_count").asInt()).isEqualTo(1);
     }
 
     @Test
@@ -586,30 +654,42 @@ class CandidateApplicationIntegrationTest extends AbstractIntegrationTest {
 
         JsonNode resumo = getJson(internalApplications(processId) + "/summary", token);
 
-        assertThat(resumo.path("total").asInt()).isEqualTo(5);
-        assertThat(resumo.path("with_cv").asInt()).isZero();
-        assertThat(resumo.path("with_links").asInt()).isEqualTo(1);
+        assertThat(resumo.path("total").path("value").asInt()).isEqualTo(5);
+        assertThat(resumo.path("total").path("previous").isNull()).isTrue();
+        assertThat(resumo.path("with_cv").path("value").asInt()).isZero();
+        assertThat(resumo.path("with_links").path("value").asInt()).isEqualTo(1);
         assertThat(resumo.path("distinct_courses").asInt()).isEqualTo(2);
 
         // Da maior contagem para a menor: Computação com 3, Design com 2.
-        assertThat(resumo.path("by_course").get(0).path("course").path("name").asText())
+        assertThat(resumo.path("by_course").get(0).path("key").path("id").asText())
+                .isEqualTo(computacao.toString());
+        assertThat(resumo.path("by_course").get(0).path("key").path("name").asText())
                 .isEqualTo("Ciência da Computação");
         assertThat(resumo.path("by_course").get(0).path("count").asInt()).isEqualTo(3);
+        assertThat(resumo.path("by_course").get(0).path("share").asDouble()).isEqualTo(3d / 5);
         assertThat(resumo.path("by_course").get(1).path("count").asInt()).isEqualTo(2);
 
-        // Períodos 2, 4, 6, 8 e um nulo, que vai por último.
+        // Períodos 2, 4, 6, 8 e um sem vínculo, que vai por último com id nulo.
         assertThat(resumo.path("by_term")).hasSize(5);
-        assertThat(resumo.path("by_term").get(0).path("term").asInt()).isEqualTo(2);
-        assertThat(resumo.path("by_term").get(4).path("term").isNull()).isTrue();
+        assertThat(resumo.path("by_term").get(0).path("key").path("id").asText()).isEqualTo("2");
+        assertThat(resumo.path("by_term").get(4).path("key").path("id").isNull()).isTrue();
+        assertThat(resumo.path("by_term").get(4).path("key").path("name").asText())
+                .isEqualTo("Não informado");
 
         // Quatro informaram período: a mediana cai no segundo valor.
         assertThat(resumo.path("median_term").asInt()).isEqualTo(4);
 
         // Tudo enviado agora, então um dia só, que é o pico, com 100% do volume.
         assertThat(resumo.path("by_day")).hasSize(1);
+        assertThat(resumo.path("by_day").get(0).path("value").asInt()).isEqualTo(5);
         assertThat(resumo.path("peak_day").path("count").asInt()).isEqualTo(5);
         assertThat(resumo.path("last_day_share").asDouble()).isEqualTo(1.0);
         assertThat(resumo.path("first_submitted_at").isNull()).isFalse();
+
+        // As distribuições somam o total e os shares fecham em 1.
+        assertThat(sumOfCounts(resumo.path("by_course"))).isEqualTo(5);
+        assertThat(sumOfCounts(resumo.path("by_term"))).isEqualTo(5);
+        assertThat(sumOfShares(resumo.path("by_course"))).isCloseTo(1d, within(1e-9));
     }
 
     @Test
@@ -619,7 +699,7 @@ class CandidateApplicationIntegrationTest extends AbstractIntegrationTest {
         UUID processId = openProcess(token, "PS Vazio", null);
 
         JsonNode resumo = getJson(internalApplications(processId) + "/summary", token);
-        assertThat(resumo.path("total").asInt()).isZero();
+        assertThat(resumo.path("total").path("value").asInt()).isZero();
         assertThat(resumo.path("by_course")).isEmpty();
         assertThat(resumo.path("by_day")).isEmpty();
         assertThat(resumo.path("peak_day").isNull()).isTrue();
@@ -635,10 +715,22 @@ class CandidateApplicationIntegrationTest extends AbstractIntegrationTest {
         UUID processoA = openProcess(tokenA, "PS Alpha", null);
         submit("ej-resumo-alpha", processoA, "candidato@example.com");
 
-        assertThat(getJson(internalApplications(processoA) + "/summary", tokenA).path("total").asInt())
-                .isEqualTo(1);
+        assertThat(getJson(internalApplications(processoA) + "/summary", tokenA)
+                .path("total").path("value").asInt()).isEqualTo(1);
         assertThat(getWithToken(internalApplications(processoA) + "/summary", tokenB).getStatusCode())
                 .isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
+    private static long sumOfCounts(JsonNode distribution) {
+        long sum = 0;
+        for (JsonNode slice : distribution) sum += slice.path("count").asLong();
+        return sum;
+    }
+
+    private static double sumOfShares(JsonNode distribution) {
+        double sum = 0;
+        for (JsonNode slice : distribution) sum += slice.path("share").asDouble();
+        return sum;
     }
 
     private void grantToRole(String token, UUID roleId, String... permissions) {
@@ -751,5 +843,11 @@ class CandidateApplicationIntegrationTest extends AbstractIntegrationTest {
 
     private static java.util.List<String> emails(JsonNode page) {
         return page.path("content").findValuesAsText("email");
+    }
+
+    private static JsonNode row(JsonNode page, String email) {
+        for (JsonNode entry : page.path("content"))
+            if (entry.path("email").asText().equalsIgnoreCase(email)) return entry;
+        throw new AssertionError("a inscrição de " + email + " não veio na página");
     }
 }

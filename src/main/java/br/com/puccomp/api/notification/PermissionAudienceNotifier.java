@@ -36,7 +36,7 @@ class PermissionAudienceNotifier implements AudienceNotifier {
 
         List<UUID> accountIds = audience.stream()
                 .filter(member -> allowed.contains(member.id()))
-                .map(MemberDirectory.ActiveMember::accountId)
+                .map(member -> member.accountId())
                 .toList();
 
         accounts.findEmails(accountIds).values().stream().distinct()

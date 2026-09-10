@@ -26,9 +26,52 @@ class OpenApiContractTest extends AbstractIntegrationTest {
 
     @ParameterizedTest(name = "{0} publica page, size e sort achatados")
     @ValueSource(strings = {"/v1/members", "/v1/roles", "/v1/departments", "/v1/invitations",
-            "/v1/financial/entries", "/v1/recruitment/processes/{processId}/applications"})
+            "/v1/financial/entries", "/v1/recruitment/processes/{processId}/applications",
+            "/v1/recruitment/applications"})
     void shouldFlattenPageableIntoQueryParams(String path) {
         assertThat(parameterNames(path)).contains("page", "size", "sort").doesNotContain("pageable");
+    }
+
+    @Test
+    @DisplayName("o resumo publica os mesmos filtros da listagem irmã, e não a paginação dela")
+    void shouldPublishSummaryFiltersAlongsideTheListing() {
+        var listagem = parameterNames("/v1/members");
+        var resumo = parameterNames("/v1/members/summary");
+
+        // O cliente monta o mesmo recorte nos dois; se um filtro só existir num deles, a tabela e o
+        // gráfico ao lado dela passam a descrever populações diferentes.
+        assertThat(resumo).contains("department_id", "departmentId", "role_id", "course_id",
+                "status", "standing", "has_role", "has_department");
+        assertThat(listagem).containsAll(resumo);
+        // page, size e sort descrevem a página; no resumo não têm efeito, e não são publicados.
+        assertThat(resumo).doesNotContain("page", "size", "sort");
+
+        var inscricoes = parameterNames("/v1/recruitment/processes/{processId}/applications");
+        var resumoInscricoes =
+                parameterNames("/v1/recruitment/processes/{processId}/applications/summary");
+        assertThat(resumoInscricoes).contains("q", "course_id", "min_term", "max_term", "has_cv",
+                "has_links", "from", "to");
+        assertThat(inscricoes).containsAll(resumoInscricoes);
+        assertThat(resumoInscricoes).doesNotContain("page", "size", "sort");
+
+        // O par da EJ inteira segue a mesma regra, e publica o process_id que faz a fatia de
+        // by_process navegar para a tabela sem trocar de rota.
+        var historico = parameterNames("/v1/recruitment/applications");
+        var resumoHistorico = parameterNames("/v1/recruitment/applications/summary");
+        assertThat(resumoHistorico).contains("q", "process_id", "course_id", "min_term", "max_term",
+                "has_cv", "has_links", "from", "to");
+        assertThat(historico).containsAll(resumoHistorico);
+        assertThat(resumoHistorico).doesNotContain("page", "size", "sort");
+    }
+
+    @Test
+    @DisplayName("o relatório histórico publica só a janela, e nenhum filtro de estado atual")
+    void shouldPublishOnlyTheWindowOnTheHistoryReport() {
+        var parametros = parameterNames("/v1/members/history");
+
+        assertThat(parametros).contains("from", "to");
+        assertThat(parametros).doesNotContain("status", "role_id", "department_id", "departmentId",
+                "course_id", "standing", "has_role", "has_department", "page", "size", "sort");
     }
 
     @Test

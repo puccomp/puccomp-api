@@ -7,7 +7,6 @@ import br.com.puccomp.api.recruitment.processes.SelectionProcess;
 import br.com.puccomp.api.shared.exception.ConflictException;
 import br.com.puccomp.api.shared.exception.ResourceNotFoundException;
 import br.com.puccomp.api.shared.exception.ValidationException;
-import br.com.puccomp.api.shared.reference.NamedRef;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
@@ -16,14 +15,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
-import java.time.ZoneId;
-import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
-/** Parte transacional da inscrição, separada para que antivírus e S3 rodem sem transação aberta. */
 @Service
 @RequiredArgsConstructor
 class CandidateApplicationRegistry {
@@ -35,6 +33,7 @@ class CandidateApplicationRegistry {
     private final ProcessDirectory processes;
     private final CourseCatalog courses;
     private final FileService files;
+    private final CandidateApplicationAggregations aggregations;
 
     /** O que o envio de email precisa, materializado antes da transação fechar. */
     record Registered(CandidateApplicationReceiptResponse receipt, String fullName, String email,
@@ -53,76 +52,48 @@ class CandidateApplicationRegistry {
         return present(applications.findAll(CandidateApplicationSpecs.matching(null, filter), pageable));
     }
 
-    @Transactional(readOnly = true)
-    ApplicationSummaryResponse summarize(UUID processId, ZoneId zone) {
-        requireProcess(processId);
-        var totals = applications.totalsByProcess(processId);
-        var byDay = applications.countByDay(processId, zone.getId()).stream()
-                .map(row -> new ApplicationSummaryResponse.DayCount(row.getDay(), row.getTotal()))
-                .toList();
-        var byTerm = applications.countByTerm(processId).stream()
-                .map(row -> new ApplicationSummaryResponse.TermCount(row.getTerm(), row.getTotal()))
-                .toList();
-
-        var counts = applications.countByCourse(processId);
-        Map<UUID, String> names = courses.namesOf(counts.stream()
-                .map(CandidateApplicationRepository.CourseCountRow::getCourseId).toList());
-        var byCourse = counts.stream()
-                .map(row -> new ApplicationSummaryResponse.CourseCount(
-                        NamedRef.of(row.getCourseId(), names.get(row.getCourseId())), row.getTotal()))
-                .toList();
-
-        long total = totals == null ? 0 : totals.getTotal();
-        var peak = byDay.stream().max(Comparator.comparingLong(ApplicationSummaryResponse.DayCount::count))
-                .orElse(null);
-        Double lastDayShare = total == 0 || byDay.isEmpty() ? null
-                : (double) byDay.getLast().count() / total;
-
-        return new ApplicationSummaryResponse(
-                processId,
-                total,
-                totals == null ? 0 : totals.getWithCv(),
-                totals == null || totals.getWithLinks() == null ? 0 : totals.getWithLinks(),
-                totals == null ? null : totals.getFirstSubmittedAt(),
-                totals == null ? null : totals.getLastSubmittedAt(),
-                byCourse,
-                byTerm,
-                byDay,
-                peak,
-                lastDayShare,
-                byCourse.size(),
-                medianTerm(byTerm));
-    }
-
-    /** Mediana a partir das contagens já agrupadas — quem não informou período fica de fora. */
-    private static Short medianTerm(List<ApplicationSummaryResponse.TermCount> byTerm) {
-        List<ApplicationSummaryResponse.TermCount> informed = byTerm.stream()
-                .filter(t -> t.term() != null).toList();
-        long informedTotal = informed.stream().mapToLong(ApplicationSummaryResponse.TermCount::count).sum();
-        if (informedTotal == 0) return null;
-
-        long middle = (informedTotal + 1) / 2;
-        long running = 0;
-        for (var entry : informed) {
-            running += entry.count();
-            if (running >= middle) return entry.term();
-        }
-        return null;
-    }
-
     private void requireProcess(UUID processId) {
         if (!processes.exists(processId))
             throw new ResourceNotFoundException("Processo seletivo não encontrado");
     }
 
     private Page<CandidateApplicationResponse> present(Page<CandidateApplication> page) {
-        var downloads = files.downloads(page.stream().map(CandidateApplication::getCvFileId)
+        var downloads = files.downloads(page.stream().map(application -> application.getCvFileId())
                 .filter(Objects::nonNull).toList());
         Map<UUID, String> courseNames = courses.namesOf(
-                page.stream().map(CandidateApplication::getCourseId).toList());
+                page.stream().map(application -> application.getCourseId()).toList());
+        Map<String, CandidateApplicationResponse.History> histories = historiesOf(page);
         return page.map(application -> CandidateApplicationResponse.from(application,
                 application.getCvFileId() == null ? null : downloads.get(application.getCvFileId()),
-                courseNames.get(application.getCourseId())));
+                courseNames.get(application.getCourseId()),
+                historyOf(application, histories)));
+    }
+
+    /**
+     * Uma consulta agrupada para a página inteira, ao lado de currículo e curso: por linha seriam
+     * tantas consultas quanto inscrições, para um dado que a triagem lê em toda linha.
+     */
+    private Map<String, CandidateApplicationResponse.History> historiesOf(Page<CandidateApplication> page) {
+        List<String> emails = page.stream().map(application -> key(application.getEmail())).distinct().toList();
+        if (emails.isEmpty()) return Map.of();
+        return applications.aggregateByEmails(emails).stream()
+                .collect(Collectors.toMap(
+                        row -> row.getEmail(),
+                        row -> new CandidateApplicationResponse.History(row.getTotal(),
+                                row.getFirstAppliedAt()),
+                        (a, b) -> a));
+    }
+
+    /** Sem linha correspondente, a inscrição em mãos é todo o histórico que se pode afirmar. */
+    private static CandidateApplicationResponse.History historyOf(CandidateApplication application,
+            Map<String, CandidateApplicationResponse.History> histories) {
+        return histories.getOrDefault(key(application.getEmail()),
+                new CandidateApplicationResponse.History(1, application.getCreatedAt()));
+    }
+
+    /** A mesma normalização do {@code lower(email)} do agrupamento, para as chaves baterem. */
+    private static String key(String email) {
+        return email.toLowerCase(Locale.ROOT);
     }
 
     /** Falha cedo, antes de gastar antivírus e S3 num envio que já seria recusado. */
@@ -193,6 +164,6 @@ class CandidateApplicationRegistry {
 
     private static List<String> sanitized(List<String> links) {
         if (links == null) return List.of();
-        return links.stream().map(String::trim).toList();
+        return links.stream().map(value -> value.trim()).toList();
     }
 }

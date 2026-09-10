@@ -10,6 +10,17 @@ get {
   auth: bearer
 }
 
+params:query {
+  ~q: joão
+  ~course_id: {{course_id}}
+  ~min_term: 1
+  ~max_term: 12
+  ~has_cv: true
+  ~has_links: true
+  ~from: 2026-03-01T00:00:00-03:00
+  ~to: 2026-03-31T23:59:59-03:00
+}
+
 auth:bearer {
   token: {{access_token}}
 }
@@ -17,18 +28,87 @@ auth:bearer {
 docs {
   Retrato agregado do funil, resolvido no banco. Existe porque responder "quantos de cada curso?"
   pela listagem exigiria o cliente baixar todas as páginas e contar.
-
-  Traz total, with_cv, with_links, primeira e última inscrição, distribuição por curso (da maior
-  contagem para a menor) e por período (com quem não informou por último), e a curva de chegada
-  por dia.
-
-  Três recortes derivados que valem olhar:
-  - peak_day: o dia de maior volume, que quase sempre é o do prazo.
+  
+  Exige recruitment:read. Sem autenticação é 401; sem a permissão, 403. Processo inexistente ou de
+  outra EJ é 404. Resposta sem cache (Cache-Control: private, no-store).
+  
+  ## Irmão da listagem
+  
+  Aceita exatamente os mesmos oito filtros de "Listar inscrições" — q, course_id, min_term,
+  max_term, has_cv, has_links, from e to —, com a mesma normalização e as mesmas rejeições. Se a
+  tabela mostra 40 das 125 inscrições, este resumo descreve essas mesmas 40: total, distribuições,
+  curva diária e indicadores derivados saem todos do conjunto filtrado.
+  
+  page, size e sort NÃO têm efeito aqui: o resumo agrega o conjunto inteiro, não a página. Enviá-los
+  não é erro, apenas não muda nada.
+  
+  from e to são instantes com offset, ambos inclusivos, sobre created_at. Faixa invertida
+  (from depois de to) não é erro: simplesmente não seleciona nada. Filtro inválido — UUID malformado,
+  período não numérico, booleano ou instante ilegível — é 400 nos dois endpoints.
+  
+  ## Formatos
+  
+  total, with_cv e with_links são { value, previous }. previous é sempre null: este resumo descreve
+  o estado atual e não compara períodos. with_cv e with_links se sobrepõem — não são categorias de
+  uma mesma distribuição. Os dois são navegáveis: has_cv e has_links levam a listagem exatamente às
+  pessoas contadas aqui.
+  
+  by_course e by_term são distribuições [{ key: { id, name }, count, share }]. share é count/total,
+  de 0 a 1, calculado no servidor para uniformizar o denominador; some as frações e você tem 1
+  (a apresentação escolhe a precisão, e rótulos arredondados podem não fechar 100%).
+  key.id de by_course é o UUID do curso em texto; o de by_term é o período em decimal, e é null em
+  quem não informou — categoria legítima, que vem por último. Não envie a string "null" ao filtro.
+  by_course vem da maior contagem para a menor, com desempate pelo id em ordem textual (a mesma que
+  você vê na resposta); by_term em ordem numérica.
+  
+  by_day é [{ date, value }], em ordem crescente, com apenas os dias que têm inscrição: lacunas não
+  são preenchidas. O agrupamento é no fuso da EJ (America/Sao_Paulo), e não em UTC — agrupar em UTC
+  jogaria toda inscrição entre 21h e meia-noite para o dia seguinte, justamente a faixa do pico.
+  
+  ## Recortes derivados
+  
+  - peak_day ({ date, count }): o dia de maior volume, que quase sempre é o do prazo.
   - last_day_share: fração do total que chegou no último dia com inscrição. Perto de 1 significa
     que a divulgação só surtiu efeito no fim — sinal para antecipar o esforço no próximo processo.
   - median_term: período mediano entre quem informou, útil para calibrar a faixa min_term/max_term
     do processo seguinte.
+  
+  ## Qual dos dois resumos usar
 
-  A curva de chegada é agrupada no fuso da EJ (America/Sao_Paulo), e não em UTC: agrupar em UTC
-  jogaria toda inscrição entre 21h e meia-noite para o dia seguinte, justamente a faixa do pico.
+  Este é a visão de DENTRO do prazo: a curva diária, o pico e last_day_share só existem aqui.
+  Para comparar processos, contar pessoas distintas e ver sazonalidade, use
+  "Resumo do histórico da EJ".
+
+  ## Sem correspondência
+  
+  Processo sem inscrições, ou filtro que não casa com ninguém, é 200 — não 404 nem null:
+  total.value 0, by_course/by_term/by_day vazios, e peak_day, last_day_share, median_term e
+  first/last_submitted_at nulos. Contagem conhecida é zero; medida indefinida é null.
+  
+  ```json
+  {
+    "process_id": "3f1c...",
+    "total": { "value": 40, "previous": null },
+    "with_cv": { "value": 31, "previous": null },
+    "with_links": { "value": 12, "previous": null },
+    "first_submitted_at": "2026-03-02T18:11:04Z",
+    "last_submitted_at": "2026-03-14T02:52:39Z",
+    "by_course": [
+      { "key": { "id": "9a2e...", "name": "Ciência da Computação" }, "count": 25, "share": 0.625 },
+      { "key": { "id": "b71c...", "name": "Design" }, "count": 15, "share": 0.375 }
+    ],
+    "by_term": [
+      { "key": { "id": "2", "name": "2º período" }, "count": 18, "share": 0.45 },
+      { "key": { "id": null, "name": "Não informado" }, "count": 22, "share": 0.55 }
+    ],
+    "by_day": [
+      { "date": "2026-03-02", "value": 6 },
+      { "date": "2026-03-13", "value": 34 }
+    ],
+    "peak_day": { "date": "2026-03-13", "count": 34 },
+    "last_day_share": 0.85,
+    "distinct_courses": 2,
+    "median_term": 2
+  }
+  ```
 }

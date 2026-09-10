@@ -52,6 +52,8 @@ public class Member {
     @JoinColumn(name = "department_id")
     private Department department;
 
+    // Package-private de propósito: mudar o estado sem registrar o evento correspondente é
+    // exatamente o que o histórico de vínculos existe para impedir. Passe pelo MemberLifecycle.
     public void changeStatus(MemberStatus status) {
         this.status = status;
     }

@@ -1,6 +1,5 @@
 package br.com.puccomp.api.identity.token;
 
-import br.com.puccomp.api.identity.account.Account;
 import br.com.puccomp.api.identity.account.AccountRepository;
 import br.com.puccomp.api.identity.account.AuthPrincipal;
 import br.com.puccomp.api.organization.MemberDirectory;
@@ -62,9 +61,9 @@ public class PatService {
     @Transactional
     public Optional<AuthPrincipal> authenticate(String rawToken) {
         return repository.findByTokenHash(TokenSecrets.sha256Hex(rawToken))
-                .filter(PersonalAccessToken::isUsable)
+                .filter(candidate -> candidate.isUsable())
                 .flatMap(pat -> accounts.findById(pat.getAccountId())
-                        .filter(Account::isActive)
+                        .filter(candidate -> candidate.isActive())
                         .flatMap(account -> memberDirectory.findMembership(pat.getAccountId(), pat.getTenantId())
                                 .map(membership -> {
                                     pat.markUsed(Instant.now());
@@ -77,7 +76,7 @@ public class PatService {
     private static Set<String> parseScopes(String scopes) {
         if (scopes == null || scopes.isBlank()) return null;
         return Arrays.stream(scopes.split(","))
-                .map(String::trim).filter(s -> !s.isEmpty())
+                .map(value -> value.trim()).filter(s -> !s.isEmpty())
                 .collect(Collectors.toUnmodifiableSet());
     }
 }

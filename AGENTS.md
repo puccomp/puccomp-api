@@ -16,3 +16,4 @@ Abaixo, segue alguns arquivos que em determinados momentos podem ser úteis para
 
 - As skills adotadas pelo projeto ficam em [agents/skills/](agents/skills/) como fonte única e neutra para Claude, Codex, Gemini e outros agentes.
 - Sempre que modificar o contrato da API, altere a [collection](./bruno) para refletir as mudanças.
+- Não comente o código exageradamente

@@ -1,0 +1,141 @@
+meta {
+  name: Histórico de vínculos
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{base_url}}/v1/members/history
+  body: none
+  auth: bearer
+}
+
+params:query {
+  ~from: 2026-06
+  ~to: 2026-09
+}
+
+docs {
+  Relatório temporal do quadro: entradas, saídas, retenção e permanência. Exige members:read.
+  Sem autenticação é 401; sem a permissão, 403. Resposta sem cache (private, no-store).
+
+  Fica separado de "Resumo do quadro" porque descreve outra coisa: lá é o estado atual e o seu
+  recorte; aqui é o que aconteceu numa janela, sobre a EJ inteira (scope: "TENANT").
+
+  ## Janela
+
+  from e to usam AAAA-MM e vêm os dois ou nenhum. A janela vai do início de from ao início de to,
+  com to EXCLUSIVO — por isso to pode ser o primeiro mês ainda não concluído. O padrão é o último
+  mês civil completo: em 07/09/2026, from=2026-08 e to=2026-09.
+
+  Aceita de 1 a 24 meses completos. São 400: formato inválido, apenas um dos dois parâmetros,
+  to menor ou igual a from, mais de 24 meses, e janela que alcance o mês corrente pela metade ou
+  qualquer mês futuro.
+
+  O período anterior tem a MESMA QUANTIDADE DE MESES CIVIS e termina onde este começa. Não são
+  "30 dias antes": meses têm durações diferentes, e o quadro médio depende da duração real. Os
+  instantes exatos das duas janelas e o fuso vêm na resposta.
+
+  Evento exatamente em from entra na janela; exatamente em to pertence à seguinte.
+
+  ## Não aceita os filtros de estado atual
+
+  status, role_id, department_id, course_id, standing, has_role, has_department e o alias
+  departmentId são 400 aqui. Filtrar os ativos de hoje antes de contar as saídas de meses passados
+  falsearia turnover e retenção. Um recorte histórico por cargo ou diretoria exigiria histórico
+  dessas atribuições, que ainda não existe — usar a atribuição atual para rotular o passado não
+  está autorizado implicitamente.
+
+  ## Cobertura: por que existem nulos
+
+  Tudo sai do histórico de vínculos, nunca do status atual. coverage.tracked_since é o marco a
+  partir do qual a série é confiável. Para EJs que já existiam quando o registro foi criado, os
+  membros receberam um BASELINE: uma OBSERVAÇÃO do estado em que estavam, não uma entrada. A data
+  em que o vínculo deles começou permanece desconhecida, e é isso que coverage.unknown_join_dates
+  conta — inclusive depois de uma reativação, porque conhecer o início de um novo intervalo não
+  recupera a admissão original.
+
+  - Janela que começa antes de tracked_since: métricas agregadas nulas e cohorts null. Não existe
+    janela pela metade apresentada como completa.
+  - Mês não integralmente coberto: value null na série, NUNCA zero. Mês coberto sem eventos é zero.
+  - As duas janelas são avaliadas de forma independente: anterior sem cobertura implica apenas
+    previous: null.
+
+  ## Métricas
+
+  | Campo | Definição |
+  |---|---|
+  | joins_by_month | primeiras ativações conhecidas de membros criados sob rastreamento |
+  | reactivations_by_month | ativações após um intervalo ativo anterior |
+  | headcount_by_month | quadro ativo imediatamente antes do limite exclusivo do mês |
+  | active_headcount | quadro no encerramento de cada janela, em pessoas |
+  | turnover | saídas de ACTIVE na janela sobre o quadro médio ponderado pelo tempo |
+  | average_tenure_months | média dos intervalos ativos encerrados na janela com início conhecido |
+  | cohorts | admissões por semestre civil e retenção no encerramento da janela |
+
+  Reativação NÃO é nova admissão, e sair e voltar preserva a saída no mês original: uma saída já
+  contabilizada não some do turnover porque a pessoa voltou depois.
+
+  O quadro médio é a integral da quantidade ativa ao longo da janela dividida pela duração dela em
+  segundos — um denominador simples trataria uma EJ que dobrou de tamanho como se sempre tivesse
+  tido um tamanho só. turnover PODE PASSAR DE 1; com quadro médio zero é null; saídas zero com
+  quadro médio positivo é zero.
+
+  Permanência usa o mês de 365,2425/12 dias, a partir da duração em segundos. É média de intervalos
+  ENCERRADOS, não tempo acumulado de vida na EJ. Intervalo iniciado antes do baseline, sem início
+  conhecido, fica de fora — e a quantidade excluída vem em coverage.excluded_tenure_intervals.
+  Sem intervalos elegíveis, o valor é null.
+
+  Coortes usam a primeira ativação conhecida: AAAA.1 é janeiro–junho, AAAA.2 é julho–dezembro.
+  Só admissões dentro da janela entram; se a janela corta o semestre, partial_period é true.
+  Reativação não troca a coorte, e membro de baseline não recebe coorte inventada.
+  retention = still_active / joined mede PRESENÇA NO ENCERRAMENTO, não permanência ininterrupta;
+  e a coincidência de semestre não liga a coorte a um processo seletivo específico.
+
+  Precisão: razões com seis casas decimais, meses com duas, arredondamento HALF_UP só no resultado
+  final. Fuso America/Sao_Paulo.
+
+  ## Exemplo
+
+  ```json
+  {
+    "period": { "from": "2026-06-01T03:00:00Z", "to": "2026-09-01T03:00:00Z", "months": 3 },
+    "previous_period": { "from": "2026-03-01T03:00:00Z", "to": "2026-06-01T03:00:00Z", "months": 3 },
+    "timezone": "America/Sao_Paulo",
+    "scope": "TENANT",
+    "coverage": {
+      "tracked_since": "2026-02-01T03:00:00Z",
+      "period_complete": true,
+      "previous_period_complete": true,
+      "unknown_join_dates": 0,
+      "excluded_tenure_intervals": { "value": 0, "previous": 0 }
+    },
+    "active_headcount": { "value": 3, "previous": 1 },
+    "turnover": { "value": 0.847926, "previous": 0.000000 },
+    "average_tenure_months": { "value": 1.41, "previous": null },
+    "joins_by_month": [
+      { "date": "2026-06-01", "value": 1 },
+      { "date": "2026-07-01", "value": 1 },
+      { "date": "2026-08-01", "value": 1 }
+    ],
+    "reactivations_by_month": [
+      { "date": "2026-06-01", "value": 0 },
+      { "date": "2026-07-01", "value": 0 },
+      { "date": "2026-08-01", "value": 1 }
+    ],
+    "headcount_by_month": [
+      { "date": "2026-06-01", "value": 2 },
+      { "date": "2026-07-01", "value": 2 },
+      { "date": "2026-08-01", "value": 3 }
+    ],
+    "cohorts": [
+      { "period": "2026.1", "joined": 1, "still_active": 1, "retention": 1.000000, "partial_period": true },
+      { "period": "2026.2", "joined": 2, "still_active": 1, "retention": 0.500000, "partial_period": true }
+    ]
+  }
+  ```
+}
+
+auth:bearer {
+  token: {{access_token}}
+}

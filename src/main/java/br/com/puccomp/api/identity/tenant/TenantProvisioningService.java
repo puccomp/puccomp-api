@@ -2,6 +2,7 @@ package br.com.puccomp.api.identity.tenant;
 
 import br.com.puccomp.api.identity.invitation.InvitationIssuer;
 import br.com.puccomp.api.organization.CourseProvisioning;
+import br.com.puccomp.api.organization.MembershipHistoryProvisioning;
 import br.com.puccomp.api.shared.exception.ConflictException;
 import br.com.puccomp.api.shared.exception.ValidationException;
 import br.com.puccomp.api.shared.tenant.TenantContext;
@@ -19,6 +20,7 @@ public class TenantProvisioningService {
 
     private final TenantRepository tenants;
     private final CourseProvisioning courseProvisioning;
+    private final MembershipHistoryProvisioning historyProvisioning;
     private final InvitationIssuer invitationIssuer;
     private final TransactionTemplate transactionTemplate;
     private final JdbcTemplate jdbc;
@@ -44,6 +46,9 @@ public class TenantProvisioningService {
                         insert into tenants (id, name, slug, status, created_at, updated_at)
                         values (?, ?, ?, ?, now(), now())
                         """, tenant.getId(), tenant.getName(), tenant.getSlug(), tenant.getStatus().name());
+                // Na mesma transação da criação: EJ nova nasce com o histórico coberto desde já,
+                // mesmo antes de ter o primeiro membro.
+                historyProvisioning.startTracking();
                 request.courses().forEach(courseProvisioning::createCourse);
                 var invitation = invitationIssuer.issueForOwner(tenant.getId(), request.ownerEmail());
                 return ProvisionedOrganizationResponse.from(tenant, invitation);

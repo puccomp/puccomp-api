@@ -14,6 +14,14 @@ params:query {
   page: 0
   size: 20
   sort: createdAt,desc
+  ~q: joão
+  ~course_id: {{course_id}}
+  ~min_term: 1
+  ~max_term: 12
+  ~has_cv: true
+  ~has_links: true
+  ~from: 2026-03-01T00:00:00-03:00
+  ~to: 2026-03-31T23:59:59-03:00
 }
 
 auth:bearer {
@@ -26,17 +34,28 @@ docs {
   { id, filename, content_type, size, download_url, download_expires_at }.
   download_url permite GET direto no S3, sem Authorization da API, por 5 minutos.
   Consulte a listagem novamente para renovar URLs expiradas; não persista essas URLs.
-}
 
-docs {
+  Cada linha traz também o histórico daquele e-mail na EJ inteira:
+  applications_count (quantas inscrições, contando esta) e first_applied_at (a primeira delas).
+  applications_count maior que 1 é candidato reincidente — só acontece entre processos, porque o
+  mesmo e-mail não se inscreve duas vezes no mesmo. Os dois campos descrevem a EJ inteira: nenhum
+  filtro desta consulta os restringe, e o e-mail igual em outra EJ não entra na conta.
+
   q busca por nome ou e-mail dentro deste processo, ignorando acento e caixa: "joao" acha "João",
   e "João" também. Termo com menos de 2 caracteres é ignorado, e a listagem volta inteira.
   % e _ digitados valem como texto, não como curinga.
 
   Os filtros são combináveis entre si e com o q:
   course_id (curso do catálogo), min_term/max_term (faixa de período, inclusive),
-  has_cv (true só quem anexou currículo, false só quem não anexou) e from/to (janela de envio).
+  has_cv (true só quem anexou currículo, false só quem não anexou),
+  has_links (true só quem enviou ao menos um link, false só quem não enviou) e
+  from/to (janela de envio).
+
+  has_cv e has_links são anexos independentes e se sobrepõem: quem mandou portfólio e não mandou
+  currículo entra em has_links=true e em has_cv=false.
 
   Para procurar a pessoa em TODOS os processos da EJ ("ela já se inscreveu antes?"),
-  use "Buscar inscrições na EJ". Ela aceita exatamente os mesmos filtros.
+  use "Buscar inscrições na EJ". Ela aceita os mesmos filtros e mais um, process_id, que recorta um
+  processo sem trocar de rota — aqui ele é redundante, porque o processo já vem no caminho: os dois
+  se combinam, então um id divergente simplesmente não seleciona nada.
 }

@@ -1,7 +1,7 @@
 meta {
   name: Buscar inscrições na EJ
   type: http
-  seq: 8
+  seq: 10
 }
 
 get {
@@ -15,10 +15,12 @@ params:query {
   page: 0
   size: 20
   sort: createdAt,desc
+  ~process_id: {{process_id}}
   ~course_id: {{course_id}}
   ~min_term: 1
   ~max_term: 6
   ~has_cv: true
+  ~has_links: true
 }
 
 auth:bearer {
@@ -28,9 +30,20 @@ auth:bearer {
 docs {
   Varre o histórico inteiro da EJ, não um processo só — responde "essa pessoa já se inscreveu
   antes?". Cada linha traz o processo em que a inscrição caiu (process.id e process.name).
-
+  
   q casa nome ou e-mail ignorando acento e caixa. Sem q, devolve o histórico completo paginado.
-
+  Aceita os mesmos filtros de "Listar inscrições" — course_id, min_term, max_term, has_cv,
+  has_links, from e to — mais process_id, que recorta um processo sem trocar de rota. É o que faz a
+  fatia de by_process do "Resumo do histórico da EJ" navegar direto para esta tabela.
+  
+  A reincidência já vem resolvida na linha, sem varrer as páginas atrás de e-mail repetido:
+  applications_count maior que 1 é quem voltou, e first_applied_at diz desde quando. Os dois olham
+  para a EJ inteira e não são restringidos pelos filtros desta consulta — filtrar por PS 2026.1
+  continua mostrando que a pessoa se inscreveu 3 vezes desde 2024.
+  
+  Para o retrato agregado deste mesmo conjunto — pessoas distintas, reincidentes, evolução entre
+  processos e sazonalidade —, use "Resumo do histórico da EJ".
+  
   Requer recruitment:read, e a resposta vai com Cache-Control: private, no-store — são dados
   pessoais de candidato.
 }
