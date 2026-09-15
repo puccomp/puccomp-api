@@ -1,0 +1,24 @@
+meta {
+  name: Escopos do PAT
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{base_url}}/v1/auth/pat/scopes
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{access_token}}
+}
+
+docs {
+  O catálogo de escopos aceitos em "Criar PAT". Basta estar autenticado: quem monta o token é o
+  próprio membro, e não necessariamente quem administra permissões.
+
+  Escopo recorta o token para menos do que a conta pode — a permissão efetiva é a interseção dos
+  dois. Pedir um escopo que a conta não tem não concede nada, e um código fora desta lista é
+  recusado com 400 na criação.
+}

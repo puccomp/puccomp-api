@@ -29,3 +29,9 @@ script:post-response {
     bru.setEnvVar("pat_id", res.getBody().id);
   }
 }
+
+docs {
+  scopes: null (ou lista vazia) cria um token com todas as permissões de quem o criou. Para um
+  token de leitura, use por exemplo ["members:read", "financial:read"] — os códigos aceitos estão
+  em "Escopos do PAT", e qualquer outro é 400.
+}
