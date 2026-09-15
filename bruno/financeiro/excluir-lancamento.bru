@@ -13,3 +13,11 @@ delete {
 auth:bearer {
   token: {{access_token}}
 }
+
+docs {
+  Descarta o lançamento: ele some da listagem, da busca por id e do resumo, e a linha continua no
+  banco com a data do descarte. Um extrato que muda sem deixar rastro não responde por que o saldo
+  mudou.
+
+  Responde 204 e, a partir daí, 404 para o mesmo id.
+}
