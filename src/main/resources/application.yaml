@@ -20,6 +20,14 @@ spring:
     open-in-view: false
   flyway:
     enabled: true
+  modulith:
+    events:
+      jdbc:
+        # O dono do esquema é o Flyway (V20).
+        schema-initialization:
+          enabled: false
+      # Aviso que não completou volta para a fila no boot.
+      republish-outstanding-events-on-restart: true
   profiles:
     active: dev
   mail:
@@ -72,6 +80,12 @@ puccomp:
   onboarding:
     accept-url-base: ${ONBOARDING_ACCEPT_URL}
     invitation-ttl: 72h
+  notification:
+    # immediate: um aviso por inscrição para quem tem recruitment:read.
+    # digest: um resumo diário às 8h, para EJ com volume de inscrições.
+    new-application: ${NOTIFY_NEW_APPLICATION:immediate}
+    # Antecedência com que o convite pendente é lembrado a quem o enviou.
+    invitation-reminder: ${NOTIFY_INVITATION_REMINDER:24h}
   email:
     # Remetente de todo email transacional; em produção precisa estar verificado no SES.
     # Aceita ONBOARDING_FROM para não quebrar quem já tem esse nome no .env de produção.

@@ -2,12 +2,14 @@ package br.com.puccomp.api.recruitment.applications;
 
 import br.com.puccomp.api.files.FileService;
 import br.com.puccomp.api.organization.CourseCatalog;
+import br.com.puccomp.api.recruitment.ApplicationSubmitted;
 import br.com.puccomp.api.recruitment.processes.ProcessDirectory;
 import br.com.puccomp.api.recruitment.processes.SelectionProcess;
 import br.com.puccomp.api.shared.exception.ConflictException;
 import br.com.puccomp.api.shared.exception.ResourceNotFoundException;
 import br.com.puccomp.api.shared.exception.ValidationException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -33,11 +35,7 @@ class CandidateApplicationRegistry {
     private final ProcessDirectory processes;
     private final CourseCatalog courses;
     private final FileService files;
-    private final CandidateApplicationAggregations aggregations;
-
-    /** O que o envio de email precisa, materializado antes da transação fechar. */
-    record Registered(CandidateApplicationReceiptResponse receipt, String fullName, String email,
-                      String course, String processTitle) { }
+    private final ApplicationEventPublisher events;
 
     @Transactional(readOnly = true)
     Page<CandidateApplicationResponse> listByProcess(UUID processId, CandidateApplicationFilter filter,
@@ -130,8 +128,14 @@ class CandidateApplicationRegistry {
         return "até o %dº período".formatted(max);
     }
 
+    /**
+     * Revalida o que {@code requireSubmittable} já checou, de propósito: entre as duas chamadas
+     * rodam antivírus e upload, dezenas de segundos em que o prazo vence ou o curso sai do catálogo.
+     * A checagem de antes evita gastar S3 à toa; esta, dentro da transação, é a que decide.
+     */
     @Transactional
-    Registered register(UUID processId, SubmitCandidateApplicationRequest request, UUID cvFileId) {
+    CandidateApplicationReceiptResponse register(UUID processId, SubmitCandidateApplicationRequest request,
+                                                 UUID cvFileId) {
         SelectionProcess process = processes.findOpen(processId)
                 .orElseThrow(() -> new ConflictException(PROCESSO_FECHADO));
         requireAcceptedCourse(request.courseId());
@@ -158,8 +162,14 @@ class CandidateApplicationRegistry {
         }
         String courseName = courses.namesOf(List.of(saved.getCourseId()))
                 .getOrDefault(saved.getCourseId(), "");
-        return new Registered(CandidateApplicationReceiptResponse.from(saved), saved.getFullName(),
-                saved.getEmail(), courseName, process.getTitle());
+
+        // Dentro da transação: a publicação vai para o outbox junto com a inscrição, ou nenhuma
+        // das duas. Sem transação ativa, um @TransactionalEventListener sequer é chamado.
+        var receipt = CandidateApplicationReceiptResponse.from(saved);
+        events.publishEvent(new ApplicationSubmitted(saved.getTenantId(), saved.getId(), processId,
+                process.getTitle(), saved.getFullName(), saved.getEmail(), courseName,
+                cvFileId != null, receipt.submittedAt()));
+        return receipt;
     }
 
     private static List<String> sanitized(List<String> links) {

@@ -19,4 +19,19 @@ public final class TenantContext {
     public static void clear() {
         CURRENT.remove();
     }
+
+    /**
+     * Roda o bloco no tenant informado e devolve o anterior — inclusive nenhum. É para trabalho
+     * fora de uma requisição, onde o {@code ThreadLocal} do filtro não chegou.
+     */
+    public static void runIn(UUID tenantId, Runnable work) {
+        UUID previous = CURRENT.get();
+        set(tenantId);
+        try {
+            work.run();
+        } finally {
+            if (previous == null) clear();
+            else set(previous);
+        }
+    }
 }

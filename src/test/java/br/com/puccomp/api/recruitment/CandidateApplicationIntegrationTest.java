@@ -54,10 +54,19 @@ class CandidateApplicationIntegrationTest extends AbstractIntegrationTest {
 
     private final ObjectMapper mapper = new ObjectMapper();
 
+    /** Folga para o listener assíncrono entregar; o verify volta assim que a contagem fecha. */
+    private static final long DELIVERY_TIMEOUT = 5_000;
+
+    /** Janela de drenagem: aqui não há contagem a fechar, então espera-se o período inteiro. */
+    private static final long DRAIN_WINDOW = 750;
+
     @MockitoBean
     private JavaMailSender mailSender;
 
-    /** Entrega o e-mail na própria thread da request: sem isso, o {@code @Async} corre com o verify. */
+    /**
+     * Entrega o e-mail na própria thread de quem envia. Não basta para o verify ser imediato: o
+     * aviso sai de um listener de evento, que roda depois do commit e em outra thread.
+     */
     @TestBean(name = "mailTaskExecutor")
     private TaskExecutor mailTaskExecutor;
 
@@ -179,7 +188,8 @@ class CandidateApplicationIntegrationTest extends AbstractIntegrationTest {
 
         assertThat(duplicate.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
         assertThat(duplicate.getBody().message()).contains("Você já se inscreveu");
-        Mockito.verify(mailSender, Mockito.times(2)).send(Mockito.any(MimeMessage.class));
+        Mockito.verify(mailSender, Mockito.timeout(DELIVERY_TIMEOUT).times(2))
+                .send(Mockito.any(MimeMessage.class));
     }
 
     @Test
@@ -332,6 +342,9 @@ class CandidateApplicationIntegrationTest extends AbstractIntegrationTest {
         assertThat(post("/v1/members/" + aposentado + "/retire", null, token, String.class)
                 .getStatusCode()).isEqualTo(HttpStatus.OK);
 
+        // Aposentar agora avisa o próprio membro; esse aviso não é o que este teste mede.
+        drainMail();
+
         UUID processId = openProcess(token, "PS Alumni", null);
         submit("ej-alumni", processId, "candidato@example.com");
 
@@ -371,9 +384,20 @@ class CandidateApplicationIntegrationTest extends AbstractIntegrationTest {
                 .contains("resiliente@example.com");
     }
 
+    /**
+     * Zera o mock depois dos avisos da montagem do cenário. Espera uma janela fixa em vez de uma
+     * contagem porque o número de destinatários muda de cenário para cenário.
+     */
+    private void drainMail() {
+        Mockito.verify(mailSender, Mockito.after(DRAIN_WINDOW).atLeast(0))
+                .send(Mockito.any(MimeMessage.class));
+        stubMailTransport();
+    }
+
     private List<String> sentRecipients(int expected) {
         ArgumentCaptor<MimeMessage> captor = ArgumentCaptor.forClass(MimeMessage.class);
-        Mockito.verify(mailSender, Mockito.times(expected)).send(captor.capture());
+        Mockito.verify(mailSender, Mockito.timeout(DELIVERY_TIMEOUT).times(expected))
+                .send(captor.capture());
         return captor.getAllValues().stream().map(CandidateApplicationIntegrationTest::onlyRecipient).toList();
     }
 
@@ -765,11 +789,13 @@ class CandidateApplicationIntegrationTest extends AbstractIntegrationTest {
                 SelectionProcessResponse.class).getBody().id();
     }
 
+    /** Abrir inscrições avisa a equipe: drena para cada teste contar só o fato que exercita. */
     private UUID openProcess(String token, String title, String description) {
         UUID processId = post("/v1/recruitment/processes", new SelectionProcessRequest(title, description, null, null, null, null, null), token,
                 SelectionProcessResponse.class).getBody().id();
         patch("/v1/recruitment/processes/" + processId + "/status",
                 new ChangeStatusRequest(SelectionProcessStatus.OPEN), token, SelectionProcessResponse.class);
+        drainMail();
         return processId;
     }
 
