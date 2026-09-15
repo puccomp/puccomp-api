@@ -6,18 +6,17 @@ import br.com.puccomp.api.organization.members.MemberSpecs;
 import br.com.puccomp.api.organization.members.MemberStatus;
 import br.com.puccomp.api.organization.departments.Department;
 import br.com.puccomp.api.organization.roles.Role;
+import br.com.puccomp.api.shared.criteria.CriteriaAggregates;
 import br.com.puccomp.api.shared.reference.Standing;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.Tuple;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.CriteriaQuery;
-import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Path;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Component;
 
 import java.util.Comparator;
@@ -36,13 +35,6 @@ import java.util.stream.Collectors;
 @Component
 @RequiredArgsConstructor
 class MemberAggregations {
-
-    /**
-     * Ordem textual do UUID, não a natural do Java: {@code UUID.compareTo} compara dois longs com
-     * sinal, então a sequência que ela produz não é a que o cliente vê nos ids da resposta — nem a
-     * que o Postgres usa. Aqui a ordem publicada é a que quem consome consegue reproduzir.
-     */
-    private static final Comparator<UUID> BY_ID = Comparator.comparing(id -> id.toString());
 
     private final EntityManager entityManager;
 
@@ -72,14 +64,18 @@ class MemberAggregations {
         Predicate active = builder.equal(root.get("status"), MemberStatus.ACTIVE);
 
         query.select(builder.tuple(
-                        countIf(builder, active),
-                        countIf(builder, builder.and(active, builder.isNull(root.get("role")))),
-                        countIf(builder, builder.and(active, builder.isNull(root.get("department"))))))
+                        CriteriaAggregates.countIf(builder, active),
+                        CriteriaAggregates.countIf(builder,
+                                builder.and(active, builder.isNull(root.get("role")))),
+                        CriteriaAggregates.countIf(builder,
+                                builder.and(active, builder.isNull(root.get("department"))))))
                 .where(matching(root, query, builder, filter));
 
         Tuple row = entityManager.createQuery(query).getSingleResult();
-        return new ActiveCounts(value(row.get(0, Long.class)), value(row.get(1, Long.class)),
-                value(row.get(2, Long.class)));
+        return new ActiveCounts(
+                CriteriaAggregates.zeroIfNull(row.get(0, Long.class)),
+                CriteriaAggregates.zeroIfNull(row.get(1, Long.class)),
+                CriteriaAggregates.zeroIfNull(row.get(2, Long.class)));
     }
 
     record ActiveCounts(long active, long withoutRole, long withoutDepartment) { }
@@ -124,7 +120,8 @@ class MemberAggregations {
                 .map(row -> new RefCount(row.get(0, UUID.class), row.get(1, String.class),
                         row.get(2, Long.class)))
                 .sorted(Comparator.comparingLong((RefCount row) -> row.count()).reversed()
-                        .thenComparing(row -> row.id(), Comparator.nullsLast(BY_ID)))
+                        .thenComparing(row -> row.id(),
+                                Comparator.nullsLast(CriteriaAggregates.BY_TEXTUAL_ID)))
                 .toList();
     }
 
@@ -161,7 +158,7 @@ class MemberAggregations {
         return entityManager.createQuery(query).getResultList().stream()
                 .map(row -> new RoleOccupancy(row.get(0, UUID.class), row.get(1, String.class),
                         row.get(2, Integer.class), occupants.getOrDefault(row.get(0, UUID.class), 0L)))
-                .sorted(Comparator.comparing(role -> role.id(), BY_ID))
+                .sorted(Comparator.comparing(role -> role.id(), CriteriaAggregates.BY_TEXTUAL_ID))
                 .toList();
     }
 
@@ -179,7 +176,7 @@ class MemberAggregations {
                 .map(row -> new RefCount(row.get(0, UUID.class), row.get(1, String.class),
                         occupants.getOrDefault(row.get(0, UUID.class), 0L)))
                 .filter(row -> row.count() == 0)
-                .sorted(Comparator.comparing(row -> row.id(), BY_ID))
+                .sorted(Comparator.comparing(row -> row.id(), CriteriaAggregates.BY_TEXTUAL_ID))
                 .toList();
     }
 
@@ -201,18 +198,8 @@ class MemberAggregations {
                         row -> row.get(1, Long.class)));
     }
 
-    /** Soma sobre zero linhas é nula no SQL, e aqui a contagem conhecida sem ocorrências é zero. */
-    private static long value(Long count) {
-        return count == null ? 0 : count;
-    }
-
-    private static Expression<Long> countIf(CriteriaBuilder builder, Predicate condition) {
-        return builder.sum(builder.<Long>selectCase().when(condition, 1L).otherwise(0L));
-    }
-
     private static Predicate matching(Root<Member> root, CriteriaQuery<?> query, CriteriaBuilder builder,
                                       MemberFilter filter) {
-        Specification<Member> specification = MemberSpecs.matching(filter);
-        return specification.toPredicate(root, query, builder);
+        return CriteriaAggregates.matching(MemberSpecs.matching(filter), root, query, builder);
     }
 }
