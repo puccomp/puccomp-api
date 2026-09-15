@@ -39,3 +39,4 @@ decisão antiga, crie um novo ADR e marque o antigo como `substituído por NNNN`
 | [0002](0002-armazenamento-s3.md) | Arquitetura de armazenamento de arquivos (S3) | proposto |
 | [0003](0003-superficie-publica-de-recrutamento.md) | Superfície pública de recrutamento | aceito |
 | [0004](0004-curriculos-privados.md) | Currículos privados no módulo files | proposto |
+| [0005](0005-notificacoes-por-eventos-de-dominio.md) | Notificações por eventos de domínio, com outbox | proposto |
