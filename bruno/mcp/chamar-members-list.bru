@@ -1,0 +1,42 @@
+meta {
+  name: Chamar members_list
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{base_url}}/mcp
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{pat_token}}
+}
+
+headers {
+  Accept: application/json, text/event-stream
+}
+
+body:json {
+  {
+    "jsonrpc": "2.0",
+    "id": 2,
+    "method": "tools/call",
+    "params": {
+      "name": "members_list",
+      "arguments": {
+        "status": "ACTIVE",
+        "size": 5
+      }
+    }
+  }
+}
+
+docs {
+  Exige members:read. O resultado deve bater com GET /v1/members?status=ACTIVE&size=5 em membros/
+  — é a mesma consulta, pelo mesmo serviço, com o mesmo recorte de tenant e de permissão.
+
+  arguments aceita status, standing, departmentId, roleId, courseId, page e size, todos opcionais.
+  Deixe {} para o quadro inteiro.
+}

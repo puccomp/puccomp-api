@@ -1,0 +1,38 @@
+meta {
+  name: Chamar members_get
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{base_url}}/mcp
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{pat_token}}
+}
+
+headers {
+  Accept: application/json, text/event-stream
+}
+
+body:json {
+  {
+    "jsonrpc": "2.0",
+    "id": 3,
+    "method": "tools/call",
+    "params": {
+      "name": "members_get",
+      "arguments": {
+        "id": "{{member_id}}"
+      }
+    }
+  }
+}
+
+docs {
+  Exige members:read. Com um id inexistente, a resposta é 200 com isError: true e a mensagem de
+  domínio ("Membro não encontrado") — o agente recebe texto legível, nunca stacktrace.
+}

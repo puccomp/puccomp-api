@@ -1,0 +1,26 @@
+meta {
+  name: mcp
+  seq: 5
+}
+
+auth {
+  mode: inherit
+}
+
+docs {
+  Servidor MCP: a mesma API, falada em JSON-RPC, para o agente de IA do membro (Claude Code,
+  Cursor, Claude Desktop) consultar a EJ de dentro da ferramenta que ele já usa.
+
+  Estas requisições existem para dar como testar sem instalar cliente MCP nenhum — é POST cru
+  em /mcp. Com um cliente de verdade, o caminho é:
+
+      claude mcp add --transport http puccomp {{base_url}}/mcp --header "Authorization: Bearer pat_..."
+
+  O protocolo é stateless (spec de 2026-07-28): não existe initialize, não existe Mcp-Session-Id,
+  e cada requisição se descreve sozinha. Por isso "Listar ferramentas" funciona de cara.
+
+  A credencial é o PAT — rode "Criar PAT" em autenticacao/pat antes, que ele salva {{pat_token}}.
+  O agente enxerga exatamente o que o dono do token enxerga: mesma EJ, mesmas permissões. Token
+  com escopo estreito faz a ferramenta responder isError com "Access Denied", que é resposta 200
+  de JSON-RPC, e não erro de HTTP.
+}

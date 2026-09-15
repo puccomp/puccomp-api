@@ -20,6 +20,7 @@ repositories {
 dependencyManagement {
 	imports {
 		mavenBom 'org.springframework.modulith:spring-modulith-bom:2.1.1'
+		mavenBom 'org.springframework.ai:spring-ai-bom:2.0.1'
 	}
 }
 
@@ -47,6 +48,7 @@ dependencies {
 	implementation 'org.springframework.modulith:spring-modulith-starter-jdbc'
 	annotationProcessor 'org.springframework.modulith:spring-modulith-apt'
 	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:3.1.1'
+	implementation 'org.springframework.ai:spring-ai-starter-mcp-server-webmvc'
 	developmentOnly 'org.springframework.boot:spring-boot-devtools'
 	developmentOnly 'org.springframework.boot:spring-boot-docker-compose'
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'

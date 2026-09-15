@@ -58,6 +58,29 @@ spring:
       # O pool de e-mail publica um Executor, o que sozinho faria o applicationTaskExecutor do Boot
       # sumir do contexto. "force" mantém os dois.
       mode: force
+  ai:
+    mcp:
+      server:
+        name: puccomp-api
+        version: ${spring.application.version:0.0.0-dev}
+        # A spec de 2026-07-28 tirou o handshake e o Mcp-Session-Id: cada requisição se descreve
+        # sozinha. Serve para nós porque a API já é stateless — o PAT é revalidado a cada chamada,
+        # e o servidor escala atrás de um load balancer comum, como o resto.
+        protocol: STATELESS
+        # SYNC não é preferência de estilo. TenantContext e SecurityContextHolder são ThreadLocal,
+        # presos à thread da requisição; em ASYNC a ferramenta rodaria fora dela, o Hibernate
+        # resolveria o tenant zerado e toda leitura voltaria vazia — sem erro nenhum. Ver ADR 0006.
+        type: SYNC
+        capabilities:
+          # Só ferramentas nesta versão; declarar o que não existe só gasta contexto do agente.
+          prompt: false
+          resource: false
+          completion: false
+        instructions: >
+          ERP da sua Empresa Júnior. As ferramentas leem os dados da EJ a que o token pertence,
+          com as mesmas permissões de quem o criou — não existe forma de alcançar outra EJ.
+          Um acesso negado significa que falta a permissão ao membro ou que o escopo do token
+          a recortou, e não que o dado não existe.
   data:
     web:
       pageable:
