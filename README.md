@@ -55,9 +55,27 @@ http://localhost:9090.
 | Swagger UI | http://localhost:8080/docs |
 | Especificação OpenAPI | http://localhost:8080/v3/api-docs |
 | Collection Bruno | [`bruno/`](bruno) |
+| Servidor MCP | http://localhost:8080/mcp |
 
 O contrato é gerado a partir do código pelo Springdoc — ver
 [docs/README.md](docs/README.md#contrato-da-api).
+
+### Conectando um agente de IA
+
+O servidor MCP entrega as mesmas leituras da API para o agente que o membro já usa
+(Claude Code, Cursor, Claude Desktop). A credencial é um PAT criado em
+`POST /v1/auth/pat` — o agente enxerga exatamente o que o dono do token enxerga:
+mesma EJ, mesmas permissões.
+
+```bash
+claude mcp add --transport http puccomp http://localhost:8080/mcp \
+  --header "Authorization: Bearer pat_..."
+```
+
+Escopo no PAT restringe o token para menos do que a conta pode; os códigos aceitos
+estão em `GET /v1/auth/pat/scopes`. Para testar sem cliente MCP instalado, a pasta
+[`bruno/mcp/`](bruno/mcp) tem as chamadas JSON-RPC cruas. O porquê do desenho está
+no [ADR 0006](docs/adr/0006-servidor-mcp-com-spring-ai.md).
 
 ## Documentação
 

@@ -1,16 +1,19 @@
 package br.com.puccomp.api.organization.members;
 
+import br.com.puccomp.api.organization.members.summary.MemberSummaryResponse;
+import br.com.puccomp.api.organization.members.summary.MemberSummaryService;
+import br.com.puccomp.api.shared.mcp.ToolPage;
 import br.com.puccomp.api.shared.reference.Standing;
 import lombok.RequiredArgsConstructor;
 import org.springframework.ai.mcp.annotation.McpTool;
 import org.springframework.ai.mcp.annotation.McpToolParam;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 
-import java.util.List;
 import java.util.UUID;
 
 /**
@@ -46,9 +49,12 @@ public class MemberTools {
                     Todos os filtros são opcionais e combinam por E; sem nenhum, devolve o quadro \
                     inteiro em ordem alfabética. Os filtros por id esperam o id devolvido pela \
                     ferramenta do cadastro correspondente, não o nome. Consulte 'total' para saber \
-                    se vale pedir a próxima página, em vez de supor.""")
+                    se vale pedir a próxima página, em vez de supor.
+
+                    Para contagens e distribuições do quadro inteiro, prefira members_summary: ele \
+                    responde de uma vez o que esta listagem só responderia paginando tudo.""")
     @PreAuthorize("hasAuthority('members:read')")
-    public MemberList list(
+    public ToolPage<MemberResponse> list(
             @McpToolParam(required = false,
                     description = "Situação do vínculo; sem ele, todas entram") MemberStatus status,
             @McpToolParam(required = false,
@@ -60,14 +66,8 @@ public class MemberTools {
             @McpToolParam(required = false,
                     description = "Itens por página, no máximo 100; o padrão é 20") Integer size) {
 
-        var filter = new MemberFilter(departmentId, null, roleId, courseId, status, standing, null, null);
-        Page<MemberResponse> found = service.findAll(filter, PageRequest.of(
-                page == null || page < 0 ? 0 : page,
-                size == null || size < 1 ? DEFAULT_SIZE : Math.min(size, MAX_SIZE),
-                BY_NAME));
-
-        return new MemberList(found.getContent(), found.getTotalElements(),
-                found.getNumber(), found.getTotalPages());
+        return ToolPage.of(service.findAll(filtro(status, standing, departmentId, roleId, courseId),
+                PageRequest.of(pagina(page), tamanho(size), BY_NAME)));
     }
 
     @McpTool(name = "members_get",
@@ -82,10 +82,54 @@ public class MemberTools {
         return service.findById(id);
     }
 
+    @McpTool(name = "members_summary",
+            annotations = @McpTool.McpAnnotations(readOnlyHint = true, destructiveHint = false,
+                    idempotentHint = true, openWorldHint = false),
+            description = """
+                    Composição atual do quadro: total, ativos e as distribuições por cargo, \
+                    diretoria, curso e situação. Exige a permissão members:read.
+
+                    Aceita os mesmos filtros de members_list e agrega o conjunto filtrado inteiro, \
+                    sem paginar. Já o bloco organization_context descreve a EJ inteira e nenhum \
+                    filtro o restringe — um cargo com cinco vagas e cinco ocupantes não passa a ter \
+                    quatro vagas abertas porque só um ocupante corresponde ao curso filtrado.
+
+                    Dentro dele, seats e unfilled_roles exigem também roles:read, e \
+                    empty_departments exige também departments:read. Sem a permissão adicional o \
+                    bloco vem nulo, o que significa ausência de permissão e não EJ vazia.""")
+    @PreAuthorize("hasAuthority('members:read')")
+    public MemberSummaryResponse summary(
+            @McpToolParam(required = false, description = "Situação do vínculo") MemberStatus status,
+            @McpToolParam(required = false, description = "Tipo de vínculo com a EJ") Standing standing,
+            @McpToolParam(required = false, description = "Diretoria atual do membro") UUID departmentId,
+            @McpToolParam(required = false, description = "Cargo atual do membro") UUID roleId,
+            @McpToolParam(required = false, description = "Curso do membro") UUID courseId) {
+
+        return service.summarize(filtro(status, standing, departmentId, roleId, courseId),
+                new MemberSummaryService.ContextAccess(pode("roles:read"), pode("departments:read")));
+    }
+
+    private static MemberFilter filtro(MemberStatus status, Standing standing,
+                                       UUID departmentId, UUID roleId, UUID courseId) {
+        return new MemberFilter(departmentId, null, roleId, courseId, status, standing, null, null);
+    }
+
+    private static int pagina(Integer page) {
+        return page == null || page < 0 ? 0 : page;
+    }
+
+    private static int tamanho(Integer size) {
+        return size == null || size < 1 ? DEFAULT_SIZE : Math.min(size, MAX_SIZE);
+    }
+
     /**
-     * O envelope de {@code Page} do Spring Data — {@code pageable}, {@code sort}, {@code first},
-     * {@code numberOfElements} — é ruído que o agente paga em contexto a cada chamada. Aqui fica só
-     * o que ele usa para decidir se pede mais.
+     * O contexto da estrutura depende de permissões além de members:read, e o controller as lê da
+     * {@code Authentication}. Aqui vale o mesmo: em {@code SYNC} a ferramenta roda na thread da
+     * requisição, então o {@code SecurityContextHolder} é o mesmo que o {@code @PreAuthorize} usou.
      */
-    public record MemberList(List<MemberResponse> members, long total, int page, int pages) { }
+    private static boolean pode(String permissao) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        return authentication != null && authentication.getAuthorities().stream()
+                .anyMatch(authority -> permissao.equals(authority.getAuthority()));
+    }
 }

@@ -127,6 +127,7 @@ manda `MCP-Protocol-Version`.
 - ⚪ **Neutra:** o Spring AI 2.0.1 fixa `spring-boot-starter-web` 4.1.1 no POM
   publicado, o que obrigou a subir o Boot de 4.0.6 para 4.1.1 — e, junto, o Modulith
   e o springdoc, cada um construído contra um Boot específico.
-- ⚪ **Neutra:** as ferramentas devolvem um record compacto em vez do `Page` do
-  Spring Data. O envelope de paginação é contexto que o agente paga em toda
-  chamada, e ele só precisa saber se vale pedir a próxima página.
+- ⚪ **Neutra:** as ferramentas devolvem `ToolPage` em vez do `Page` do Spring Data.
+  O envelope do Spring Data é contexto que o agente paga em toda chamada para
+  decidir uma única coisa — se vale pedir a próxima página. Sendo o mesmo tipo em
+  toda listagem, ele aprende a ler um envelope, e não um por módulo.

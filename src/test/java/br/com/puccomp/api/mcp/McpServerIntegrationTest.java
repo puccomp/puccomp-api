@@ -25,6 +25,17 @@ import static org.assertj.core.api.Assertions.assertThat;
 @Import(TestSeeder.class)
 class McpServerIntegrationTest extends AbstractIntegrationTest {
 
+    private static final String[] FERRAMENTAS = {
+            "members_list", "members_get", "members_summary",
+            "roles_list", "roles_get",
+            "departments_list", "departments_get",
+            "courses_list", "courses_get",
+            "recruitment_processes_list", "recruitment_processes_get",
+            "recruitment_applications_list", "recruitment_process_funnel",
+            "recruitment_applications_summary",
+            "financial_entries_list", "financial_entries_get", "financial_summary"
+    };
+
     @Autowired
     private TestSeeder seeder;
 
@@ -48,6 +59,31 @@ class McpServerIntegrationTest extends AbstractIntegrationTest {
         // A chamada valeu sem o initialize que a spec antiga exigia, e nada de sessão volta para
         // ser reapresentado depois: é o protocolo STATELESS, verificado em vez de suposto.
         assertThat(res.getHeaders().headerNames()).doesNotContain("Mcp-Session-Id");
+    }
+
+    @Test
+    @DisplayName("o catálogo publicado é exatamente este, e mudá-lo é uma decisão consciente")
+    void shouldPublishTheAgreedToolRoster() {
+        String pat = patDe("EJ MCP catálogo", "ej-mcp-catalogo", "dono-catalogo@ej.dev", null);
+
+        ResponseEntity<String> res = mcp(pat, jsonRpc(1, "tools/list", null));
+
+        // Cada ferramenta nova é superfície que o agente relê a cada conversa, e contexto que ele
+        // paga. A lista está aqui para que acrescentar uma passe por uma linha de teste.
+        assertThat(res.getBody()).contains(FERRAMENTAS);
+        assertThat(quantasFerramentas(res.getBody())).isEqualTo(FERRAMENTAS.length);
+    }
+
+    @Test
+    @DisplayName("o escopo recorta por módulo: members:read não abre o financeiro")
+    void shouldScopeToolsPerModule() {
+        String pat = patDe("EJ MCP módulos", "ej-mcp-modulos", "dono-modulos@ej.dev",
+                List.of("members:read"));
+
+        assertThat(mcp(pat, chamada(5, "members_list", Map.of())).getBody())
+                .doesNotContain("\"isError\":true");
+        assertThat(mcp(pat, chamada(6, "financial_entries_list", Map.of())).getBody())
+                .contains("\"isError\":true");
     }
 
     @Test
@@ -157,5 +193,9 @@ class McpServerIntegrationTest extends AbstractIntegrationTest {
 
     private static Map<String, Object> chamada(int id, String tool, Map<String, Object> argumentos) {
         return jsonRpc(id, "tools/call", Map.of("name", tool, "arguments", argumentos));
+    }
+
+    private static int quantasFerramentas(String body) {
+        return body.split("\"inputSchema\"", -1).length - 1;
     }
 }

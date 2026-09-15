@@ -23,4 +23,18 @@ docs {
   O agente enxerga exatamente o que o dono do token enxerga: mesma EJ, mesmas permissões. Token
   com escopo estreito faz a ferramenta responder isError com "Access Denied", que é resposta 200
   de JSON-RPC, e não erro de HTTP.
+
+  O catálogo autoritativo é a resposta de "Listar ferramentas". Para orientação, hoje são:
+
+    members:read      members_list, members_get, members_summary
+    roles:read        roles_list, roles_get
+    departments:read  departments_list, departments_get
+    (autenticado)     courses_list, courses_get
+    recruitment:read  recruitment_processes_list, recruitment_processes_get,
+                      recruitment_applications_list, recruitment_process_funnel,
+                      recruitment_applications_summary
+    financial:read    financial_entries_list, financial_entries_get, financial_summary
+
+  Toda ferramenta de listagem devolve o mesmo envelope — items, total, page, pages — e as
+  terminadas em _summary ou _funnel agregam o conjunto inteiro, sem paginar.
 }
