@@ -6,10 +6,21 @@ spring:
       file-size-threshold: 0
   application:
     name: puccomp-api
+  threads:
+    virtual:
+      # Requisição bloqueada em I/O desmonta da carrier thread em vez de ocupá-la. Vale para o
+      # servidor MCP, onde o agente dispara várias chamadas em paralelo, e o pinning de
+      # `synchronized` que travava JDBC saiu no JEP 491 (JDK 24) — estamos em 25.
+      enabled: true
   datasource:
     url: ${DB_URL}
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
+    hikari:
+      # Com virtual threads o teto de concorrência deixa de ser o pool do Tomcat e passa a ser este
+      # número: a requisição só progride quando consegue uma conexão. O padrão de 10 é pouco para o
+      # tráfego da UI somado ao de agente, que chama a API em rajada de tool calls.
+      maximum-pool-size: ${DB_POOL_SIZE:20}
   jackson:
     property-naming-strategy: SNAKE_CASE
   jpa:

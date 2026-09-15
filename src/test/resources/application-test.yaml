@@ -3,6 +3,10 @@ spring:
     url: jdbc:postgresql://localhost:5432/test
     username: test
     password: test
+    hikari:
+      # O JUnit mantém vários contextos vivos no mesmo JVM, cada um com seu pool; o tamanho de
+      # produção somado entre eles passa do max_connections do Postgres.
+      maximum-pool-size: 5
   jpa:
     hibernate:
       ddl-auto: validate
