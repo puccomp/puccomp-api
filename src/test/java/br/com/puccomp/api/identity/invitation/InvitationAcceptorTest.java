@@ -1,5 +1,6 @@
 package br.com.puccomp.api.identity.invitation;
 
+import br.com.puccomp.api.identity.InvitationAccepted;
 import br.com.puccomp.api.identity.account.*;
 import br.com.puccomp.api.organization.CourseCatalog;
 import br.com.puccomp.api.organization.MemberDirectory;
@@ -16,6 +17,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.time.Instant;
@@ -36,6 +38,7 @@ class InvitationAcceptorTest {
     @Mock private MemberDirectory memberDirectory;
     @Mock private CourseCatalog courseCatalog;
     @Mock private PasswordEncoder passwordEncoder;
+    @Mock private ApplicationEventPublisher events;
     @InjectMocks private InvitationAcceptor acceptor;
 
     private Invitation invitation(UUID tenantId, UUID roleId) {

@@ -58,6 +58,9 @@ class CvUploadIntegrationTest extends AbstractIntegrationTest {
                 SelectionProcessResponse.class).getBody().id();
         patch("/v1/recruitment/processes/" + process + "/status", new ChangeStatusRequest(SelectionProcessStatus.OPEN),
                 token, SelectionProcessResponse.class);
+        // Abrir inscrições avisa a equipe: drena, para os testes abaixo medirem só a recusa.
+        verify(mailer, timeout(5_000)).send(any());
+        clearInvocations(mailer);
         when(storage.downloadUrl(anyString(), anyString(), anyString(), any(Duration.class)))
                 .thenReturn("https://private.example/cv?X-Amz-Signature=test");
     }

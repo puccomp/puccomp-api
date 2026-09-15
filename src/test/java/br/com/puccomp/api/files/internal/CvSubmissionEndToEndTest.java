@@ -103,6 +103,10 @@ class CvSubmissionEndToEndTest extends AbstractIntegrationTest {
                 SelectionProcessResponse.class).getBody().id();
         patch("/v1/recruitment/processes/" + process + "/status", new ChangeStatusRequest(SelectionProcessStatus.OPEN),
                 token, SelectionProcessResponse.class);
+        // Abrir inscrições avisa a equipe: drena antes de medir os e-mails da inscrição.
+        verify(mailSender, timeout(5_000).times(2)).send(any(MimeMessage.class));
+        reset(mailSender);
+        when(mailSender.createMimeMessage()).thenAnswer(invocation -> new MimeMessage((Session) null));
 
         byte[] pdf = PdfValidatorTest.pdf(d -> { });
         var body = new LinkedMultiValueMap<String, Object>();
@@ -121,7 +125,7 @@ class CvSubmissionEndToEndTest extends AbstractIntegrationTest {
         verify(scanner).scan(pdf);
 
         var messages = ArgumentCaptor.forClass(MimeMessage.class);
-        verify(mailSender, times(3)).send(messages.capture());
+        verify(mailSender, timeout(5_000).times(3)).send(messages.capture());
         var recipients = new java.util.HashSet<String>();
         for (MimeMessage message : messages.getAllValues()) {
             assertThat(message.getAllRecipients()).hasSize(1);
