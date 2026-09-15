@@ -1,5 +1,6 @@
 package br.com.puccomp.api.dev;
 
+import br.com.puccomp.api.shared.tenant.OrganizationTime;
 import br.com.puccomp.api.shared.token.TokenSecrets;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -56,7 +57,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 class DevDataSeeder implements ApplicationRunner {
 
-    private static final ZoneId EJ = ZoneId.of("America/Sao_Paulo");
+    private static final ZoneId EJ = OrganizationTime.ZONE;
 
     private final JdbcTemplate jdbc;
     private final PasswordEncoder passwordEncoder;
