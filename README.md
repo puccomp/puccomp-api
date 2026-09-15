@@ -72,6 +72,18 @@ claude mcp add --transport http puccomp http://localhost:8080/mcp \
   --header "Authorization: Bearer pat_..."
 ```
 
+Em `dev` não é preciso criar nada: o seed já deixa um PAT pronto e imprime no log,
+junto das contas. Dá para conectar direto.
+
+```bash
+claude mcp add --transport http puccomp http://localhost:8080/mcp \
+  --header "Authorization: Bearer pat_dev_comp_integracao-site"
+```
+
+Esse token tem escopo `recruitment:read` de propósito, para o recorte ficar visível:
+a conta dona dele é presidente da EJ e pode tudo, mas o agente só enxerga
+recrutamento. Chame `whoami` e compare.
+
 Escopo no PAT restringe o token para menos do que a conta pode; os códigos aceitos
 estão em `GET /v1/auth/pat/scopes`. Para testar sem cliente MCP instalado, a pasta
 [`bruno/mcp/`](bruno/mcp) tem as chamadas JSON-RPC cruas. O porquê do desenho está
