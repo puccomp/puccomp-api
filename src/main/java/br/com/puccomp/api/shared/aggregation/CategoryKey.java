@@ -36,6 +36,11 @@ public record CategoryKey(
         return new CategoryKey(id == null ? null : id.toString(), name);
     }
 
+    /** Categoria que é texto livre: identificador e rótulo coincidem por não haver catálogo. */
+    public static CategoryKey of(String value) {
+        return new CategoryKey(value, value);
+    }
+
     /** Categoria de quem não tem o vínculo agrupado — cargo, diretoria, período não informado. */
     public static CategoryKey absent(String name) {
         return new CategoryKey(null, name);
