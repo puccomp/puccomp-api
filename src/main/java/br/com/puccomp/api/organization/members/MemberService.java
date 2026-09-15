@@ -30,7 +30,7 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
-public class MemberService {
+class MemberService {
 
     private static final Set<String> CURRENT_STATE_FILTERS = Set.of(
             "department_id", "departmentId", "role_id", "course_id", "status", "standing",
