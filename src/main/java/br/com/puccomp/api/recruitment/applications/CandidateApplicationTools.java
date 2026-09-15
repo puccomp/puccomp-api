@@ -1,7 +1,5 @@
 package br.com.puccomp.api.recruitment.applications;
 
-import br.com.puccomp.api.recruitment.applications.summary.ApplicationHistorySummaryResponse;
-import br.com.puccomp.api.recruitment.applications.summary.ApplicationSummaryResponse;
 import br.com.puccomp.api.shared.mcp.ToolPage;
 import lombok.RequiredArgsConstructor;
 import org.springframework.ai.mcp.annotation.McpTool;
@@ -10,6 +8,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Component;
+import tools.jackson.databind.ObjectMapper;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -18,9 +17,11 @@ import java.util.UUID;
  * Ferramentas MCP das inscrições. Ficam aqui pelo motivo descrito em {@code MemberTools}.
  *
  * <p>São três e não quatro de propósito. A listagem por processo é a busca da EJ inteira com
- * {@code processId} preenchido, então uma ferramenta cobre as duas; já os dois resumos respondem
+ * {@code process_id} preenchido, então uma ferramenta cobre as duas; já os dois resumos respondem
  * perguntas diferentes — um enxerga a curva de chegada dentro do prazo, o outro enxerga pessoas
  * entre processos — e juntá-los só faria o agente receber campos nulos sem saber por quê.
+ *
+ * <p>O sublinhado nos parâmetros de ferramenta é deliberado, e o motivo está em {@code MemberTools}.
  */
 @Component
 @RequiredArgsConstructor
@@ -31,6 +32,7 @@ public class CandidateApplicationTools {
     private static final Sort NEWEST_FIRST = Sort.by(Sort.Direction.DESC, "createdAt", "id");
 
     private final CandidateApplicationService service;
+    private final ObjectMapper json;
 
     @McpTool(name = "recruitment_applications_list",
             annotations = @McpTool.McpAnnotations(readOnlyHint = true, destructiveHint = false,
@@ -42,22 +44,27 @@ public class CandidateApplicationTools {
                     Sem process_id, percorre o histórico inteiro; com ele, recorta um processo. \
                     Todos os filtros são opcionais e combinam por E.
 
+                    Isto é uma busca filtrada, então process_id inexistente devolve total 0, e não \
+                    erro. Para saber se um processo existe, use recruitment_processes_get.
+
                     Cada linha já responde reincidência sem varrer páginas: applications_count \
                     maior que 1 é quem voltou, e first_applied_at diz desde quando. Os dois olham \
-                    para a EJ inteira, e nenhum filtro desta consulta os restringe.""")
+                    para a EJ inteira, e nenhum filtro desta consulta os restringe.
+
+                    Devolve {items, total, page, pages}.""")
     @PreAuthorize("hasAuthority('recruitment:read')")
-    public ToolPage<CandidateApplicationResponse> list(
+    public String list(
             @McpToolParam(required = false,
-                    description = "Recorta um processo; sem ele, o histórico inteiro") UUID processId,
+                    description = "Recorta um processo; sem ele, o histórico inteiro") UUID process_id,
             @McpToolParam(required = false,
                     description = "Busca por nome, e-mail e caixa, ignorando acento") String q,
-            @McpToolParam(required = false, description = "Curso do candidato") UUID courseId,
-            @McpToolParam(required = false, description = "Período mínimo, inclusive") Short minTerm,
-            @McpToolParam(required = false, description = "Período máximo, inclusive") Short maxTerm,
+            @McpToolParam(required = false, description = "Curso do candidato") UUID course_id,
+            @McpToolParam(required = false, description = "Período mínimo, inclusive") Short min_term,
+            @McpToolParam(required = false, description = "Período máximo, inclusive") Short max_term,
             @McpToolParam(required = false,
-                    description = "true traz só quem anexou currículo; false só quem não anexou") Boolean hasCv,
+                    description = "true traz só quem anexou currículo; false só quem não anexou") Boolean has_cv,
             @McpToolParam(required = false,
-                    description = "true traz só quem enviou ao menos um link") Boolean hasLinks,
+                    description = "true traz só quem enviou ao menos um link") Boolean has_links,
             @McpToolParam(required = false,
                     description = "Inscrições enviadas a partir deste instante ISO-8601") Instant from,
             @McpToolParam(required = false,
@@ -66,11 +73,11 @@ public class CandidateApplicationTools {
             @McpToolParam(required = false,
                     description = "Itens por página, no máximo 100; o padrão é 20") Integer size) {
 
-        var filter = filtro(processId, q, courseId, minTerm, maxTerm, hasCv, hasLinks, from, to);
-        return ToolPage.of(service.searchAcrossProcesses(filter, PageRequest.of(
+        var filter = filtro(process_id, q, course_id, min_term, max_term, has_cv, has_links, from, to);
+        return json.writeValueAsString(ToolPage.of(service.searchAcrossProcesses(filter, PageRequest.of(
                 page == null || page < 0 ? 0 : page,
                 size == null || size < 1 ? DEFAULT_SIZE : Math.min(size, MAX_SIZE),
-                NEWEST_FIRST)));
+                NEWEST_FIRST))));
     }
 
     @McpTool(name = "recruitment_process_funnel",
@@ -88,27 +95,27 @@ public class CandidateApplicationTools {
                     existem aqui. Para comparar processos entre si e contar pessoas distintas, use \
                     recruitment_applications_summary.
 
-                    Sem inscrições correspondentes devolve contagens zero e listas vazias, \
-                    não erro.""")
+                    Processo sem inscrições devolve contagens zero e listas vazias; processo que \
+                    não existe devolve erro. São coisas diferentes, e a resposta distingue as duas.""")
     @PreAuthorize("hasAuthority('recruitment:read')")
-    public ApplicationSummaryResponse funnel(
+    public String funnel(
             @McpToolParam(description = "Id do processo, como devolvido por "
-                    + "recruitment_processes_list") UUID processId,
+                    + "recruitment_processes_list") UUID process_id,
             @McpToolParam(required = false,
                     description = "Busca por nome, e-mail e caixa, ignorando acento") String q,
-            @McpToolParam(required = false, description = "Curso do candidato") UUID courseId,
-            @McpToolParam(required = false, description = "Período mínimo, inclusive") Short minTerm,
-            @McpToolParam(required = false, description = "Período máximo, inclusive") Short maxTerm,
-            @McpToolParam(required = false, description = "true traz só quem anexou currículo") Boolean hasCv,
+            @McpToolParam(required = false, description = "Curso do candidato") UUID course_id,
+            @McpToolParam(required = false, description = "Período mínimo, inclusive") Short min_term,
+            @McpToolParam(required = false, description = "Período máximo, inclusive") Short max_term,
+            @McpToolParam(required = false, description = "true traz só quem anexou currículo") Boolean has_cv,
             @McpToolParam(required = false,
-                    description = "true traz só quem enviou ao menos um link") Boolean hasLinks,
+                    description = "true traz só quem enviou ao menos um link") Boolean has_links,
             @McpToolParam(required = false,
                     description = "Inscrições enviadas a partir deste instante ISO-8601") Instant from,
             @McpToolParam(required = false,
                     description = "Inscrições enviadas até este instante ISO-8601") Instant to) {
 
-        return service.summarize(processId,
-                filtro(null, q, courseId, minTerm, maxTerm, hasCv, hasLinks, from, to));
+        return json.writeValueAsString(service.summarize(process_id,
+                filtro(null, q, course_id, min_term, max_term, has_cv, has_links, from, to)));
     }
 
     @McpTool(name = "recruitment_applications_summary",
@@ -130,23 +137,23 @@ public class CandidateApplicationTools {
                     assim filtrado, candidates.distinct iguala total e returning é sempre zero, e a \
                     curva de chegada não existe aqui.""")
     @PreAuthorize("hasAuthority('recruitment:read')")
-    public ApplicationHistorySummaryResponse summary(
-            @McpToolParam(required = false, description = "Recorta um processo") UUID processId,
+    public String summary(
+            @McpToolParam(required = false, description = "Recorta um processo") UUID process_id,
             @McpToolParam(required = false,
                     description = "Busca por nome, e-mail e caixa, ignorando acento") String q,
-            @McpToolParam(required = false, description = "Curso do candidato") UUID courseId,
-            @McpToolParam(required = false, description = "Período mínimo, inclusive") Short minTerm,
-            @McpToolParam(required = false, description = "Período máximo, inclusive") Short maxTerm,
-            @McpToolParam(required = false, description = "true traz só quem anexou currículo") Boolean hasCv,
+            @McpToolParam(required = false, description = "Curso do candidato") UUID course_id,
+            @McpToolParam(required = false, description = "Período mínimo, inclusive") Short min_term,
+            @McpToolParam(required = false, description = "Período máximo, inclusive") Short max_term,
+            @McpToolParam(required = false, description = "true traz só quem anexou currículo") Boolean has_cv,
             @McpToolParam(required = false,
-                    description = "true traz só quem enviou ao menos um link") Boolean hasLinks,
+                    description = "true traz só quem enviou ao menos um link") Boolean has_links,
             @McpToolParam(required = false,
                     description = "Inscrições enviadas a partir deste instante ISO-8601") Instant from,
             @McpToolParam(required = false,
                     description = "Inscrições enviadas até este instante ISO-8601") Instant to) {
 
-        return service.summarizeHistory(
-                filtro(processId, q, courseId, minTerm, maxTerm, hasCv, hasLinks, from, to));
+        return json.writeValueAsString(service.summarizeHistory(
+                filtro(process_id, q, course_id, min_term, max_term, has_cv, has_links, from, to)));
     }
 
     private static CandidateApplicationFilter filtro(UUID processId, String q, UUID courseId,

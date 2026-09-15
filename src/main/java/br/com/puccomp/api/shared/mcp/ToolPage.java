@@ -14,6 +14,10 @@ import java.util.function.Function;
  *
  * <p>É o mesmo formato em toda ferramenta de listagem, de propósito. O agente aprende a ler um
  * envelope, não um por módulo.
+ *
+ * <p>Os nomes são de uma palavra só e por isso não mudam entre camelCase e snake_case — mas quem
+ * serializa isto é o {@code ObjectMapper} da aplicação, e não o mapper interno do Spring AI, para
+ * que o conteúdo lá dentro saia igual ao da API REST. Ver {@code MemberTools}.
  */
 public record ToolPage<T>(List<T> items, long total, int page, int pages) {
 

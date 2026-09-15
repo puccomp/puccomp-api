@@ -8,6 +8,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Component;
+import tools.jackson.databind.ObjectMapper;
 
 import java.util.UUID;
 
@@ -21,6 +22,7 @@ public class DepartmentTools {
     private static final Sort BY_NAME = Sort.by("name", "id");
 
     private final DepartmentService service;
+    private final ObjectMapper json;
 
     @McpTool(name = "departments_list",
             annotations = @McpTool.McpAnnotations(readOnlyHint = true, destructiveHint = false,
@@ -29,17 +31,19 @@ public class DepartmentTools {
                     Lista as diretorias da EJ. Exige a permissão departments:read.
 
                     É por aqui que se obtém o department_id que members_list e roles_list aceitam \
-                    como filtro.""")
+                    como filtro.
+
+                    Devolve {items, total, page, pages}.""")
     @PreAuthorize("hasAuthority('departments:read')")
-    public ToolPage<DepartmentResponse> list(
+    public String list(
             @McpToolParam(required = false, description = "Página, começando em 0") Integer page,
             @McpToolParam(required = false,
                     description = "Itens por página, no máximo 100; o padrão é 20") Integer size) {
 
-        return ToolPage.of(service.findAll(PageRequest.of(
+        return json.writeValueAsString(ToolPage.of(service.findAll(PageRequest.of(
                 page == null || page < 0 ? 0 : page,
                 size == null || size < 1 ? DEFAULT_SIZE : Math.min(size, MAX_SIZE),
-                BY_NAME)));
+                BY_NAME))));
     }
 
     @McpTool(name = "departments_get",
@@ -47,8 +51,8 @@ public class DepartmentTools {
                     idempotentHint = true, openWorldHint = false),
             description = "Busca uma diretoria da EJ pelo id. Exige a permissão departments:read.")
     @PreAuthorize("hasAuthority('departments:read')")
-    public DepartmentResponse get(
+    public String get(
             @McpToolParam(description = "Id da diretoria, como devolvido por departments_list") UUID id) {
-        return service.findById(id);
+        return json.writeValueAsString(service.findById(id));
     }
 }

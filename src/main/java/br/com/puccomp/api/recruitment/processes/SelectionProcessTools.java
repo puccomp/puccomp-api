@@ -8,10 +8,14 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Component;
+import tools.jackson.databind.ObjectMapper;
 
 import java.util.UUID;
 
-/** Ferramentas MCP dos processos seletivos. Ficam aqui pelo motivo descrito em {@code MemberTools}. */
+/**
+ * Ferramentas MCP dos processos seletivos. Ficam aqui pelo motivo descrito em {@code MemberTools},
+ * e o sublinhado nos parâmetros de ferramenta também está explicado lá.
+ */
 @Component
 @RequiredArgsConstructor
 public class SelectionProcessTools {
@@ -21,6 +25,7 @@ public class SelectionProcessTools {
     private static final Sort NEWEST_FIRST = Sort.by(Sort.Direction.DESC, "createdAt", "id");
 
     private final SelectionProcessService service;
+    private final ObjectMapper json;
 
     @McpTool(name = "recruitment_processes_list",
             annotations = @McpTool.McpAnnotations(readOnlyHint = true, destructiveHint = false,
@@ -34,9 +39,11 @@ public class SelectionProcessTools {
                     gravado como OPEN mas já venceu.
 
                     É por aqui que se obtém o process_id que as demais ferramentas de recrutamento \
-                    aceitam.""")
+                    aceitam.
+
+                    Devolve {items, total, page, pages}.""")
     @PreAuthorize("hasAuthority('recruitment:read')")
-    public ToolPage<SelectionProcessSummaryResponse> list(
+    public String list(
             @McpToolParam(required = false,
                     description = "Status efetivo; sem ele, todos entram") SelectionProcessStatus status,
             @McpToolParam(required = false,
@@ -46,10 +53,10 @@ public class SelectionProcessTools {
             @McpToolParam(required = false,
                     description = "Itens por página, no máximo 100; o padrão é 20") Integer size) {
 
-        return ToolPage.of(service.findAll(status, q, PageRequest.of(
+        return json.writeValueAsString(ToolPage.of(service.findAll(status, q, PageRequest.of(
                 page == null || page < 0 ? 0 : page,
                 size == null || size < 1 ? DEFAULT_SIZE : Math.min(size, MAX_SIZE),
-                NEWEST_FIRST)));
+                NEWEST_FIRST))));
     }
 
     @McpTool(name = "recruitment_processes_get",
@@ -59,9 +66,9 @@ public class SelectionProcessTools {
                     Busca um processo seletivo pelo id, com as etapas, o prazo e a configuração do \
                     formulário. Exige a permissão recruitment:read.""")
     @PreAuthorize("hasAuthority('recruitment:read')")
-    public SelectionProcessResponse get(
+    public String get(
             @McpToolParam(description = "Id do processo, como devolvido por "
-                    + "recruitment_processes_list") UUID processId) {
-        return service.findById(processId);
+                    + "recruitment_processes_list") UUID process_id) {
+        return json.writeValueAsString(service.findById(process_id));
     }
 }

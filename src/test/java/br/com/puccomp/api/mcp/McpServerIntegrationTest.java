@@ -15,10 +15,12 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -29,7 +31,8 @@ class McpServerIntegrationTest extends AbstractIntegrationTest {
             "members_list", "members_get", "members_summary",
             "roles_list", "roles_get",
             "departments_list", "departments_get",
-            "courses_list", "courses_get",
+            "courses_list",
+            "whoami",
             "recruitment_processes_list", "recruitment_processes_get",
             "recruitment_applications_list", "recruitment_process_funnel",
             "recruitment_applications_summary",
@@ -62,6 +65,49 @@ class McpServerIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    @DisplayName("a sequência que um cliente real executa ao conectar funciona inteira")
+    void shouldCompleteTheClientHandshake() {
+        String pat = patDe("EJ MCP aperto", "ej-mcp-aperto", "dono-aperto@ej.dev", null);
+
+        // A spec de 2026-07-28 aposentou o handshake, mas os clientes de hoje ainda o executam, e
+        // um servidor que recusasse qualquer um destes passos simplesmente não conectaria.
+        ResponseEntity<String> initialize = mcp(pat, jsonRpc(1, "initialize", Map.of(
+                "protocolVersion", "2025-06-18",
+                "capabilities", Map.of(),
+                "clientInfo", Map.of("name", "teste", "version", "1"))));
+        assertThat(initialize.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(initialize.getBody()).contains("protocolVersion").contains("puccomp-api");
+        // As instruções do servidor são o primeiro texto que o agente lê sobre a EJ.
+        assertThat(initialize.getBody()).contains("Empresa Júnior");
+
+        Map<String, Object> iniciado = new HashMap<>();
+        iniciado.put("jsonrpc", "2.0");
+        iniciado.put("method", "notifications/initialized");
+        assertThat(mcp(pat, iniciado).getStatusCode().is2xxSuccessful())
+                .as("notificação sem id precisa ser aceita, não recusada")
+                .isTrue();
+
+        assertThat(mcp(pat, jsonRpc(2, "ping", null)).getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(mcp(pat, jsonRpc(3, "tools/list", null)).getBody()).contains("members_list");
+        assertThat(mcp(pat, chamada(4, "members_list", Map.of())).getBody())
+                .contains("dono-aperto@ej.dev");
+    }
+
+    @Test
+    @DisplayName("whoami orienta o agente: qual EJ, quem, e o que o escopo deixou passar")
+    void shouldTellTheAgentWhoItIs() {
+        String pat = patDe("EJ MCP identidade", "ej-mcp-identidade", "dono-id@ej.dev",
+                List.of("members:read"));
+
+        String resposta = mcp(pat, chamada(12, "whoami", Map.of())).getBody();
+
+        assertThat(resposta).contains("EJ MCP identidade").contains("dono-id@ej.dev");
+        // O dono tem todas as permissões, mas o escopo do token recortou: é justamente esta lista
+        // que permite ao agente dizer "falta financial:read" em vez de repassar um Access Denied.
+        assertThat(resposta).contains("members:read").doesNotContain("financial:read");
+    }
+
+    @Test
     @DisplayName("o catálogo publicado é exatamente este, e mudá-lo é uma decisão consciente")
     void shouldPublishTheAgreedToolRoster() {
         String pat = patDe("EJ MCP catálogo", "ej-mcp-catalogo", "dono-catalogo@ej.dev", null);
@@ -72,6 +118,47 @@ class McpServerIntegrationTest extends AbstractIntegrationTest {
         // paga. A lista está aqui para que acrescentar uma passe por uma linha de teste.
         assertThat(res.getBody()).contains(FERRAMENTAS);
         assertThat(quantasFerramentas(res.getBody())).isEqualTo(FERRAMENTAS.length);
+    }
+
+    @Test
+    @DisplayName("a superfície é snake_case nas duas direções, igual à API REST")
+    void shouldSpeakSnakeCaseBothWays() {
+        String pat = patDe("EJ MCP caixa", "ej-mcp-caixa", "dono-caixa@ej.dev", null);
+
+        // Saída: o Spring AI serializa o retorno com um mapper estático próprio, que ignora a
+        // configuração do Spring. Sem serializarmos nós, sairia activeHeadcount aqui e
+        // active_headcount no REST — e as descrições das ferramentas citam os nomes do REST.
+        assertThat(chavesCamelCase(mcp(pat, chamada(7, "members_summary", Map.of())).getBody()))
+                .isEmpty();
+        assertThat(mcp(pat, chamada(8, "members_summary", Map.of())).getBody())
+                .contains("active_headcount").contains("organization_context");
+        assertThat(chavesCamelCase(mcp(pat, chamada(9, "financial_summary", Map.of())).getBody()))
+                .isEmpty();
+
+        // Entrada: o nome do parâmetro Java vira o nome publicado no schema e o nome que o agente
+        // manda de volta em arguments. Os dois saem do mesmo lugar, então basta olhar o catálogo.
+        String catalogo = mcp(pat, jsonRpc(10, "tools/list", null)).getBody();
+        assertThat(catalogo).contains("\"department_id\"").contains("\"min_term\"")
+                .contains("\"has_cv\"").contains("\"process_id\"");
+        assertThat(catalogo).doesNotContain("departmentId").doesNotContain("minTerm")
+                .doesNotContain("hasCv").doesNotContain("processId");
+    }
+
+    @Test
+    @DisplayName("o argumento snake_case realmente filtra, e não é aceito e ignorado")
+    void shouldBindSnakeCaseArguments() {
+        UUID tenant = seeder.seedTenant("EJ MCP bind", "ej-mcp-bind");
+        seeder.seedAccount(tenant, "dono-bind@ej.dev", "senha123", Standing.OWNER);
+        UUID cargo = seeder.seedCargo(tenant, "Diretor de Bind");
+        seeder.seedAccount(tenant, "com-cargo@ej.dev", "senha123", Standing.MEMBER, cargo);
+
+        String pat = criarPat(login("dono-bind@ej.dev", "senha123"), null);
+        String comFiltro = mcp(pat, chamada(11, "members_list",
+                Map.of("role_id", cargo.toString()))).getBody();
+
+        // Um nome que o schema publica mas a vinculação ignora passaria despercebido: a chamada
+        // responderia 200 com o quadro inteiro, e o agente concluiria que o filtro não achou nada.
+        assertThat(comFiltro).contains("com-cargo@ej.dev").doesNotContain("dono-bind@ej.dev");
     }
 
     @Test
@@ -197,5 +284,17 @@ class McpServerIntegrationTest extends AbstractIntegrationTest {
 
     private static int quantasFerramentas(String body) {
         return body.split("\"inputSchema\"", -1).length - 1;
+    }
+
+    /**
+     * Só as chaves de dentro do resultado da ferramenta, que chegam com aspas escapadas por estarem
+     * num campo de texto. O envelope JSON-RPC em volta — {@code isError}, {@code inputSchema} — é
+     * camelCase por especificação, e não é nosso para mudar.
+     */
+    private static List<String> chavesCamelCase(String body) {
+        var encontradas = new ArrayList<String>();
+        var matcher = Pattern.compile("\\\\\"([a-z][a-z0-9]*[A-Z][A-Za-z0-9]*)\\\\\"").matcher(body);
+        while (matcher.find()) encontradas.add(matcher.group(1));
+        return encontradas;
     }
 }

@@ -1,7 +1,7 @@
 meta {
   name: Chamar members_list
   type: http
-  seq: 2
+  seq: 3
 }
 
 post {
@@ -37,6 +37,7 @@ docs {
   Exige members:read. O resultado deve bater com GET /v1/members?status=ACTIVE&size=5 em membros/
   — é a mesma consulta, pelo mesmo serviço, com o mesmo recorte de tenant e de permissão.
 
-  arguments aceita status, standing, departmentId, roleId, courseId, page e size, todos opcionais.
-  Deixe {} para o quadro inteiro.
+  arguments aceita status, standing, department_id, role_id, course_id, page e size, todos
+  opcionais. Deixe {} para o quadro inteiro. A superfície do MCP é snake_case nos dois sentidos,
+  igual à do REST — inclusive nos nomes dos argumentos.
 }

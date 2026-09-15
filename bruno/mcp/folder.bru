@@ -26,15 +26,19 @@ docs {
 
   O catálogo autoritativo é a resposta de "Listar ferramentas". Para orientação, hoje são:
 
+    (autenticado)     whoami, courses_list
     members:read      members_list, members_get, members_summary
     roles:read        roles_list, roles_get
     departments:read  departments_list, departments_get
-    (autenticado)     courses_list, courses_get
     recruitment:read  recruitment_processes_list, recruitment_processes_get,
                       recruitment_applications_list, recruitment_process_funnel,
                       recruitment_applications_summary
     financial:read    financial_entries_list, financial_entries_get, financial_summary
 
+  Comece por "whoami": ele diz a EJ, o membro e as permissões que sobraram depois do escopo do
+  token — é o que evita o agente concluir que um dado não existe quando o que falta é acesso.
+
   Toda ferramenta de listagem devolve o mesmo envelope — items, total, page, pages — e as
-  terminadas em _summary ou _funnel agregam o conjunto inteiro, sem paginar.
+  terminadas em _summary ou _funnel agregam o conjunto inteiro, sem paginar. A superfície é
+  snake_case nos dois sentidos, igual à do REST, inclusive nos nomes dos argumentos.
 }

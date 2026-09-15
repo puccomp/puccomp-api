@@ -1,0 +1,39 @@
+meta {
+  name: Chamar whoami
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{base_url}}/mcp
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{pat_token}}
+}
+
+headers {
+  Accept: application/json, text/event-stream
+}
+
+body:json {
+  {
+    "jsonrpc": "2.0",
+    "id": 2,
+    "method": "tools/call",
+    "params": {
+      "name": "whoami",
+      "arguments": {}
+    }
+  }
+}
+
+docs {
+  A primeira chamada que vale fazer depois de conectar: diz a EJ deste token, o membro em nome de
+  quem as ferramentas rodam e as permissões efetivas.
+
+  As permissões já vêm com o escopo do token aplicado — crie um PAT com scopes: ["members:read"]
+  e compare com um sem escopo para ver a lista encolher. O conteúdo é o mesmo de GET /v1/auth/me.
+}

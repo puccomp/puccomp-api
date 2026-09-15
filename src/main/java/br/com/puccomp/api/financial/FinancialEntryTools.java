@@ -1,6 +1,5 @@
 package br.com.puccomp.api.financial;
 
-import br.com.puccomp.api.financial.summary.FinancialSummaryResponse;
 import br.com.puccomp.api.shared.mcp.ToolPage;
 import lombok.RequiredArgsConstructor;
 import org.springframework.ai.mcp.annotation.McpTool;
@@ -8,6 +7,7 @@ import org.springframework.ai.mcp.annotation.McpToolParam;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Component;
+import tools.jackson.databind.ObjectMapper;
 
 import java.time.LocalDate;
 import java.util.UUID;
@@ -21,6 +21,7 @@ public class FinancialEntryTools {
     private static final int MAX_SIZE = 100;
 
     private final FinancialEntryService service;
+    private final ObjectMapper json;
 
     @McpTool(name = "financial_entries_list",
             annotations = @McpTool.McpAnnotations(readOnlyHint = true, destructiveHint = false,
@@ -34,9 +35,11 @@ public class FinancialEntryTools {
 
                     Para saldo, totais e concentração por categoria, prefira financial_summary: \
                     ele responde de uma vez o que esta listagem só responderia somando página a \
-                    página.""")
+                    página.
+
+                    Devolve {items, total, page, pages}.""")
     @PreAuthorize("hasAuthority('financial:read')")
-    public ToolPage<FinancialEntryResponse> list(
+    public String list(
             @McpToolParam(required = false, description = "Data inicial, inclusive") LocalDate from,
             @McpToolParam(required = false, description = "Data final, inclusive") LocalDate to,
             @McpToolParam(required = false,
@@ -45,9 +48,9 @@ public class FinancialEntryTools {
             @McpToolParam(required = false,
                     description = "Itens por página, no máximo 100; o padrão é 20") Integer size) {
 
-        return ToolPage.of(service.findAll(from, to, type, PageRequest.of(
+        return json.writeValueAsString(ToolPage.of(service.findAll(from, to, type, PageRequest.of(
                 page == null || page < 0 ? 0 : page,
-                size == null || size < 1 ? DEFAULT_SIZE : Math.min(size, MAX_SIZE))));
+                size == null || size < 1 ? DEFAULT_SIZE : Math.min(size, MAX_SIZE)))));
     }
 
     @McpTool(name = "financial_entries_get",
@@ -55,10 +58,10 @@ public class FinancialEntryTools {
                     idempotentHint = true, openWorldHint = false),
             description = "Busca um lançamento financeiro pelo id. Exige a permissão financial:read.")
     @PreAuthorize("hasAuthority('financial:read')")
-    public FinancialEntryResponse get(
+    public String get(
             @McpToolParam(description = "Id do lançamento, como devolvido por "
                     + "financial_entries_list") UUID id) {
-        return service.findById(id);
+        return json.writeValueAsString(service.findById(id));
     }
 
     @McpTool(name = "financial_summary",
@@ -74,9 +77,9 @@ public class FinancialEntryTools {
                     os dois extremos não existe janela anterior, e previous vem nulo: comparação \
                     indisponível, que é diferente de zero.""")
     @PreAuthorize("hasAuthority('financial:read')")
-    public FinancialSummaryResponse summary(
+    public String summary(
             @McpToolParam(required = false, description = "Data inicial, inclusive") LocalDate from,
             @McpToolParam(required = false, description = "Data final, inclusive") LocalDate to) {
-        return service.summarize(from, to);
+        return json.writeValueAsString(service.summarize(from, to));
     }
 }

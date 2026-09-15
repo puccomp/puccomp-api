@@ -91,6 +91,26 @@ configuração que resta é de aplicação inteira — que neste codebase mora e
 `config`, como o `@Async` e o `@Scheduled` já moram, e pelo motivo que o
 `SchedulingConfig` documenta.
 
+### snake_case nos dois sentidos, e o que isso custou
+
+A superfície do MCP é `snake_case` como a da API REST. A alternativa seria deixar
+cada caminho com a sua convenção, e ela é pior por um motivo prático: as descrições
+das ferramentas foram escritas a partir da documentação REST e citam `active_headcount`,
+`process_id`, `min_term`. Descrição que nomeia um campo que não chega é pior que
+descrição nenhuma.
+
+Custou duas acomodações, ambas por não haver ponto de configuração:
+
+- **Na saída**, o Spring AI serializa o retorno com um `JsonHelper` estático que chama
+  `JacksonUtils.getDefaultJsonMapper()` — ele ignora a configuração Jackson do Spring,
+  e não há como injetar outro. Como um retorno do tipo `String` é embutido literalmente
+  no conteúdo da resposta, cada ferramenta serializa com o `ObjectMapper` da aplicação
+  e devolve `String`. Alinha nome, data e número de uma vez, e não pode divergir depois
+  — ao contrário de anotar record por record, onde esquecer um passa em silêncio.
+- **Na entrada**, o nome do parâmetro Java é ao mesmo tempo o nome publicado no schema
+  e o nome pelo qual o argumento é vinculado. Não há como renomear um sem o outro, então
+  as assinaturas das ferramentas usam sublinhado. Só elas.
+
 ### O que a segurança precisou
 
 Quase nada, e esse é o ponto. A cadeia de ordem 2 termina em
@@ -117,8 +137,10 @@ manda `MCP-Protocol-Version`.
 - 🔴 **Ruim:** sem OAuth, conectar exige colar um PAT na configuração do cliente.
   Funciona em Claude Code e Cursor; não dá conector de um clique no Claude.ai.
 - 🔴 **Ruim:** a recusa do `@PreAuthorize` chega ao agente como um "Access Denied"
-  seco, que não diz o que faltou. Contornamos nomeando a permissão exigida na
-  descrição de cada ferramenta — o agente lê as duas coisas no mesmo contexto.
+  seco, que não diz o que faltou. Contornamos por dois lados: a descrição de cada
+  ferramenta nomeia a permissão exigida, e `whoami` publica as permissões efetivas —
+  já com o escopo do token aplicado — para o agente saber o que vai ser recusado
+  antes de tentar.
 - 🔴 **Ruim:** `SYNC` fecha a porta para uma ferramenta genuinamente demorada
   (relatório pesado, chamada a outro LLM, S3) ocupar a thread. O caminho, quando
   aparecer, é o que a própria spec de 2026-07-28 recomenda: devolver um *handle*
@@ -127,6 +149,19 @@ manda `MCP-Protocol-Version`.
 - ⚪ **Neutra:** o Spring AI 2.0.1 fixa `spring-boot-starter-web` 4.1.1 no POM
   publicado, o que obrigou a subir o Boot de 4.0.6 para 4.1.1 — e, junto, o Modulith
   e o springdoc, cada um construído contra um Boot específico.
+- 🔴 **Ruim:** as ferramentas de recrutamento devolvem texto escrito por terceiros —
+  nome, e-mail e links vêm de um formulário público, preenchido por quem não é membro
+  da EJ. É uma superfície de injeção de prompt que já existia como dado e agora chega
+  a um agente. As instruções do servidor mandam tratar isso como dado a relatar e não
+  seguir os links, o que reduz mas não elimina; defesa de verdade exige marcação de
+  conteúdo não confiável, que o protocolo ainda não oferece.
+- 🔴 **Ruim:** não há limite de chamadas por token nem trilha do que o agente leu.
+  Um agente em laço bate no Postgres na velocidade da rede, e hoje ninguém consegue
+  reconstruir depois o que foi consultado. Vale um card assim que houver uso real.
+- 🔴 **Ruim:** a superfície de recrutamento não responde "quantos candidatos estão na
+  etapa de entrevista?", que foi a pergunta que motivou este servidor. A inscrição não
+  tem etapa no modelo — a "fase" que o ADR 0005 notifica é o status do processo, não do
+  candidato. É lacuna de produto, e nenhuma ferramenta a contorna.
 - ⚪ **Neutra:** as ferramentas devolvem `ToolPage` em vez do `Page` do Spring Data.
   O envelope do Spring Data é contexto que o agente paga em toda chamada para
   decidir uma única coisa — se vale pedir a próxima página. Sendo o mesmo tipo em

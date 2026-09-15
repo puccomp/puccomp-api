@@ -1,6 +1,5 @@
 package br.com.puccomp.api.organization.members;
 
-import br.com.puccomp.api.organization.members.summary.MemberSummaryResponse;
 import br.com.puccomp.api.organization.members.summary.MemberSummaryService;
 import br.com.puccomp.api.shared.mcp.ToolPage;
 import br.com.puccomp.api.shared.reference.Standing;
@@ -13,6 +12,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
+import tools.jackson.databind.ObjectMapper;
 
 import java.util.UUID;
 
@@ -28,6 +28,18 @@ import java.util.UUID;
  *
  * <p>A descrição de cada ferramenta nomeia a permissão exigida porque a recusa do
  * {@code @PreAuthorize} chega ao agente como um "Access Denied" seco, que não diz o que faltou.
+ *
+ * <p>A superfície inteira é snake_case, igual à da API REST, nas duas direções.
+ *
+ * <p>Na saída, isso exige serializar com o {@code ObjectMapper} da aplicação e devolver
+ * {@code String}: o Spring AI serializaria o objeto com um mapper estático próprio, que ignora a
+ * configuração do Spring, e a ferramenta responderia {@code activeHeadcount} enquanto
+ * {@code GET /v1/members/summary} responde {@code active_headcount}.
+ *
+ * <p>Na entrada, exige que os parâmetros publicados se chamem {@code department_id} e não
+ * {@code departmentId} — o nome do parâmetro Java é o nome que vai para o schema e para a
+ * vinculação do argumento, e não há como renomear um sem o outro. Daí o sublinhado nas assinaturas
+ * de ferramenta, e só nelas: os métodos privados aqui embaixo seguem a convenção normal de Java.
  * Ver ADR 0006.
  */
 @Component
@@ -39,6 +51,7 @@ public class MemberTools {
     private static final Sort BY_NAME = Sort.by("name", "id");
 
     private final MemberService service;
+    private final ObjectMapper json;
 
     @McpTool(name = "members_list",
             annotations = @McpTool.McpAnnotations(readOnlyHint = true, destructiveHint = false,
@@ -52,22 +65,25 @@ public class MemberTools {
                     se vale pedir a próxima página, em vez de supor.
 
                     Para contagens e distribuições do quadro inteiro, prefira members_summary: ele \
-                    responde de uma vez o que esta listagem só responderia paginando tudo.""")
+                    responde de uma vez o que esta listagem só responderia paginando tudo.
+
+                    Devolve {items, total, page, pages}.""")
     @PreAuthorize("hasAuthority('members:read')")
-    public ToolPage<MemberResponse> list(
+    public String list(
             @McpToolParam(required = false,
                     description = "Situação do vínculo; sem ele, todas entram") MemberStatus status,
             @McpToolParam(required = false,
                     description = "Tipo de vínculo com a EJ; sem ele, todos entram") Standing standing,
-            @McpToolParam(required = false, description = "Diretoria atual do membro") UUID departmentId,
-            @McpToolParam(required = false, description = "Cargo atual do membro") UUID roleId,
-            @McpToolParam(required = false, description = "Curso do membro") UUID courseId,
+            @McpToolParam(required = false, description = "Diretoria atual do membro") UUID department_id,
+            @McpToolParam(required = false, description = "Cargo atual do membro") UUID role_id,
+            @McpToolParam(required = false, description = "Curso do membro") UUID course_id,
             @McpToolParam(required = false, description = "Página, começando em 0") Integer page,
             @McpToolParam(required = false,
                     description = "Itens por página, no máximo 100; o padrão é 20") Integer size) {
 
-        return ToolPage.of(service.findAll(filtro(status, standing, departmentId, roleId, courseId),
-                PageRequest.of(pagina(page), tamanho(size), BY_NAME)));
+        return json.writeValueAsString(ToolPage.of(service.findAll(
+                filtro(status, standing, department_id, role_id, course_id),
+                PageRequest.of(pagina(page), tamanho(size), BY_NAME))));
     }
 
     @McpTool(name = "members_get",
@@ -77,9 +93,9 @@ public class MemberTools {
                     Busca um membro da EJ pelo id, com o curso, o cargo e a diretoria atuais. \
                     Exige a permissão members:read.""")
     @PreAuthorize("hasAuthority('members:read')")
-    public MemberResponse get(
+    public String get(
             @McpToolParam(description = "Id do membro, como devolvido por members_list") UUID id) {
-        return service.findById(id);
+        return json.writeValueAsString(service.findById(id));
     }
 
     @McpTool(name = "members_summary",
@@ -98,15 +114,16 @@ public class MemberTools {
                     empty_departments exige também departments:read. Sem a permissão adicional o \
                     bloco vem nulo, o que significa ausência de permissão e não EJ vazia.""")
     @PreAuthorize("hasAuthority('members:read')")
-    public MemberSummaryResponse summary(
+    public String summary(
             @McpToolParam(required = false, description = "Situação do vínculo") MemberStatus status,
             @McpToolParam(required = false, description = "Tipo de vínculo com a EJ") Standing standing,
-            @McpToolParam(required = false, description = "Diretoria atual do membro") UUID departmentId,
-            @McpToolParam(required = false, description = "Cargo atual do membro") UUID roleId,
-            @McpToolParam(required = false, description = "Curso do membro") UUID courseId) {
+            @McpToolParam(required = false, description = "Diretoria atual do membro") UUID department_id,
+            @McpToolParam(required = false, description = "Cargo atual do membro") UUID role_id,
+            @McpToolParam(required = false, description = "Curso do membro") UUID course_id) {
 
-        return service.summarize(filtro(status, standing, departmentId, roleId, courseId),
-                new MemberSummaryService.ContextAccess(pode("roles:read"), pode("departments:read")));
+        return json.writeValueAsString(service.summarize(
+                filtro(status, standing, department_id, role_id, course_id),
+                new MemberSummaryService.ContextAccess(pode("roles:read"), pode("departments:read"))));
     }
 
     private static MemberFilter filtro(MemberStatus status, Standing standing,
