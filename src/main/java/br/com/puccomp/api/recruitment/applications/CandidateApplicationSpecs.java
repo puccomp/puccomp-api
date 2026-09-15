@@ -17,13 +17,13 @@ import java.util.UUID;
  * de tipo de parâmetro nulo do Postgres. Criteria também é gerenciado pelo Hibernate, então o filtro
  * de tenant continua valendo — o que consulta nativa perderia.
  */
-final class CandidateApplicationSpecs {
+public final class CandidateApplicationSpecs {
 
     private static final char ESCAPE = '\\';
 
     private CandidateApplicationSpecs() { }
 
-    static Specification<CandidateApplication> matching(UUID processId, CandidateApplicationFilter filter) {
+    public static Specification<CandidateApplication> matching(UUID processId, CandidateApplicationFilter filter) {
         return (root, query, builder) -> {
             List<Predicate> predicates = new ArrayList<>();
 
@@ -74,7 +74,7 @@ final class CandidateApplicationSpecs {
      * coleção.
      */
     @SuppressWarnings("unchecked")
-    static Expression<Collection<String>> links(Root<CandidateApplication> root) {
+    public static Expression<Collection<String>> links(Root<CandidateApplication> root) {
         return (Expression<Collection<String>>) (Expression<?>) root.get("links");
     }
 }
