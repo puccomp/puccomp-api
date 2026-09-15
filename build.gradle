@@ -1,6 +1,6 @@
 plugins {
 	id 'java'
-	id 'org.springframework.boot' version '4.0.6'
+	id 'org.springframework.boot' version '4.1.1'
 	id 'io.spring.dependency-management' version '1.1.7'
 }
 
@@ -19,7 +19,7 @@ repositories {
 
 dependencyManagement {
 	imports {
-		mavenBom 'org.springframework.modulith:spring-modulith-bom:2.0.7'
+		mavenBom 'org.springframework.modulith:spring-modulith-bom:2.1.1'
 	}
 }
 
@@ -46,7 +46,7 @@ dependencies {
 	implementation 'org.springframework.modulith:spring-modulith-starter-core'
 	implementation 'org.springframework.modulith:spring-modulith-starter-jdbc'
 	annotationProcessor 'org.springframework.modulith:spring-modulith-apt'
-	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.8'
+	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:3.1.1'
 	developmentOnly 'org.springframework.boot:spring-boot-devtools'
 	developmentOnly 'org.springframework.boot:spring-boot-docker-compose'
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
