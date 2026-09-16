@@ -1,5 +1,9 @@
-package br.com.puccomp.api.recruitment.applications;
+package br.com.puccomp.api.recruitment.applications.summary;
 
+import br.com.puccomp.api.recruitment.applications.CandidateApplication;
+import br.com.puccomp.api.recruitment.applications.CandidateApplicationFilter;
+import br.com.puccomp.api.recruitment.applications.CandidateApplicationSpecs;
+import br.com.puccomp.api.shared.criteria.CriteriaAggregates;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.Tuple;
 import jakarta.persistence.criteria.CriteriaBuilder;
@@ -49,22 +53,20 @@ class CandidateApplicationAggregations {
         CriteriaQuery<Tuple> query = builder.createTupleQuery();
         Root<CandidateApplication> root = query.from(CandidateApplication.class);
 
-        Expression<Long> hasLink = builder.<Long>selectCase()
-                .when(builder.isNotEmpty(CandidateApplicationSpecs.links(root)), 1L).otherwise(0L);
-
         query.select(builder.tuple(
                         builder.count(root),
                         builder.count(root.get("cvFileId")),
-                        builder.sum(hasLink),
+                        CriteriaAggregates.countIf(builder,
+                                builder.isNotEmpty(CandidateApplicationSpecs.links(root))),
                         builder.least(root.<Instant>get("createdAt")),
                         builder.greatest(root.<Instant>get("createdAt"))))
                 .where(matching(root, query, builder, processId, filter));
 
         Tuple row = entityManager.createQuery(query).getSingleResult();
         return new Totals(
-                value(row.get(0, Long.class)),
-                value(row.get(1, Long.class)),
-                value(row.get(2, Long.class)),
+                CriteriaAggregates.zeroIfNull(row.get(0, Long.class)),
+                CriteriaAggregates.zeroIfNull(row.get(1, Long.class)),
+                CriteriaAggregates.zeroIfNull(row.get(2, Long.class)),
                 row.get(3, Instant.class),
                 row.get(4, Instant.class));
     }
@@ -77,7 +79,7 @@ class CandidateApplicationAggregations {
         return grouped(processId, filter, (root, builder) -> root.get("courseId"), UUID.class).stream()
                 .map(row -> new CourseCount(row.key(), row.count()))
                 .sorted(Comparator.comparingLong((CourseCount row) -> row.count()).reversed()
-                        .thenComparing(row -> row.courseId().toString()))
+                        .thenComparing(row -> row.courseId(), CriteriaAggregates.BY_TEXTUAL_ID))
                 .toList();
     }
 
@@ -127,9 +129,9 @@ class CandidateApplicationAggregations {
 
         return entityManager.createQuery(query).getResultList().stream()
                 .map(row -> new ProcessCount(row.get(0, UUID.class), row.get(1, String.class),
-                        row.get(2, Instant.class), value(row.get(3, Long.class))))
+                        row.get(2, Instant.class), CriteriaAggregates.zeroIfNull(row.get(3, Long.class))))
                 .sorted(Comparator.comparing((ProcessCount row) -> row.createdAt()).reversed()
-                        .thenComparing(row -> row.processId().toString()))
+                        .thenComparing(row -> row.processId(), CriteriaAggregates.BY_TEXTUAL_ID))
                 .toList();
     }
 
@@ -182,17 +184,15 @@ class CandidateApplicationAggregations {
                 .groupBy(key);
 
         return entityManager.createQuery(query).getResultList().stream()
-                .map(row -> new Group<>(row.get(0, keyType), value(row.get(1, Long.class))))
+                .map(row -> new Group<>(row.get(0, keyType),
+                        CriteriaAggregates.zeroIfNull(row.get(1, Long.class))))
                 .toList();
     }
 
     private static Predicate matching(Root<CandidateApplication> root, CriteriaQuery<?> query,
                                       CriteriaBuilder builder, UUID processId,
                                       CandidateApplicationFilter filter) {
-        return CandidateApplicationSpecs.matching(processId, filter).toPredicate(root, query, builder);
-    }
-
-    private static long value(Long count) {
-        return count == null ? 0 : count;
+        return CriteriaAggregates.matching(CandidateApplicationSpecs.matching(processId, filter),
+                root, query, builder);
     }
 }

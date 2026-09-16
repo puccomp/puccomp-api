@@ -82,8 +82,10 @@ class SecurityConfig {
         configuration.setAllowedOrigins(corsProperties.allowedOrigins());
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         // Lista explícita em vez de "*": com allowCredentials o navegador recusa o curinga, e
-        // amanhã o front pode precisar de cookie.
-        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "x-puccomp-key"));
+        // amanhã o front pode precisar de cookie. Os três últimos são do protocolo MCP — cliente
+        // nativo não passa por CORS, mas cliente em navegador quebraria sem eles no preflight.
+        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "x-puccomp-key",
+                "MCP-Protocol-Version", "Mcp-Method", "Mcp-Name"));
         configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);
 

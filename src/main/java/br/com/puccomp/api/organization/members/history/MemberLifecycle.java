@@ -1,14 +1,17 @@
 package br.com.puccomp.api.organization.members.history;
 
+import br.com.puccomp.api.organization.MemberStatusChanged;
 import br.com.puccomp.api.organization.members.Member;
 import br.com.puccomp.api.organization.members.MemberStatus;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -24,6 +27,7 @@ public class MemberLifecycle {
 
     private final MemberStatusEventRepository events;
     private final OrganizationTrackingRepository tracking;
+    private final ApplicationEventPublisher publisher;
     private final Clock clock;
 
     /** Criação de membro — inclusive pelo aceite de convite e pelo seeder. */
@@ -43,6 +47,20 @@ public class MemberLifecycle {
         if (current == target) return;
         member.changeStatus(target);
         append(member.getId(), MemberStatusEventKind.STATUS_CHANGED, current, target);
+        // Aqui, e não no serviço que chamou: é o funil por onde toda mudança passa.
+        transitionOf(target).ifPresent(transition -> publisher.publishEvent(new MemberStatusChanged(
+                member.getTenantId(), member.getId(), member.getAccountId(), member.getName(),
+                transition, clock.instant())));
+    }
+
+    /** Voltar a PENDING não muda nada que a pessoa precise ler: o convite é que ainda não virou vínculo. */
+    private static Optional<MemberStatusChanged.Transition> transitionOf(MemberStatus target) {
+        return Optional.ofNullable(switch (target) {
+            case ALUMNUS -> MemberStatusChanged.Transition.RETIRED;
+            case ACTIVE -> MemberStatusChanged.Transition.REACTIVATED;
+            case INACTIVE -> MemberStatusChanged.Transition.DEACTIVATED;
+            case PENDING -> null;
+        });
     }
 
     /** Marco de cobertura da EJ. Vale inclusive para EJ que ainda não tem membro nenhum. */

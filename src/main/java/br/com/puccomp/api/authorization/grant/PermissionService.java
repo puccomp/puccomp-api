@@ -26,6 +26,11 @@ class PermissionService implements PermissionResolver {
     }
 
     @Override
+    public Set<String> catalog() {
+        return allAuthorities();
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public Set<UUID> filterWithPermission(Collection<Subject> subjects, String permission) {
         Optional<Permission> required = Permission.fromCode(permission);

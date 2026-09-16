@@ -34,7 +34,7 @@ public class PersonalAccessToken extends Auditable {
     @Column(name = "token_prefix", nullable = false)
     private String tokenPrefix;
 
-    @Column
+    @Column(columnDefinition = "TEXT")
     private String scopes;
 
     @Column(name = "expires_at")

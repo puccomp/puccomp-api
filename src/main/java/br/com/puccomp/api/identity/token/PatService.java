@@ -1,16 +1,20 @@
 package br.com.puccomp.api.identity.token;
 
+import br.com.puccomp.api.authorization.PermissionResolver;
 import br.com.puccomp.api.identity.account.AccountRepository;
 import br.com.puccomp.api.identity.account.AuthPrincipal;
 import br.com.puccomp.api.organization.MemberDirectory;
 import br.com.puccomp.api.shared.exception.ResourceNotFoundException;
+import br.com.puccomp.api.shared.exception.ValidationException;
 import br.com.puccomp.api.shared.token.TokenSecrets;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Arrays;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -24,9 +28,16 @@ public class PatService {
     private static final String PREFIX = "pat_";
     private static final int PREFIX_DISPLAY_LENGTH = 12;
 
+    /**
+     * Quem audita quer saber se o token ainda circula, não cronometrá-lo; gravar sempre custaria um
+     * UPDATE por chamada, num caminho que agente percorre muito mais que tela.
+     */
+    private static final Duration LAST_USED_RESOLUTION = Duration.ofMinutes(5);
+
     private final PatRepository repository;
     private final AccountRepository accounts;
     private final MemberDirectory memberDirectory;
+    private final PermissionResolver permissions;
 
     @Transactional
     PatCreatedResponse create(AuthPrincipal owner, CreatePatRequest request) {
@@ -37,8 +48,7 @@ public class PatService {
                 .name(request.name().trim())
                 .tokenHash(TokenSecrets.sha256Hex(rawToken))
                 .tokenPrefix(rawToken.substring(0, PREFIX_DISPLAY_LENGTH))
-                .scopes(request.scopes() == null || request.scopes().isEmpty()
-                        ? null : String.join(",", request.scopes()))
+                .scopes(validatedScopes(request.scopes()))
                 .expiresAt(request.expiresAt())
                 .build();
         repository.save(pat);
@@ -66,11 +76,46 @@ public class PatService {
                         .filter(candidate -> candidate.isActive())
                         .flatMap(account -> memberDirectory.findMembership(pat.getAccountId(), pat.getTenantId())
                                 .map(membership -> {
-                                    pat.markUsed(Instant.now());
+                                    markUsed(pat);
                                     return new AuthPrincipal(account.getId(), account.getEmail(),
                                             membership.tenantId(), membership.memberId(), membership.standing(),
                                             parseScopes(pat.getScopes()));
                                 })));
+    }
+
+    /**
+     * O filtro intersecta escopo com permissão efetiva, então código digitado errado não dá erro
+     * depois: some na interseção e deixa um token sem poder nenhum. A criação é a última hora de
+     * avisar quem errou.
+     */
+    private String validatedScopes(List<String> scopes) {
+        if (scopes == null || scopes.isEmpty()) return null;
+
+        Set<String> requested = scopes.stream()
+                .map(scope -> scope == null ? "" : scope.trim())
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        Set<String> known = permissions.catalog();
+        List<String> unknown = requested.stream()
+                .filter(scope -> !known.contains(scope))
+                .map(scope -> scope.isEmpty() ? "(vazio)" : scope)
+                .toList();
+        if (!unknown.isEmpty())
+            throw new ValidationException("Escopo desconhecido: " + String.join(", ", unknown)
+                    + ". Os escopos aceitos estão em GET /v1/auth/pat/scopes");
+
+        return String.join(",", requested);
+    }
+
+    /** O catálogo que a criação aceita, para quem monta a requisição saber o que existe. */
+    Set<String> availableScopes() {
+        return permissions.catalog();
+    }
+
+    private static void markUsed(PersonalAccessToken pat) {
+        Instant now = Instant.now();
+        Instant last = pat.getLastUsedAt();
+        if (last == null || last.isBefore(now.minus(LAST_USED_RESOLUTION)))
+            pat.markUsed(now);
     }
 
     private static Set<String> parseScopes(String scopes) {

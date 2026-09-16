@@ -15,8 +15,13 @@ docs {
   Token de acesso pessoal: credencial de longa duração para scripts e integrações, no lugar
   do login com senha. Vale para a conta autenticada e carrega as permissões dela.
 
+  Escopo é opcional e só restringe: a permissão efetiva do token é a interseção dos escopos com o
+  que a conta já pode. Código fora do catálogo é 400 na criação — antes ele passava e gerava um
+  token sem poder nenhum, sem avisar ninguém.
+
   Fluxo:
-  1. "Criar PAT"          → salva pat_token (o valor só é exibido nesta resposta) e pat_id
-  2. "Identidade via PAT" → confirma que o token autentica sozinho, sem access_token
-  3. "Revogar PAT"        → invalida o token; repita o passo 2 e a resposta vira 401
+  1. "Escopos do PAT"     → o catálogo aceito em scopes
+  2. "Criar PAT"          → salva pat_token (o valor só é exibido nesta resposta) e pat_id
+  3. "Identidade via PAT" → confirma que o token autentica sozinho, sem access_token
+  4. "Revogar PAT"        → invalida o token; repita o passo 3 e a resposta vira 401
 }

@@ -39,6 +39,7 @@ class PermissionAudienceNotifier implements AudienceNotifier {
                 .map(member -> member.accountId())
                 .toList();
 
+        // Melhor esforço: numa falha no meio da lista, reprocessar reenviaria para quem já recebeu.
         accounts.findEmails(accountIds).values().stream().distinct()
                 .forEach(email -> mailer.send(new EmailMessage(email, subject, template, variables)));
     }

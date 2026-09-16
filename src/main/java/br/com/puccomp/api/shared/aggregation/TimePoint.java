@@ -23,6 +23,10 @@ public record TimePoint(
         return new TimePoint(date, BigDecimal.valueOf(value));
     }
 
+    public static TimePoint of(LocalDate date, BigDecimal value) {
+        return new TimePoint(date, value);
+    }
+
     /** Período sem cobertura: desconhecido não é zero. */
     public static TimePoint unknown(LocalDate date) {
         return new TimePoint(date, null);

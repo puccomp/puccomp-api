@@ -1,0 +1,44 @@
+meta {
+  name: Chamar financial_summary
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{base_url}}/mcp
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{pat_token}}
+}
+
+headers {
+  Accept: application/json, text/event-stream
+}
+
+body:json {
+  {
+    "jsonrpc": "2.0",
+    "id": 4,
+    "method": "tools/call",
+    "params": {
+      "name": "financial_summary",
+      "arguments": {
+        "from": "2026-08-01",
+        "to": "2026-08-31"
+      }
+    }
+  }
+}
+
+docs {
+  Exige financial:read. É o formato das ferramentas agregadas: em vez de items/total/page/pages,
+  vem o retrato inteiro do período — entradas, saídas, resultado, concentração por categoria e a
+  evolução mês a mês.
+
+  Com os dois extremos preenchidos, cada medida traz o mesmo valor na janela anterior de igual
+  largura. Tirando um dos dois, previous vem nulo: comparação indisponível, que é diferente de
+  zero. Deve bater com GET /v1/financial/entries/summary no mesmo período.
+}

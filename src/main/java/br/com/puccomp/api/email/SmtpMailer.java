@@ -1,10 +1,12 @@
 package br.com.puccomp.api.email;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 class SmtpMailer implements Mailer {
@@ -14,14 +16,19 @@ class SmtpMailer implements Mailer {
     @Override
     public void send(EmailMessage message) {
         if (!TransactionSynchronizationManager.isSynchronizationActive()) {
-            deliverer.deliver(message);
+            deliverer.enqueue(message);
             return;
         }
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
-                deliverer.deliver(message);
+                deliverer.enqueue(message);
             }
         });
+    }
+
+    @Override
+    public void deliver(EmailMessage message) {
+        deliverer.deliver(message);
     }
 }

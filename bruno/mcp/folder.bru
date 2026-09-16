@@ -1,0 +1,44 @@
+meta {
+  name: mcp
+  seq: 5
+}
+
+auth {
+  mode: inherit
+}
+
+docs {
+  Servidor MCP: a mesma API, falada em JSON-RPC, para o agente de IA do membro (Claude Code,
+  Cursor, Claude Desktop) consultar a EJ de dentro da ferramenta que ele já usa.
+
+  Estas requisições existem para dar como testar sem instalar cliente MCP nenhum — é POST cru
+  em /mcp. Com um cliente de verdade, o caminho é:
+
+      claude mcp add --transport http puccomp {{base_url}}/mcp --header "Authorization: Bearer pat_..."
+
+  O protocolo é stateless (spec de 2026-07-28): não existe initialize, não existe Mcp-Session-Id,
+  e cada requisição se descreve sozinha. Por isso "Listar ferramentas" funciona de cara.
+
+  A credencial é o PAT — rode "Criar PAT" em autenticacao/pat antes, que ele salva {{pat_token}}.
+  O agente enxerga exatamente o que o dono do token enxerga: mesma EJ, mesmas permissões. Token
+  com escopo estreito faz a ferramenta responder isError com "Access Denied", que é resposta 200
+  de JSON-RPC, e não erro de HTTP.
+
+  O catálogo autoritativo é a resposta de "Listar ferramentas". Para orientação, hoje são:
+
+    (autenticado)     whoami, courses_list
+    members:read      members_list, members_get, members_summary
+    roles:read        roles_list, roles_get
+    departments:read  departments_list, departments_get
+    recruitment:read  recruitment_processes_list, recruitment_processes_get,
+                      recruitment_applications_list, recruitment_process_funnel,
+                      recruitment_applications_summary
+    financial:read    financial_entries_list, financial_entries_get, financial_summary
+
+  Comece por "whoami": ele diz a EJ, o membro e as permissões que sobraram depois do escopo do
+  token — é o que evita o agente concluir que um dado não existe quando o que falta é acesso.
+
+  Toda ferramenta de listagem devolve o mesmo envelope — items, total, page, pages — e as
+  terminadas em _summary ou _funnel agregam o conjunto inteiro, sem paginar. A superfície é
+  snake_case nos dois sentidos, igual à do REST, inclusive nos nomes dos argumentos.
+}

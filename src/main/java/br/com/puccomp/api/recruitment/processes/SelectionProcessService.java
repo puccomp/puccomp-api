@@ -1,8 +1,10 @@
 package br.com.puccomp.api.recruitment.processes;
 
+import br.com.puccomp.api.recruitment.SelectionProcessPhaseChanged;
 import br.com.puccomp.api.shared.text.SearchTerm;
 import br.com.puccomp.api.shared.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -16,13 +18,14 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
-class SelectionProcessService implements ProcessDirectory {
+public class SelectionProcessService implements ProcessDirectory {
 
     private final SelectionProcessRepository repository;
     private final ApplicationCounts applicationCounts;
+    private final ApplicationEventPublisher events;
 
     @Transactional(readOnly = true)
-    Page<SelectionProcessSummaryResponse> findAll(SelectionProcessStatus status, String query,
+    public Page<SelectionProcessSummaryResponse> findAll(SelectionProcessStatus status, String query,
                                                    Pageable pageable) {
         Instant now = Instant.now();
         Page<SelectionProcess> page = pageOf(status, SearchTerm.like(query), now, pageable);
@@ -57,7 +60,7 @@ class SelectionProcessService implements ProcessDirectory {
     }
 
     @Transactional(readOnly = true)
-    SelectionProcessResponse findById(UUID id) {
+    public SelectionProcessResponse findById(UUID id) {
         SelectionProcess process = findOwned(id);
         return SelectionProcessResponse.from(process, statsOf(statsFor(List.of(id)), process), Instant.now());
     }
@@ -94,12 +97,27 @@ class SelectionProcessService implements ProcessDirectory {
         return detailOf(process, Instant.now());
     }
 
+    /** Publicado dentro da transação: o fato e o aviso pendente são gravados juntos, ou nenhum. */
     @Transactional
     SelectionProcessResponse changeStatus(UUID id, SelectionProcessStatus status) {
         Instant now = Instant.now();
         SelectionProcess process = findOwned(id);
         process.changeStatusTo(status, now);
+        phaseOf(status).ifPresent(phase -> events.publishEvent(new SelectionProcessPhaseChanged(
+                process.getTenantId(), process.getId(), process.getTitle(), phase,
+                process.getResultAt(), now)));
         return detailOf(process, now);
+    }
+
+    /** Rascunho não é fase para ninguém de fora: nada foi publicado, nada mudou para o candidato. */
+    private static Optional<SelectionProcessPhaseChanged.Phase> phaseOf(SelectionProcessStatus status) {
+        return Optional.ofNullable(switch (status) {
+            case OPEN -> SelectionProcessPhaseChanged.Phase.OPENED;
+            case IN_REVIEW -> SelectionProcessPhaseChanged.Phase.IN_REVIEW;
+            case CLOSED -> SelectionProcessPhaseChanged.Phase.CLOSED;
+            case CANCELLED -> SelectionProcessPhaseChanged.Phase.CANCELLED;
+            case DRAFT -> null;
+        });
     }
 
     @Transactional(readOnly = true)
