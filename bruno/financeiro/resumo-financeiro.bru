@@ -1,0 +1,31 @@
+meta {
+  name: Resumo financeiro
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{base_url}}/v1/financial/entries/summary?from=2026-07-01&to=2026-07-31
+  body: none
+  auth: bearer
+}
+
+params:query {
+  ~from: 2026-07-01
+  ~to: 2026-07-31
+}
+
+auth:bearer {
+  token: {{access_token}}
+}
+
+docs {
+  Somas, distribuições por categoria e séries mensais do extrato no período.
+
+  Com `from` e `to` preenchidos, cada métrica traz `previous` — o mesmo valor na janela anterior
+  de igual largura (30 dias se comparam com os 30 dias anteriores). Sem os dois extremos não há
+  janela anterior e `previous` vem nulo: comparação indisponível, que é diferente de zero.
+
+  Lançamento excluído fica de fora daqui e da listagem: a exclusão é descarte, e a linha continua
+  no banco.
+}

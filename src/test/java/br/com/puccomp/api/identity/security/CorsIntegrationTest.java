@@ -49,6 +49,26 @@ class CorsIntegrationTest extends AbstractIntegrationTest {
         assertThat(response.getHeaders().getAccessControlAllowHeaders()).contains("x-puccomp-key");
     }
 
+    @Test
+    @DisplayName("o endpoint MCP responde ao preflight com os cabeçalhos do protocolo")
+    void shouldAllowMcpPreflight() {
+        ResponseEntity<String> response = preflight("/mcp", FRONT,
+                List.of("authorization", "content-type", "mcp-protocol-version"));
+
+        // Cliente MCP nativo não passa por CORS, mas um em navegador nem chega a mandar a
+        // requisição se o preflight recusar o cabeçalho de versão do protocolo.
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getHeaders().getAccessControlAllowHeaders())
+                .contains("mcp-protocol-version");
+
+        // Controle negativo: o preflight continua 200, mas o cabeçalho fora da lista não volta
+        // autorizado — é a resposta, e não o status, que o navegador usa para barrar. Sem isto a
+        // asserção acima passaria mesmo que a allowlist ignorasse o que recebe.
+        assertThat(preflight("/mcp", FRONT, List.of("authorization", "x-inventado"))
+                .getHeaders().getAccessControlAllowHeaders())
+                .doesNotContain("x-inventado");
+    }
+
     private ResponseEntity<String> preflight(String path, String origin, List<String> requestHeaders) {
         HttpHeaders headers = new HttpHeaders();
         headers.setOrigin(origin);

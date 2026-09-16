@@ -1,5 +1,6 @@
-package br.com.puccomp.api.recruitment.applications;
+package br.com.puccomp.api.recruitment.applications.summary;
 
+import br.com.puccomp.api.recruitment.applications.CandidateApplicationFilter;
 import br.com.puccomp.api.organization.CourseCatalog;
 import br.com.puccomp.api.recruitment.processes.ProcessDirectory;
 import br.com.puccomp.api.shared.aggregation.CategoryKey;
@@ -20,9 +21,9 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-import br.com.puccomp.api.recruitment.applications.CandidateApplicationAggregations.CourseCount;
-import br.com.puccomp.api.recruitment.applications.CandidateApplicationAggregations.DateCount;
-import br.com.puccomp.api.recruitment.applications.CandidateApplicationAggregations.TermCount;
+import br.com.puccomp.api.recruitment.applications.summary.CandidateApplicationAggregations.CourseCount;
+import br.com.puccomp.api.recruitment.applications.summary.CandidateApplicationAggregations.DateCount;
+import br.com.puccomp.api.recruitment.applications.summary.CandidateApplicationAggregations.TermCount;
 
 /**
  * Os dois retratos agregados das inscrições: o de um processo e o do histórico da EJ.
@@ -33,14 +34,14 @@ import br.com.puccomp.api.recruitment.applications.CandidateApplicationAggregati
  */
 @Service
 @RequiredArgsConstructor
-class ApplicationSummaryService {
+public class ApplicationSummaryService {
 
     private final CandidateApplicationAggregations aggregations;
     private final CourseCatalog courses;
     private final ProcessDirectory processes;
 
     @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
-    ApplicationSummaryResponse summarize(UUID processId, CandidateApplicationFilter filter, ZoneId zone) {
+    public ApplicationSummaryResponse summarize(UUID processId, CandidateApplicationFilter filter, ZoneId zone) {
         if (!processes.exists(processId))
             throw new ResourceNotFoundException("Processo seletivo não encontrado");
 
@@ -74,7 +75,7 @@ class ApplicationSummaryService {
     }
 
     @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
-    ApplicationHistorySummaryResponse summarizeHistory(CandidateApplicationFilter filter, ZoneId zone) {
+    public ApplicationHistorySummaryResponse summarizeHistory(CandidateApplicationFilter filter, ZoneId zone) {
         var totals = aggregations.totals(null, filter);
         long total = totals.total();
         var candidates = aggregations.candidates(null, filter);

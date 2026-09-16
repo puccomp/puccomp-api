@@ -1,5 +1,6 @@
 package br.com.puccomp.api.identity.invitation;
 
+import br.com.puccomp.api.identity.InvitationAccepted;
 import br.com.puccomp.api.identity.account.Account;
 import br.com.puccomp.api.identity.account.AccountRepository;
 import br.com.puccomp.api.identity.account.AccountStatus;
@@ -13,6 +14,7 @@ import br.com.puccomp.api.shared.exception.UnauthorizedException;
 import br.com.puccomp.api.shared.exception.ValidationException;
 import br.com.puccomp.api.shared.reference.Standing;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,6 +32,7 @@ class InvitationAcceptor {
     private final MemberDirectory memberDirectory;
     private final CourseCatalog courseCatalog;
     private final PasswordEncoder passwordEncoder;
+    private final ApplicationEventPublisher events;
 
     @Transactional
     Provisioned provision(UUID invitationId, AcceptInvitationRequest request) {
@@ -55,7 +58,11 @@ class InvitationAcceptor {
                 account.getId(), request.name().trim(), request.courseId(), invitation.getRoleId(),
                 invitation.getStanding());
 
-        invitation.markAccepted(Instant.now());
+        Instant acceptedAt = Instant.now();
+        invitation.markAccepted(acceptedAt);
+        events.publishEvent(new InvitationAccepted(invitation.getTenantId(), invitation.getId(),
+                invitation.getCreatedByAccountId(), request.name().trim(), invitation.getEmail(),
+                acceptedAt));
         return new Provisioned(account, memberId, invitation.getStanding());
     }
 

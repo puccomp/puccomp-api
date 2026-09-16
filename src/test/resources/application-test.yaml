@@ -3,6 +3,10 @@ spring:
     url: jdbc:postgresql://localhost:5432/test
     username: test
     password: test
+    hikari:
+      # O JUnit mantém vários contextos vivos no mesmo JVM, cada um com seu pool; o tamanho de
+      # produção somado entre eles passa do max_connections do Postgres.
+      maximum-pool-size: 5
   jpa:
     hibernate:
       ddl-auto: validate
@@ -14,6 +18,10 @@ spring:
     port: 1025
 
 puccomp:
+  notification:
+    # Ligadas, entrariam no meio de um teste que conta mensagens. "-" desativa o agendamento.
+    digest-cron: "-"
+    reminder-cron: "-"
   security:
     jwt:
       secret: test-secret-pelo-menos-32-bytes-para-hs256-0123456789

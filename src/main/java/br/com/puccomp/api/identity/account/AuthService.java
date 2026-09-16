@@ -17,7 +17,7 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
-class AuthService {
+public class AuthService {
 
     private final AccountRepository accounts;
     private final PasswordEncoder passwordEncoder;
@@ -43,7 +43,7 @@ class AuthService {
         );
     }
 
-    MeResponse me(AuthPrincipal principal, Collection<? extends GrantedAuthority> authorities) {
+    public MeResponse me(AuthPrincipal principal, Collection<? extends GrantedAuthority> authorities) {
         var profile = principal.memberId() == null ? null
                 : memberDirectory.findProfile(principal.memberId()).orElse(null);
         var organization = tenants.findById(principal.tenantId()).map(OrganizationView::from).orElse(null);

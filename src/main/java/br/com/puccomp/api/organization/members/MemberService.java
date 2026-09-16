@@ -7,20 +7,22 @@ import br.com.puccomp.api.organization.members.history.MemberLifecycle;
 import br.com.puccomp.api.organization.members.summary.MemberSummaryResponse;
 import br.com.puccomp.api.organization.members.summary.MemberSummaryService;
 import br.com.puccomp.api.organization.DepartmentCatalog;
+import br.com.puccomp.api.organization.MemberAssigned;
 import br.com.puccomp.api.organization.departments.Department;
 import br.com.puccomp.api.organization.roles.Role;
 import br.com.puccomp.api.shared.exception.ConflictException;
 import br.com.puccomp.api.shared.exception.ResourceNotFoundException;
 import br.com.puccomp.api.shared.exception.ValidationException;
+import br.com.puccomp.api.shared.tenant.OrganizationTime;
 import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
-import java.time.ZoneId;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
@@ -28,10 +30,7 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
-class MemberService {
-
-    /** Centralizado no fuso da EJ, sem configuração por tenant: ainda não existe a primeira de fora. */
-    private static final ZoneId EJ_ZONE = ZoneId.of("America/Sao_Paulo");
+public class MemberService {
 
     private static final Set<String> CURRENT_STATE_FILTERS = Set.of(
             "department_id", "departmentId", "role_id", "course_id", "status", "standing",
@@ -43,14 +42,15 @@ class MemberService {
     private final MemberSummaryService summaries;
     private final MemberLifecycle lifecycle;
     private final MemberHistoryService history;
+    private final ApplicationEventPublisher events;
     private final Clock clock;
 
     @Transactional(readOnly = true)
-    Page<MemberResponse> findAll(MemberFilter filter, Pageable pageable) {
+    public Page<MemberResponse> findAll(MemberFilter filter, Pageable pageable) {
         return repository.findAll(MemberSpecs.matching(filter), pageable).map(MemberResponse::from);
     }
 
-    MemberSummaryResponse summarize(MemberFilter filter, MemberSummaryService.ContextAccess access) {
+    public MemberSummaryResponse summarize(MemberFilter filter, MemberSummaryService.ContextAccess access) {
         return summaries.summarize(filter, access);
     }
 
@@ -68,11 +68,11 @@ class MemberService {
                     "O relatório histórico descreve a EJ inteira e não aceita filtros de estado "
                             + "atual: " + String.join(", ", rejected));
 
-        return history.report(ReportWindow.of(from, to, EJ_ZONE, clock.instant()));
+        return history.report(ReportWindow.of(from, to, OrganizationTime.ZONE, clock.instant()));
     }
 
     @Transactional(readOnly = true)
-    MemberResponse findById(UUID id) {
+    public MemberResponse findById(UUID id) {
         return MemberResponse.from(findMember(id));
     }
 
@@ -90,8 +90,20 @@ class MemberService {
     MemberResponse assign(UUID id, MemberAssignmentRequest request) {
         Member member = findMember(id);
         Role role = resolveRole(request.roleId());
-        member.assign(role, resolveDepartment(role, request.departmentId()));
+        Department department = resolveDepartment(role, request.departmentId());
+        member.assign(role, department);
+        events.publishEvent(new MemberAssigned(member.getTenantId(), member.getId(),
+                member.getAccountId(), member.getName(), nameOf(role), nameOf(department),
+                clock.instant()));
         return MemberResponse.from(member);
+    }
+
+    private static String nameOf(Role role) {
+        return role == null ? null : role.getName();
+    }
+
+    private static String nameOf(Department department) {
+        return department == null ? null : department.getName();
     }
 
     private MemberResponse transition(UUID id, MemberStatus status) {

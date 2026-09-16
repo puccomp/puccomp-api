@@ -1,4 +1,4 @@
-package br.com.puccomp.api.recruitment.applications;
+package br.com.puccomp.api.recruitment.applications.summary;
 
 import br.com.puccomp.api.shared.aggregation.Metric;
 import br.com.puccomp.api.shared.aggregation.Slice;

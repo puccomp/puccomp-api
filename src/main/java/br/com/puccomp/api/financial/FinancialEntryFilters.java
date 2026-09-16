@@ -13,14 +13,16 @@ import java.util.List;
  * o Postgres não consegue inferir o tipo de um parâmetro que aparece apenas dentro de um
  * {@code is null}, e a consulta quebra em tempo de execução.
  */
-final class FinancialEntryFilters {
+public final class FinancialEntryFilters {
 
     private FinancialEntryFilters() {
     }
 
-    static Specification<FinancialEntry> of(LocalDate from, LocalDate to, FinancialEntryType type) {
+    public static Specification<FinancialEntry> of(LocalDate from, LocalDate to, FinancialEntryType type) {
         return (root, query, criteria) -> {
             List<Predicate> predicates = new ArrayList<>();
+            // A exclusão vive aqui, e não em cada consulta: listagem e resumo não podem discordar.
+            predicates.add(criteria.isNull(root.get("deletedAt")));
             if (from != null)
                 predicates.add(criteria.greaterThanOrEqualTo(root.get("occurredOn"), from));
             if (to != null)

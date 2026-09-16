@@ -15,7 +15,7 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
-class RoleService {
+public class RoleService {
 
     private final RoleRepository repository;
     private final DepartmentCatalog departmentCatalog;
@@ -37,7 +37,7 @@ class RoleService {
     }
 
     @Transactional(readOnly = true)
-    Page<RoleResponse> findAll(UUID departmentId, Pageable pageable) {
+    public Page<RoleResponse> findAll(UUID departmentId, Pageable pageable) {
         Page<Role> roles = departmentId == null
                 ? repository.findAll(pageable)
                 : repository.findAllByDepartmentId(departmentId, pageable);
@@ -45,7 +45,7 @@ class RoleService {
     }
 
     @Transactional(readOnly = true)
-    RoleResponse findById(UUID id) {
+    public RoleResponse findById(UUID id) {
         return RoleResponse.from(findRole(id));
     }
 

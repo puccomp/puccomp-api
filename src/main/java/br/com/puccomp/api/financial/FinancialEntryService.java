@@ -1,5 +1,7 @@
 package br.com.puccomp.api.financial;
 
+import br.com.puccomp.api.financial.summary.FinancialSummaryResponse;
+import br.com.puccomp.api.financial.summary.FinancialSummaryService;
 import br.com.puccomp.api.shared.exception.ResourceNotFoundException;
 import br.com.puccomp.api.shared.exception.ValidationException;
 import lombok.RequiredArgsConstructor;
@@ -10,6 +12,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Clock;
 import java.time.LocalDate;
 import java.util.UUID;
 
@@ -20,6 +23,8 @@ class FinancialEntryService {
     private static final Sort NEWEST_FIRST = Sort.by(Sort.Order.desc("occurredOn"), Sort.Order.desc("createdAt"));
 
     private final FinancialEntryRepository repository;
+    private final FinancialSummaryService summaries;
+    private final Clock clock;
 
     @Transactional
     FinancialEntryResponse create(FinancialEntryRequest request) {
@@ -41,6 +46,10 @@ class FinancialEntryService {
 
         return repository.findAll(FinancialEntryFilters.of(from, to, type), newestFirstBy(pageable))
                 .map(FinancialEntryResponse::from);
+    }
+
+    FinancialSummaryResponse summarize(LocalDate from, LocalDate to) {
+        return summaries.summarize(from, to);
     }
 
     @Transactional(readOnly = true)
@@ -70,13 +79,15 @@ class FinancialEntryService {
         return FinancialEntryResponse.from(repository.saveAndFlush(entry));
     }
 
+    /** Descarta em vez de apagar: o lançamento some de toda consulta, e a linha continua existindo. */
     @Transactional
     void delete(UUID id) {
-        repository.delete(findEntry(id));
+        findEntry(id).markDeleted(clock.instant());
     }
 
     private FinancialEntry findEntry(UUID id) {
         return repository.findById(id)
+                .filter(entry -> !entry.isDeleted())
                 .orElseThrow(() -> new ResourceNotFoundException("Lançamento financeiro não encontrado"));
     }
 

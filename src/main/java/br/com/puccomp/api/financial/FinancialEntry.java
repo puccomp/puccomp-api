@@ -17,6 +17,7 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.TenantId;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.UUID;
 
@@ -56,6 +57,10 @@ public class FinancialEntry extends Auditable {
     @Column(name = "receipt_url", length = 500)
     private String receiptUrl;
 
+    /** Descarte do lançamento. Nulo é lançamento vivo — o único que qualquer consulta enxerga. */
+    @Column(name = "deleted_at")
+    private Instant deletedAt;
+
     void changeOccurredOn(LocalDate occurredOn) {
         this.occurredOn = occurredOn;
     }
@@ -78,5 +83,13 @@ public class FinancialEntry extends Auditable {
 
     void changeReceiptUrl(String receiptUrl) {
         this.receiptUrl = receiptUrl;
+    }
+
+    void markDeleted(Instant at) {
+        this.deletedAt = at;
+    }
+
+    boolean isDeleted() {
+        return deletedAt != null;
     }
 }

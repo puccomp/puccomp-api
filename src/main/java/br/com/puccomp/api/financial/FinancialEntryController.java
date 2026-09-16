@@ -1,5 +1,6 @@
 package br.com.puccomp.api.financial;
 
+import br.com.puccomp.api.financial.summary.FinancialSummaryResponse;
 import br.com.puccomp.api.shared.exception.ErrorResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -56,6 +57,26 @@ public class FinancialEntryController {
             @RequestParam(required = false) FinancialEntryType type,
             @ParameterObject @PageableDefault(size = 20) Pageable pageable) {
         return service.findAll(from, to, type, pageable);
+    }
+
+    @Operation(summary = "Retrato agregado do extrato no período",
+            description = "Responde de uma vez o que a listagem só responderia paginando tudo: "
+                    + "quanto entrou, quanto saiu, o resultado do período, em que categorias o "
+                    + "dinheiro se concentra e como o volume evoluiu mês a mês.\n\n"
+                    + "Com from e to preenchidos, cada medida vem com o mesmo valor na janela "
+                    + "anterior de igual largura — 30 dias se comparam com os 30 dias anteriores. "
+                    + "Sem os dois extremos não há janela anterior, e previous vem nulo: "
+                    + "comparação indisponível, que é diferente de zero.\n\n"
+                    + "Descreve exatamente os lançamentos que a listagem irmã mostra — "
+                    + "lançamento descartado fica de fora dos dois.")
+    @ApiResponse(responseCode = "400", description = "Período inválido",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    @PreAuthorize("hasAuthority('financial:read')")
+    @GetMapping("/summary")
+    public FinancialSummaryResponse summarize(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return service.summarize(from, to);
     }
 
     @Operation(summary = "Busca um lançamento financeiro por ID")

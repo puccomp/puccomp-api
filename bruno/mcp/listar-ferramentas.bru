@@ -1,0 +1,32 @@
+meta {
+  name: Listar ferramentas
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{base_url}}/mcp
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{pat_token}}
+}
+
+headers {
+  Accept: application/json, text/event-stream
+}
+
+body:json {
+  {
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "tools/list"
+  }
+}
+
+docs {
+  O catálogo que o agente lê antes de decidir o que chamar: nome, descrição e o schema JSON de
+  cada parâmetro. É por aqui que se confere se uma ferramenta nova apareceu.
+}
