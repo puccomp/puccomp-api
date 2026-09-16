@@ -57,7 +57,10 @@ class CvSubmissionEndToEndTest extends AbstractIntegrationTest {
     // não enxerga isso na cadeia fluente e acusa vazamento.
     @Container
     @SuppressWarnings("resource")
-    static final GenericContainer<?> minio = new GenericContainer<>("minio/minio:RELEASE.2025-04-22T22-12-26Z")
+    // quay.io e não Docker Hub: minio/minio deixou de ser puxável anonimamente de lá, e o CI
+    // falha ao buscar a imagem. Mesma release, só o registry muda.
+    static final GenericContainer<?> minio =
+            new GenericContainer<>("quay.io/minio/minio:RELEASE.2025-04-22T22-12-26Z")
             .withEnv("MINIO_ROOT_USER", "testaccess")
             .withEnv("MINIO_ROOT_PASSWORD", "testsecret123")
             .withCommand("server", "/data")
