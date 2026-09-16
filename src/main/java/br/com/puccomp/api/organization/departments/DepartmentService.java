@@ -13,7 +13,7 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
-class DepartmentService implements DepartmentCatalog {
+public class DepartmentService implements DepartmentCatalog {
 
     private final DepartmentRepository repository;
 
@@ -31,12 +31,12 @@ class DepartmentService implements DepartmentCatalog {
     }
 
     @Transactional(readOnly = true)
-    Page<DepartmentResponse> findAll(Pageable pageable) {
+    public Page<DepartmentResponse> findAll(Pageable pageable) {
         return repository.findAll(pageable).map(DepartmentResponse::from);
     }
 
     @Transactional(readOnly = true)
-    DepartmentResponse findById(UUID id) {
+    public DepartmentResponse findById(UUID id) {
         return repository.findById(id)
                 .map(DepartmentResponse::from)
                 .orElseThrow(() -> new ResourceNotFoundException("Diretoria não encontrada"));

@@ -1,10 +1,13 @@
-package br.com.puccomp.api.recruitment.applications;
+package br.com.puccomp.api.recruitment;
 
+import br.com.puccomp.api.recruitment.applications.CandidateApplicationFilter;
+import br.com.puccomp.api.recruitment.applications.CandidateApplicationService;
+import br.com.puccomp.api.recruitment.processes.SelectionProcessService;
+import br.com.puccomp.api.recruitment.processes.SelectionProcessStatus;
 import br.com.puccomp.api.shared.mcp.ToolPage;
 import lombok.RequiredArgsConstructor;
 import org.springframework.ai.mcp.annotation.McpTool;
 import org.springframework.ai.mcp.annotation.McpToolParam;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Component;
@@ -13,26 +16,59 @@ import tools.jackson.databind.ObjectMapper;
 import java.time.Instant;
 import java.util.UUID;
 
-/**
- * Ferramentas MCP das inscrições. Ficam aqui pelo motivo descrito em {@code MemberTools}.
- *
- * <p>São três e não quatro de propósito. A listagem por processo é a busca da EJ inteira com
- * {@code process_id} preenchido, então uma ferramenta cobre as duas; já os dois resumos respondem
- * perguntas diferentes — um enxerga a curva de chegada dentro do prazo, o outro enxerga pessoas
- * entre processos — e juntá-los só faria o agente receber campos nulos sem saber por quê.
- *
- * <p>O sublinhado nos parâmetros de ferramenta é deliberado, e o motivo está em {@code MemberTools}.
- */
+/** As ferramentas MCP de recrutamento. Convenções da superfície em {@code shared.mcp}. */
 @Component
 @RequiredArgsConstructor
-public class CandidateApplicationTools {
+public class RecruitmentTools {
 
-    private static final int DEFAULT_SIZE = 20;
-    private static final int MAX_SIZE = 100;
     private static final Sort NEWEST_FIRST = Sort.by(Sort.Direction.DESC, "createdAt", "id");
 
-    private final CandidateApplicationService service;
+    private final SelectionProcessService processes;
+    private final CandidateApplicationService applications;
     private final ObjectMapper json;
+
+    @McpTool(name = "recruitment_processes_list",
+            annotations = @McpTool.McpAnnotations(readOnlyHint = true, destructiveHint = false,
+                    idempotentHint = true, openWorldHint = false),
+            description = """
+                    Lista os processos seletivos da EJ, do mais recente para o mais antigo, com a \
+                    contagem de inscrições de cada um. Exige a permissão recruitment:read.
+
+                    O filtro de status casa com o status efetivo, e não com o que está gravado: \
+                    OPEN traz só quem ainda está dentro do prazo, e IN_REVIEW inclui quem continua \
+                    gravado como OPEN mas já venceu.
+
+                    É por aqui que se obtém o process_id que as demais ferramentas de recrutamento \
+                    aceitam.
+
+                    Devolve {items, total, page, pages}.""")
+    @PreAuthorize("hasAuthority('recruitment:read')")
+    public String processesList(
+            @McpToolParam(required = false,
+                    description = "Status efetivo; sem ele, todos entram") SelectionProcessStatus status,
+            @McpToolParam(required = false,
+                    description = "Busca no título, ignorando acento e caixa; menos de 2 caracteres "
+                            + "é desconsiderado") String q,
+            @McpToolParam(required = false, description = "Página, começando em 0") Integer page,
+            @McpToolParam(required = false,
+                    description = "Itens por página, no máximo 100; o padrão é 20") Integer size) {
+
+        return json.writeValueAsString(ToolPage.of(
+                processes.findAll(status, q, ToolPage.request(page, size, NEWEST_FIRST))));
+    }
+
+    @McpTool(name = "recruitment_processes_get",
+            annotations = @McpTool.McpAnnotations(readOnlyHint = true, destructiveHint = false,
+                    idempotentHint = true, openWorldHint = false),
+            description = """
+                    Busca um processo seletivo pelo id, com as etapas, o prazo e a configuração do \
+                    formulário. Exige a permissão recruitment:read.""")
+    @PreAuthorize("hasAuthority('recruitment:read')")
+    public String processesGet(
+            @McpToolParam(description = "Id do processo, como devolvido por "
+                    + "recruitment_processes_list") UUID process_id) {
+        return json.writeValueAsString(processes.findById(process_id));
+    }
 
     @McpTool(name = "recruitment_applications_list",
             annotations = @McpTool.McpAnnotations(readOnlyHint = true, destructiveHint = false,
@@ -53,7 +89,7 @@ public class CandidateApplicationTools {
 
                     Devolve {items, total, page, pages}.""")
     @PreAuthorize("hasAuthority('recruitment:read')")
-    public String list(
+    public String applicationsList(
             @McpToolParam(required = false,
                     description = "Recorta um processo; sem ele, o histórico inteiro") UUID process_id,
             @McpToolParam(required = false,
@@ -74,10 +110,8 @@ public class CandidateApplicationTools {
                     description = "Itens por página, no máximo 100; o padrão é 20") Integer size) {
 
         var filter = filtro(process_id, q, course_id, min_term, max_term, has_cv, has_links, from, to);
-        return json.writeValueAsString(ToolPage.of(service.searchAcrossProcesses(filter, PageRequest.of(
-                page == null || page < 0 ? 0 : page,
-                size == null || size < 1 ? DEFAULT_SIZE : Math.min(size, MAX_SIZE),
-                NEWEST_FIRST))));
+        return json.writeValueAsString(ToolPage.of(applications.searchAcrossProcesses(
+                filter, ToolPage.request(page, size, NEWEST_FIRST))));
     }
 
     @McpTool(name = "recruitment_process_funnel",
@@ -98,7 +132,7 @@ public class CandidateApplicationTools {
                     Processo sem inscrições devolve contagens zero e listas vazias; processo que \
                     não existe devolve erro. São coisas diferentes, e a resposta distingue as duas.""")
     @PreAuthorize("hasAuthority('recruitment:read')")
-    public String funnel(
+    public String processFunnel(
             @McpToolParam(description = "Id do processo, como devolvido por "
                     + "recruitment_processes_list") UUID process_id,
             @McpToolParam(required = false,
@@ -114,7 +148,7 @@ public class CandidateApplicationTools {
             @McpToolParam(required = false,
                     description = "Inscrições enviadas até este instante ISO-8601") Instant to) {
 
-        return json.writeValueAsString(service.summarize(process_id,
+        return json.writeValueAsString(applications.summarize(process_id,
                 filtro(null, q, course_id, min_term, max_term, has_cv, has_links, from, to)));
     }
 
@@ -137,7 +171,7 @@ public class CandidateApplicationTools {
                     assim filtrado, candidates.distinct iguala total e returning é sempre zero, e a \
                     curva de chegada não existe aqui.""")
     @PreAuthorize("hasAuthority('recruitment:read')")
-    public String summary(
+    public String applicationsSummary(
             @McpToolParam(required = false, description = "Recorta um processo") UUID process_id,
             @McpToolParam(required = false,
                     description = "Busca por nome, e-mail e caixa, ignorando acento") String q,
@@ -152,7 +186,7 @@ public class CandidateApplicationTools {
             @McpToolParam(required = false,
                     description = "Inscrições enviadas até este instante ISO-8601") Instant to) {
 
-        return json.writeValueAsString(service.summarizeHistory(
+        return json.writeValueAsString(applications.summarizeHistory(
                 filtro(process_id, q, course_id, min_term, max_term, has_cv, has_links, from, to)));
     }
 

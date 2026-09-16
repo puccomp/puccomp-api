@@ -30,7 +30,7 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
-class MemberService {
+public class MemberService {
 
     private static final Set<String> CURRENT_STATE_FILTERS = Set.of(
             "department_id", "departmentId", "role_id", "course_id", "status", "standing",
@@ -46,11 +46,11 @@ class MemberService {
     private final Clock clock;
 
     @Transactional(readOnly = true)
-    Page<MemberResponse> findAll(MemberFilter filter, Pageable pageable) {
+    public Page<MemberResponse> findAll(MemberFilter filter, Pageable pageable) {
         return repository.findAll(MemberSpecs.matching(filter), pageable).map(MemberResponse::from);
     }
 
-    MemberSummaryResponse summarize(MemberFilter filter, MemberSummaryService.ContextAccess access) {
+    public MemberSummaryResponse summarize(MemberFilter filter, MemberSummaryService.ContextAccess access) {
         return summaries.summarize(filter, access);
     }
 
@@ -72,7 +72,7 @@ class MemberService {
     }
 
     @Transactional(readOnly = true)
-    MemberResponse findById(UUID id) {
+    public MemberResponse findById(UUID id) {
         return MemberResponse.from(findMember(id));
     }
 

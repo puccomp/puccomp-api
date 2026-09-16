@@ -1,5 +1,7 @@
-package br.com.puccomp.api.identity.account;
+package br.com.puccomp.api.identity;
 
+import br.com.puccomp.api.identity.account.AuthPrincipal;
+import br.com.puccomp.api.identity.account.AuthService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.ai.mcp.annotation.McpTool;
 import org.springframework.security.core.Authentication;
@@ -9,19 +11,12 @@ import tools.jackson.databind.ObjectMapper;
 
 /**
  * A ferramenta de orientação: sem ela o agente não sabe a que EJ está conectado, em nome de quem,
- * nem o que pode fazer — e só descobre um limite ao esbarrar nele.
- *
- * <p>Isso importa porque a recusa do {@code @PreAuthorize} chega como um "Access Denied" seco. Com
- * {@code permissions} em mãos, o agente responde "esta conta não tem financial:read" em vez de
- * repassar a recusa crua, e evita a chamada que já sabe que vai falhar.
- *
- * <p>É a única ferramenta sem prefixo de módulo, de propósito: ela não pertence a um assunto da EJ,
- * é sobre a própria conexão. Quanto ao resto — lugar, snake_case e serialização — vale o que está
- * em {@code MemberTools}.
+ * nem o que pode fazer — e só descobre um limite ao esbarrar nele, na forma de um "Access Denied"
+ * seco. É a única sem prefixo de módulo, porque não trata de um assunto da EJ e sim da conexão.
  */
 @Component
 @RequiredArgsConstructor
-public class AuthTools {
+public class IdentityTools {
 
     private final AuthService service;
     private final ObjectMapper json;

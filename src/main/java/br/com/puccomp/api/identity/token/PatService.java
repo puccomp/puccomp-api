@@ -29,9 +29,8 @@ public class PatService {
     private static final int PREFIX_DISPLAY_LENGTH = 12;
 
     /**
-     * Resolução de {@code lastUsedAt}. Quem audita quer saber se o token ainda circula, não
-     * cronometrá-lo — e a diferença entre gravar sempre e gravar a cada janela é um UPDATE por
-     * chamada, num caminho que agente percorre muito mais que tela.
+     * Quem audita quer saber se o token ainda circula, não cronometrá-lo; gravar sempre custaria um
+     * UPDATE por chamada, num caminho que agente percorre muito mais que tela.
      */
     private static final Duration LAST_USED_RESOLUTION = Duration.ofMinutes(5);
 
@@ -85,9 +84,9 @@ public class PatService {
     }
 
     /**
-     * Escopo que não corresponde a nenhuma permissão não dá erro depois: o filtro intersecta escopo
-     * com permissão efetiva, e um código digitado errado some na interseção, deixando um token sem
-     * poder nenhum. A criação é a única hora em que ainda dá para avisar quem errou.
+     * O filtro intersecta escopo com permissão efetiva, então código digitado errado não dá erro
+     * depois: some na interseção e deixa um token sem poder nenhum. A criação é a última hora de
+     * avisar quem errou.
      */
     private String validatedScopes(List<String> scopes) {
         if (scopes == null || scopes.isEmpty()) return null;

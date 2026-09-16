@@ -18,14 +18,14 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
-class SelectionProcessService implements ProcessDirectory {
+public class SelectionProcessService implements ProcessDirectory {
 
     private final SelectionProcessRepository repository;
     private final ApplicationCounts applicationCounts;
     private final ApplicationEventPublisher events;
 
     @Transactional(readOnly = true)
-    Page<SelectionProcessSummaryResponse> findAll(SelectionProcessStatus status, String query,
+    public Page<SelectionProcessSummaryResponse> findAll(SelectionProcessStatus status, String query,
                                                    Pageable pageable) {
         Instant now = Instant.now();
         Page<SelectionProcess> page = pageOf(status, SearchTerm.like(query), now, pageable);
@@ -60,7 +60,7 @@ class SelectionProcessService implements ProcessDirectory {
     }
 
     @Transactional(readOnly = true)
-    SelectionProcessResponse findById(UUID id) {
+    public SelectionProcessResponse findById(UUID id) {
         SelectionProcess process = findOwned(id);
         return SelectionProcessResponse.from(process, statsOf(statsFor(List.of(id)), process), Instant.now());
     }

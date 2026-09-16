@@ -75,21 +75,28 @@ de thread e o lugar das ferramentas continuam os mesmos. O PAT entrega o valor
 agora com o código que já existe, e o endurecimento que ele precisava (validação de
 escopo, menos escrita por chamada) coube num commit.
 
-### Por que as ferramentas moram em cada módulo
+### Uma classe de ferramentas por módulo, no pacote raiz dele
 
-`MemberService`, `FinancialEntryService` e os demais são package-private. Um módulo
-`mcp` central não conseguiria chamá-los sem alargar a visibilidade de meio codebase
-e furar exatamente as fronteiras que o `ModularityTests` protege. Então cada módulo
-é dono das suas ferramentas, ao lado do seu controller.
+Cada módulo é dono das suas ferramentas, numa classe só: `RecruitmentTools`,
+`OrganizationTools`, `FinancialTools`, `IdentityTools`. Quem procura o que o agente
+enxerga de recrutamento abre um arquivo, e não dois espalhados por sub-pacotes.
 
-Isso não custa acoplamento: a classe de ferramenta só usa anotações do Spring AI,
-que é biblioteca e não módulo, então nenhuma seta nova aparece no grafo do Modulith.
+Um módulo `mcp` central seria pior por dois motivos. O primeiro é que ele importaria
+os serviços de todos os módulos, criando no grafo do Modulith exatamente as setas que
+o `ModularityTests` existe para impedir. O segundo é que não sobraria nada para morar
+nele além disso: o starter autoconfigura o transporte inteiro a partir de propriedades.
 
-Pelo mesmo motivo **não criamos um módulo `mcp`**. Não sobrou nada para morar nele:
-o starter autoconfigura o transporte inteiro a partir de propriedades, e a
-configuração que resta é de aplicação inteira — que neste codebase mora em
-`config`, como o `@Async` e o `@Scheduled` já moram, e pelo motivo que o
-`SchedulingConfig` documenta.
+O preço de juntar as ferramentas de um módulo num arquivo é que os serviços que elas
+chamam deixaram de ser package-private — `SelectionProcessService` e
+`CandidateApplicationService` vivem em sub-pacotes diferentes do mesmo módulo, e Java
+não tem visibilidade de módulo. Só a classe e os métodos de leitura usados abriram;
+escrita continua fechada. E o que fecha o módulo para fora nunca foi o `package-private`:
+é o Modulith, que só deixa outro módulo importar do pacote raiz ou de um
+`@NamedInterface` — `recruitment.processes` não é nenhum dos dois, e o
+`ModularityTests` reprova quem tentar, público ou não.
+
+Acoplamento novo entre módulos não nasce disto: a classe de ferramenta só acrescenta
+anotações do Spring AI, que é biblioteca e não módulo.
 
 ### snake_case nos dois sentidos, e o que isso custou
 

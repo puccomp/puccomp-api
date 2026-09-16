@@ -63,31 +63,57 @@ O contrato é gerado a partir do código pelo Springdoc — ver
 ### Conectando um agente de IA
 
 O servidor MCP entrega as mesmas leituras da API para o agente que o membro já usa
-(Claude Code, Cursor, Claude Desktop). A credencial é um PAT criado em
-`POST /v1/auth/pat` — o agente enxerga exatamente o que o dono do token enxerga:
+(Claude Code, Cursor, Claude Desktop). O transporte é **Streamable HTTP** e o servidor é
+stateless: sem handshake e sem sessão, cada requisição se identifica pelo PAT em
+`Authorization: Bearer`. O agente enxerga exatamente o que o dono do token enxerga —
 mesma EJ, mesmas permissões.
+
+O fluxo para obter a credencial são três chamadas:
+
+| # | Endpoint | Para quê |
+|---|---|---|
+| 1 | `POST /v1/auth/login` | Troca e-mail e senha por um JWT de sessão |
+| 2 | `GET /v1/auth/pat/scopes` | Lista os escopos aceitos — opcional, e sem escopo o token herda tudo que a conta pode |
+| 3 | `POST /v1/auth/pat` | Cria o PAT; o campo `token` vem no corpo **uma única vez** |
+
+```bash
+curl -s localhost:8080/v1/auth/login -H 'Content-Type: application/json' \
+  -d '{"email":"dono@ejcomp.dev","password":"Dono@123"}'
+```
+
+```bash
+curl -s localhost:8080/v1/auth/pat -H "Authorization: Bearer $JWT" \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"claude-code","scopes":["recruitment:read","members:read"]}'
+```
+
+Com o `token` em mãos, o cliente MCP só precisa da URL e do cabeçalho:
 
 ```bash
 claude mcp add --transport http puccomp http://localhost:8080/mcp \
   --header "Authorization: Bearer pat_..."
 ```
 
-Em `dev` não é preciso criar nada: o seed já deixa um PAT pronto e imprime no log,
-junto das contas. Dá para conectar direto.
+Escopo recorta o token para **menos** do que a conta pode: a permissão efetiva é a
+interseção das duas listas, então pedir um escopo que a conta não tem não concede nada.
+`GET /v1/auth/pat` lista os tokens ativos e `DELETE /v1/auth/pat/{id}` revoga um — o
+agente passa a receber 401 na chamada seguinte.
+
+Em `dev` não é preciso criar nada: o seed já deixa um PAT pronto e imprime no log, junto
+das contas.
 
 ```bash
 claude mcp add --transport http puccomp http://localhost:8080/mcp \
   --header "Authorization: Bearer pat_dev_comp_integracao-site"
 ```
 
-Esse token tem escopo `recruitment:read` de propósito, para o recorte ficar visível:
-a conta dona dele é presidente da EJ e pode tudo, mas o agente só enxerga
-recrutamento. Chame `whoami` e compare.
+Esse token tem escopo `recruitment:read` de propósito, para o recorte ficar visível: a
+conta dona dele é presidente da EJ e pode tudo, mas o agente só enxerga recrutamento.
+Chame `whoami` e compare.
 
-Escopo no PAT restringe o token para menos do que a conta pode; os códigos aceitos
-estão em `GET /v1/auth/pat/scopes`. Para testar sem cliente MCP instalado, a pasta
-[`bruno/mcp/`](bruno/mcp) tem as chamadas JSON-RPC cruas. O porquê do desenho está
-no [ADR 0006](docs/adr/0006-servidor-mcp-com-spring-ai.md).
+Para testar sem cliente MCP instalado, a pasta [`bruno/mcp/`](bruno/mcp) tem as chamadas
+JSON-RPC cruas (`tools/list` e `tools/call`). O porquê do desenho está no
+[ADR 0006](docs/adr/0006-servidor-mcp-com-spring-ai.md).
 
 ## Documentação
 

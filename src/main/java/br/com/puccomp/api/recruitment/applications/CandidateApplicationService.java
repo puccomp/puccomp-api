@@ -15,7 +15,7 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
-class CandidateApplicationService {
+public class CandidateApplicationService {
 
     private final CandidateApplicationRegistry registry;
     private final ApplicationSummaryService summaries;
@@ -26,15 +26,15 @@ class CandidateApplicationService {
         return registry.listByProcess(processId, filter, pageable);
     }
 
-    Page<CandidateApplicationResponse> searchAcrossProcesses(CandidateApplicationFilter filter, Pageable pageable) {
+    public Page<CandidateApplicationResponse> searchAcrossProcesses(CandidateApplicationFilter filter, Pageable pageable) {
         return registry.searchAcrossProcesses(filter, pageable);
     }
 
-    ApplicationSummaryResponse summarize(UUID processId, CandidateApplicationFilter filter) {
+    public ApplicationSummaryResponse summarize(UUID processId, CandidateApplicationFilter filter) {
         return summaries.summarize(processId, filter, OrganizationTime.ZONE);
     }
 
-    ApplicationHistorySummaryResponse summarizeHistory(CandidateApplicationFilter filter) {
+    public ApplicationHistorySummaryResponse summarizeHistory(CandidateApplicationFilter filter) {
         return summaries.summarizeHistory(filter, OrganizationTime.ZONE);
     }
 

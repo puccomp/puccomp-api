@@ -4,7 +4,6 @@ import br.com.puccomp.api.shared.mcp.ToolPage;
 import lombok.RequiredArgsConstructor;
 import org.springframework.ai.mcp.annotation.McpTool;
 import org.springframework.ai.mcp.annotation.McpToolParam;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.ObjectMapper;
@@ -12,13 +11,10 @@ import tools.jackson.databind.ObjectMapper;
 import java.time.LocalDate;
 import java.util.UUID;
 
-/** Ferramentas MCP do extrato. Ficam aqui pelo motivo descrito em {@code MemberTools}. */
+/** As ferramentas MCP do extrato. Convenções da superfície em {@code shared.mcp}. */
 @Component
 @RequiredArgsConstructor
-public class FinancialEntryTools {
-
-    private static final int DEFAULT_SIZE = 20;
-    private static final int MAX_SIZE = 100;
+public class FinancialTools {
 
     private final FinancialEntryService service;
     private final ObjectMapper json;
@@ -39,7 +35,7 @@ public class FinancialEntryTools {
 
                     Devolve {items, total, page, pages}.""")
     @PreAuthorize("hasAuthority('financial:read')")
-    public String list(
+    public String entriesList(
             @McpToolParam(required = false, description = "Data inicial, inclusive") LocalDate from,
             @McpToolParam(required = false, description = "Data final, inclusive") LocalDate to,
             @McpToolParam(required = false,
@@ -48,9 +44,8 @@ public class FinancialEntryTools {
             @McpToolParam(required = false,
                     description = "Itens por página, no máximo 100; o padrão é 20") Integer size) {
 
-        return json.writeValueAsString(ToolPage.of(service.findAll(from, to, type, PageRequest.of(
-                page == null || page < 0 ? 0 : page,
-                size == null || size < 1 ? DEFAULT_SIZE : Math.min(size, MAX_SIZE)))));
+        return json.writeValueAsString(ToolPage.of(
+                service.findAll(from, to, type, ToolPage.request(page, size))));
     }
 
     @McpTool(name = "financial_entries_get",
@@ -58,7 +53,7 @@ public class FinancialEntryTools {
                     idempotentHint = true, openWorldHint = false),
             description = "Busca um lançamento financeiro pelo id. Exige a permissão financial:read.")
     @PreAuthorize("hasAuthority('financial:read')")
-    public String get(
+    public String entriesGet(
             @McpToolParam(description = "Id do lançamento, como devolvido por "
                     + "financial_entries_list") UUID id) {
         return json.writeValueAsString(service.findById(id));

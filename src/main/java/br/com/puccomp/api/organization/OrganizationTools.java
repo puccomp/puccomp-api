@@ -1,12 +1,17 @@
-package br.com.puccomp.api.organization.members;
+package br.com.puccomp.api.organization;
 
+import br.com.puccomp.api.organization.courses.CourseService;
+import br.com.puccomp.api.organization.departments.DepartmentService;
+import br.com.puccomp.api.organization.members.MemberFilter;
+import br.com.puccomp.api.organization.members.MemberService;
+import br.com.puccomp.api.organization.members.MemberStatus;
 import br.com.puccomp.api.organization.members.summary.MemberSummaryService;
+import br.com.puccomp.api.organization.roles.RoleService;
 import br.com.puccomp.api.shared.mcp.ToolPage;
 import br.com.puccomp.api.shared.reference.Standing;
 import lombok.RequiredArgsConstructor;
 import org.springframework.ai.mcp.annotation.McpTool;
 import org.springframework.ai.mcp.annotation.McpToolParam;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -16,41 +21,17 @@ import tools.jackson.databind.ObjectMapper;
 
 import java.util.UUID;
 
-/**
- * As ferramentas MCP do quadro. Moram junto do controller, e não num módulo {@code mcp} central,
- * porque {@link MemberService} é package-private: um módulo de fora teria de alargar a visibilidade
- * de meio codebase para alcançá-lo. Como aqui só entram anotações do Spring AI — biblioteca, não
- * módulo — nenhuma dependência nova entre módulos nasce disto.
- *
- * <p>Tenant e permissão não são tratados aqui de propósito: o servidor é {@code STATELESS} e
- * {@code SYNC}, então a ferramenta roda na mesma thread da requisição, onde o
- * {@code BearerAuthenticationFilter} já deixou o {@code TenantContext} e as authorities prontos.
- *
- * <p>A descrição de cada ferramenta nomeia a permissão exigida porque a recusa do
- * {@code @PreAuthorize} chega ao agente como um "Access Denied" seco, que não diz o que faltou.
- *
- * <p>A superfície inteira é snake_case, igual à da API REST, nas duas direções.
- *
- * <p>Na saída, isso exige serializar com o {@code ObjectMapper} da aplicação e devolver
- * {@code String}: o Spring AI serializaria o objeto com um mapper estático próprio, que ignora a
- * configuração do Spring, e a ferramenta responderia {@code activeHeadcount} enquanto
- * {@code GET /v1/members/summary} responde {@code active_headcount}.
- *
- * <p>Na entrada, exige que os parâmetros publicados se chamem {@code department_id} e não
- * {@code departmentId} — o nome do parâmetro Java é o nome que vai para o schema e para a
- * vinculação do argumento, e não há como renomear um sem o outro. Daí o sublinhado nas assinaturas
- * de ferramenta, e só nelas: os métodos privados aqui embaixo seguem a convenção normal de Java.
- * Ver ADR 0006.
- */
+/** As ferramentas MCP da estrutura da EJ. Convenções da superfície em {@code shared.mcp}. */
 @Component
 @RequiredArgsConstructor
-public class MemberTools {
+public class OrganizationTools {
 
-    private static final int DEFAULT_SIZE = 20;
-    private static final int MAX_SIZE = 100;
     private static final Sort BY_NAME = Sort.by("name", "id");
 
-    private final MemberService service;
+    private final MemberService members;
+    private final RoleService roles;
+    private final DepartmentService departments;
+    private final CourseService courses;
     private final ObjectMapper json;
 
     @McpTool(name = "members_list",
@@ -69,7 +50,7 @@ public class MemberTools {
 
                     Devolve {items, total, page, pages}.""")
     @PreAuthorize("hasAuthority('members:read')")
-    public String list(
+    public String membersList(
             @McpToolParam(required = false,
                     description = "Situação do vínculo; sem ele, todas entram") MemberStatus status,
             @McpToolParam(required = false,
@@ -81,9 +62,9 @@ public class MemberTools {
             @McpToolParam(required = false,
                     description = "Itens por página, no máximo 100; o padrão é 20") Integer size) {
 
-        return json.writeValueAsString(ToolPage.of(service.findAll(
+        return json.writeValueAsString(ToolPage.of(members.findAll(
                 filtro(status, standing, department_id, role_id, course_id),
-                PageRequest.of(pagina(page), tamanho(size), BY_NAME))));
+                ToolPage.request(page, size, BY_NAME))));
     }
 
     @McpTool(name = "members_get",
@@ -93,9 +74,9 @@ public class MemberTools {
                     Busca um membro da EJ pelo id, com o curso, o cargo e a diretoria atuais. \
                     Exige a permissão members:read.""")
     @PreAuthorize("hasAuthority('members:read')")
-    public String get(
+    public String membersGet(
             @McpToolParam(description = "Id do membro, como devolvido por members_list") UUID id) {
-        return json.writeValueAsString(service.findById(id));
+        return json.writeValueAsString(members.findById(id));
     }
 
     @McpTool(name = "members_summary",
@@ -114,16 +95,93 @@ public class MemberTools {
                     empty_departments exige também departments:read. Sem a permissão adicional o \
                     bloco vem nulo, o que significa ausência de permissão e não EJ vazia.""")
     @PreAuthorize("hasAuthority('members:read')")
-    public String summary(
+    public String membersSummary(
             @McpToolParam(required = false, description = "Situação do vínculo") MemberStatus status,
             @McpToolParam(required = false, description = "Tipo de vínculo com a EJ") Standing standing,
             @McpToolParam(required = false, description = "Diretoria atual do membro") UUID department_id,
             @McpToolParam(required = false, description = "Cargo atual do membro") UUID role_id,
             @McpToolParam(required = false, description = "Curso do membro") UUID course_id) {
 
-        return json.writeValueAsString(service.summarize(
+        return json.writeValueAsString(members.summarize(
                 filtro(status, standing, department_id, role_id, course_id),
                 new MemberSummaryService.ContextAccess(pode("roles:read"), pode("departments:read"))));
+    }
+
+    @McpTool(name = "roles_list",
+            annotations = @McpTool.McpAnnotations(readOnlyHint = true, destructiveHint = false,
+                    idempotentHint = true, openWorldHint = false),
+            description = """
+                    Lista os cargos da EJ, com a diretoria de cada um e o número de vagas. \
+                    Exige a permissão roles:read.
+
+                    É por aqui que se obtém o role_id que members_list aceita como filtro.
+
+                    Devolve {items, total, page, pages}.""")
+    @PreAuthorize("hasAuthority('roles:read')")
+    public String rolesList(
+            @McpToolParam(required = false,
+                    description = "Traz só os cargos desta diretoria") UUID department_id,
+            @McpToolParam(required = false, description = "Página, começando em 0") Integer page,
+            @McpToolParam(required = false,
+                    description = "Itens por página, no máximo 100; o padrão é 20") Integer size) {
+
+        return json.writeValueAsString(ToolPage.of(
+                roles.findAll(department_id, ToolPage.request(page, size, BY_NAME))));
+    }
+
+    @McpTool(name = "roles_get",
+            annotations = @McpTool.McpAnnotations(readOnlyHint = true, destructiveHint = false,
+                    idempotentHint = true, openWorldHint = false),
+            description = "Busca um cargo da EJ pelo id. Exige a permissão roles:read.")
+    @PreAuthorize("hasAuthority('roles:read')")
+    public String rolesGet(
+            @McpToolParam(description = "Id do cargo, como devolvido por roles_list") UUID id) {
+        return json.writeValueAsString(roles.findById(id));
+    }
+
+    @McpTool(name = "departments_list",
+            annotations = @McpTool.McpAnnotations(readOnlyHint = true, destructiveHint = false,
+                    idempotentHint = true, openWorldHint = false),
+            description = """
+                    Lista as diretorias da EJ. Exige a permissão departments:read.
+
+                    É por aqui que se obtém o department_id que members_list e roles_list aceitam \
+                    como filtro.
+
+                    Devolve {items, total, page, pages}.""")
+    @PreAuthorize("hasAuthority('departments:read')")
+    public String departmentsList(
+            @McpToolParam(required = false, description = "Página, começando em 0") Integer page,
+            @McpToolParam(required = false,
+                    description = "Itens por página, no máximo 100; o padrão é 20") Integer size) {
+
+        return json.writeValueAsString(ToolPage.of(
+                departments.findAll(ToolPage.request(page, size, BY_NAME))));
+    }
+
+    @McpTool(name = "departments_get",
+            annotations = @McpTool.McpAnnotations(readOnlyHint = true, destructiveHint = false,
+                    idempotentHint = true, openWorldHint = false),
+            description = "Busca uma diretoria da EJ pelo id. Exige a permissão departments:read.")
+    @PreAuthorize("hasAuthority('departments:read')")
+    public String departmentsGet(
+            @McpToolParam(description = "Id da diretoria, como devolvido por departments_list") UUID id) {
+        return json.writeValueAsString(departments.findById(id));
+    }
+
+    // Sem @PreAuthorize: o catálogo é legível por qualquer membro autenticado, como no CourseController.
+    @McpTool(name = "courses_list",
+            annotations = @McpTool.McpAnnotations(readOnlyHint = true, destructiveHint = false,
+                    idempotentHint = true, openWorldHint = false),
+            description = """
+                    Lista os cursos que a EJ aceita. É o catálogo inteiro, sem paginação.
+
+                    É por aqui que se obtém o course_id que members_list e as ferramentas de \
+                    recrutamento aceitam como filtro.
+
+                    Devolve {items, total, page, pages}.""")
+    public String coursesList() {
+        return json.writeValueAsString(ToolPage.of(courses.findAll()));
     }
 
     private static MemberFilter filtro(MemberStatus status, Standing standing,
@@ -131,18 +189,9 @@ public class MemberTools {
         return new MemberFilter(departmentId, null, roleId, courseId, status, standing, null, null);
     }
 
-    private static int pagina(Integer page) {
-        return page == null || page < 0 ? 0 : page;
-    }
-
-    private static int tamanho(Integer size) {
-        return size == null || size < 1 ? DEFAULT_SIZE : Math.min(size, MAX_SIZE);
-    }
-
     /**
-     * O contexto da estrutura depende de permissões além de members:read, e o controller as lê da
-     * {@code Authentication}. Aqui vale o mesmo: em {@code SYNC} a ferramenta roda na thread da
-     * requisição, então o {@code SecurityContextHolder} é o mesmo que o {@code @PreAuthorize} usou.
+     * Em {@code SYNC} a ferramenta roda na thread da requisição, então este é o mesmo contexto que
+     * o {@code @PreAuthorize} acabou de consultar.
      */
     private static boolean pode(String permissao) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();

@@ -17,12 +17,12 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
-class CourseService implements CourseCatalog, CourseProvisioning {
+public class CourseService implements CourseCatalog, CourseProvisioning {
 
     private final CourseRepository repository;
     
     @Transactional(readOnly = true)
-    List<CourseResponse> findAll() {
+    public List<CourseResponse> findAll() {
         return repository.findAll(Sort.by("name")).stream().map(CourseResponse::from).toList();
     }
 
