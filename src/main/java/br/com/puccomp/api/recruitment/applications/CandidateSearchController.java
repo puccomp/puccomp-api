@@ -1,7 +1,6 @@
 package br.com.puccomp.api.recruitment.applications;
 
 import br.com.puccomp.api.recruitment.applications.summary.ApplicationHistorySummaryResponse;
-import br.com.puccomp.api.recruitment.applications.summary.ApplicationSummaryResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
