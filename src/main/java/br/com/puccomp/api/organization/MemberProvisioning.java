@@ -8,5 +8,10 @@ public interface MemberProvisioning {
 
     boolean roleExists(UUID roleId);
 
-    UUID createMember(UUID accountId, String name, UUID courseId, UUID roleId, Standing standing);
+    /**
+     * O e-mail vem de quem provisiona — identity, que já o tem na mão — em vez de organization ir
+     * buscá-lo: o caminho inverso fecharia um ciclo entre os dois módulos.
+     */
+    UUID createMember(UUID accountId, String name, String email, UUID courseId, UUID roleId,
+                      Standing standing);
 }

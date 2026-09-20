@@ -77,8 +77,8 @@ class InvitationAcceptorTest {
         when(passwordEncoder.encode("Senha@123")).thenReturn("hash");
         when(accounts.save(any())).thenAnswer(inv -> inv.getArgument(0));
         when(courseCatalog.isAssignable(course)).thenReturn(true);
-        when(memberProvisioning.createMember(any(), eq("Novato"), eq(course), eq(cargo),
-                eq(Standing.MEMBER))).thenReturn(memberId);
+        when(memberProvisioning.createMember(any(), eq("Novato"), eq("novato@ej.dev"), eq(course),
+                eq(cargo), eq(Standing.MEMBER))).thenReturn(memberId);
 
         InvitationAcceptor.Provisioned result = acceptor.provision(invId,
                 new AcceptInvitationRequest("inv_token", "Senha@123", "Novato", course));
@@ -105,8 +105,9 @@ class InvitationAcceptorTest {
         when(passwordEncoder.matches("senha123", "hash")).thenReturn(true);
         when(memberDirectory.findMembership(existing.getId(), tenant)).thenReturn(Optional.empty());
         when(courseCatalog.isAssignable(course)).thenReturn(true);
-        when(memberProvisioning.createMember(eq(existing.getId()), eq("Novato"), eq(course),
-                isNull(), eq(Standing.MEMBER))).thenReturn(memberId);
+        when(memberProvisioning.createMember(eq(existing.getId()), eq("Novato"),
+                eq(existing.getEmail()), eq(course), isNull(), eq(Standing.MEMBER)))
+                .thenReturn(memberId);
 
         InvitationAcceptor.Provisioned result = acceptor.provision(invId,
                 new AcceptInvitationRequest("inv_token", "senha123", "Novato", course));
@@ -130,7 +131,7 @@ class InvitationAcceptorTest {
         assertThatThrownBy(() -> acceptor.provision(invId,
                 new AcceptInvitationRequest("inv_token", "senha123", "Novato", UUID.randomUUID())))
                 .isInstanceOf(ConflictException.class);
-        verify(memberProvisioning, never()).createMember(any(), any(), any(), any(), any());
+        verify(memberProvisioning, never()).createMember(any(), any(), any(), any(), any(), any());
         verify(accounts, never()).save(any());
     }
 
@@ -160,12 +161,12 @@ class InvitationAcceptorTest {
         when(passwordEncoder.matches("velha7", "hash")).thenReturn(true);
         when(memberDirectory.findMembership(existing.getId(), tenant)).thenReturn(Optional.empty());
         when(courseCatalog.isAssignable(course)).thenReturn(true);
-        when(memberProvisioning.createMember(any(), any(), any(), any(), any()))
+        when(memberProvisioning.createMember(any(), any(), any(), any(), any(), any()))
                 .thenReturn(UUID.randomUUID());
 
         acceptor.provision(invId, new AcceptInvitationRequest("inv_token", "velha7", "Novato", course));
 
-        verify(memberProvisioning).createMember(any(), any(), any(), any(), any());
+        verify(memberProvisioning).createMember(any(), any(), any(), any(), any(), any());
     }
 
     @Test
@@ -185,7 +186,7 @@ class InvitationAcceptorTest {
                 new AcceptInvitationRequest("inv_token", "senha123", "Novato", UUID.randomUUID())))
                 .isInstanceOf(ConflictException.class);
         verify(passwordEncoder, never()).matches(any(), any());
-        verify(memberProvisioning, never()).createMember(any(), any(), any(), any(), any());
+        verify(memberProvisioning, never()).createMember(any(), any(), any(), any(), any(), any());
     }
 
     @Test
@@ -200,7 +201,7 @@ class InvitationAcceptorTest {
         assertThatThrownBy(() -> acceptor.provision(invId,
                 new AcceptInvitationRequest("inv_token", "senha123", "Novato", UUID.randomUUID())))
                 .isInstanceOf(UnauthorizedException.class);
-        verify(memberProvisioning, never()).createMember(any(), any(), any(), any(), any());
+        verify(memberProvisioning, never()).createMember(any(), any(), any(), any(), any(), any());
         verify(accounts, never()).save(any());
     }
 }

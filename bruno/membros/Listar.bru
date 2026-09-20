@@ -21,6 +21,8 @@ params:query {
   ~standing: MEMBER
   ~has_role: true
   ~has_department: true
+  ~q: ana
+  ~include_deleted: true
   ~departmentId: {{department_id}}
 }
 
@@ -36,10 +38,26 @@ docs {
   | department_id | diretoria atual do membro |
   | role_id | cargo atual do membro |
   | course_id | curso atual do membro |
-  | status | um valor de MemberStatus (ACTIVE, ALUMNUS, INACTIVE, PENDING) |
+  | status | um valor de MemberStatus (ACTIVE, ALUMNUS) |
   | standing | um valor de Standing (OWNER, MEMBER) |
   | has_role | true só quem tem cargo; false só quem não tem |
   | has_department | true só quem tem diretoria; false só quem não tem |
+  | q | texto livre sobre nome e e-mail |
+  | include_deleted | true traz também quem saiu da EJ; exige members:write |
+
+  q casa nome e e-mail, sem acento e sem diferenciar maiúsculas: "joao" encontra "João Pereira".
+  Termo com menos de dois caracteres não filtra nada, em vez de varrer a tabela inteira, e % ou _
+  digitados valem como texto, não como curinga.
+
+  O default traz só quem tem vínculo hoje — ACTIVE e ALUMNUS. Quem foi removido some de tudo, e só
+  volta com include_deleted=true; sem members:write esse parâmetro é 403.
+
+  ## Campos da resposta
+
+  email é nulo em membro sem conta associada — linha de baseline ou de seed. joined_at é a primeira
+  ativação conhecida do vínculo; nulo significa que o membro já estava na EJ quando o rastreamento
+  começou, NUNCA que ele entrou agora. É a mesma população que o /members/history reporta em
+  coverage.unknown_join_dates.
 
   Sem status, todos os estados entram. UUID bem formado sem correspondência — inclusive de outra
   EJ — devolve página vazia; UUID, enum ou booleano malformado é 400.

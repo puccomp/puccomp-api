@@ -90,7 +90,7 @@ class MemberSummaryIntegrationTest extends AbstractIntegrationTest {
         member("Carla Analista", MemberStatus.ACTIVE, design, analista, projetos);
         member("Diego Alumni", MemberStatus.ALUMNUS, design, null, null);
         member("Elisa Inativa", MemberStatus.ACTIVE, design, cargoInativo, comercial);
-        member("Fabio Afastado", MemberStatus.INACTIVE, computacao, analista, projetos);
+        member("Fabio Afastado", MemberStatus.ALUMNUS, computacao, analista, projetos);
         member("Gabi Presidente", MemberStatus.ACTIVE, computacao, presidente, null);
         member("Hugo Presidente", MemberStatus.ACTIVE, computacao, presidente, null);
         member("Ivan Trainee", MemberStatus.ACTIVE, design, trainee, projetos);
@@ -147,7 +147,7 @@ class MemberSummaryIntegrationTest extends AbstractIntegrationTest {
     void shouldOrderEnumDistributionsByDeclaration() {
         JsonNode resumo = summary("");
 
-        assertThat(ids(resumo.path("by_status"))).containsExactly("ACTIVE", "ALUMNUS", "INACTIVE");
+        assertThat(ids(resumo.path("by_status"))).containsExactly("ACTIVE", "ALUMNUS");
         assertThat(resumo.path("by_status").get(0).path("key").path("name").asText()).isEqualTo("Ativo");
         assertThat(resumo.path("by_status").get(0).path("count").asInt()).isEqualTo(8);
 
@@ -177,7 +177,7 @@ class MemberSummaryIntegrationTest extends AbstractIntegrationTest {
 
         // Diego é alumnus e não tem cargo, mas não é uma lacuna do quadro ativo.
         JsonNode alumni = summary("?status=ALUMNUS");
-        assertThat(alumni.path("total").path("value").asInt()).isEqualTo(1);
+        assertThat(alumni.path("total").path("value").asInt()).isEqualTo(2);
         assertThat(alumni.path("gaps").path("without_role").asInt()).isZero();
         assertThat(alumni.path("gaps").path("without_department").asInt()).isZero();
     }

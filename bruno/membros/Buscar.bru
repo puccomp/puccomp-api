@@ -13,3 +13,10 @@ get {
 auth:bearer {
   token: {{access_token}}
 }
+
+docs {
+  Exige members:read. Devolve o mesmo formato de um item da listagem.
+
+  email é nulo em membro sem conta associada. joined_at é a primeira ativação conhecida do vínculo;
+  nulo significa que o membro já estava na EJ quando o rastreamento começou, nunca que entrou agora.
+}

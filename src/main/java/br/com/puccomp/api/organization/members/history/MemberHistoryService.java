@@ -13,11 +13,14 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.YearMonth;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * Métricas temporais do quadro, calculadas sobre o histórico de vínculos.
@@ -77,6 +80,20 @@ public class MemberHistoryService {
                 series(window, trackedSince,
                         month -> BigDecimal.valueOf(activeCount(histories, window.endOf(month)))),
                 covered ? cohorts(histories, window) : null);
+    }
+
+    /**
+     * Data de entrada dos membros pedidos: o início da primeira ativação de quem nasceu sob
+     * rastreamento. Membro de baseline fica de fora do mapa — ele não tem admissão conhecida, e
+     * devolver o marco do rastreamento inventaria uma entrada que ninguém viu.
+     */
+    @Transactional(readOnly = true)
+    public Map<UUID, Instant> joinDatesOf(Collection<UUID> memberIds) {
+        if (memberIds.isEmpty()) return Map.of();
+        return MembershipTimeline.from(events.findOrderedByMemberIds(memberIds)).stream()
+                .flatMap(history -> history.admission().stream()
+                        .map(admission -> Map.entry(history.memberId(), admission.start())))
+                .collect(Collectors.toUnmodifiableMap(Map.Entry::getKey, Map.Entry::getValue));
     }
 
     private static MemberHistoryResponse.Period period(ReportWindow window) {

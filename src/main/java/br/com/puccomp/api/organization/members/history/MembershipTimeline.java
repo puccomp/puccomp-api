@@ -63,11 +63,23 @@ final class MembershipTimeline {
                     if (isActive && !wasActive) {
                         open = activation(event.getOccurredAt());
                     } else if (!isActive && wasActive) {
-                        // Sair de ACTIVE encerra o intervalo. Trocar ALUMNUS por INACTIVE não passa
-                        // por aqui: quem já não estava ativo não sai uma segunda vez.
+                        // Sair de ACTIVE encerra o intervalo. Quem já não estava ativo não sai uma
+                        // segunda vez, e isso cai naturalmente do registro por estado.
                         intervals.add(open.closedAt(event.getOccurredAt()));
                         open = null;
                     }
+                }
+                // A deleção encerra o intervalo de quem estava ativo; deletar um alumnus não é
+                // saída nenhuma, porque ele já tinha saído do quadro.
+                case DELETED -> {
+                    if (wasActive) {
+                        intervals.add(open.closedAt(event.getOccurredAt()));
+                        open = null;
+                    }
+                }
+                // Restaurar devolve o intervalo só a quem estava ativo quando saiu.
+                case RESTORED -> {
+                    if (isActive && !wasActive) open = activation(event.getOccurredAt());
                 }
             }
         }

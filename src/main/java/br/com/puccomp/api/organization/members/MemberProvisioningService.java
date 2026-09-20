@@ -28,11 +28,13 @@ class MemberProvisioningService implements MemberProvisioning {
 
     @Override
     @Transactional
-    public UUID createMember(UUID accountId, String name, UUID courseId, UUID roleId, Standing standing) {
+    public UUID createMember(UUID accountId, String name, String email, UUID courseId, UUID roleId,
+                             Standing standing) {
         Role role = roleId != null ? entityManager.find(Role.class, roleId) : null;
         var member = Member.builder()
                 .accountId(accountId)
                 .name(name)
+                .email(email)
                 .course(entityManager.getReference(Course.class, courseId))
                 .standing(standing)
                 .status(MemberStatus.ACTIVE)

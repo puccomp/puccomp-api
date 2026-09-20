@@ -1,0 +1,35 @@
+meta {
+  name: Definir status
+  type: http
+  seq: 5
+}
+
+put {
+  url: {{base_url}}/v1/members/{{member_id}}/status
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{access_token}}
+}
+
+body:json {
+  {
+    "value": "ALUMNUS"
+  }
+}
+
+docs {
+  Define o estado do vínculo. Exige members:write. Substitui as antigas rotas /retire e
+  /reactivate, que foram removidas.
+
+  | value | O que acontece |
+  |---|---|
+  | ALUMNUS | encerra o ciclo ativo; mantém leitura da EJ, perde a escrita |
+  | ACTIVE | devolve o quadro ativo, com o acesso que o cargo concede |
+
+  Idempotente: definir o estado que já vale não duplica a saída no histórico nem move a data dela.
+
+  Membro removido da EJ é 404 aqui — ele não existe mais para a API. Para mexer nele, restaure antes.
+}

@@ -23,6 +23,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
+import java.time.Instant;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
@@ -45,9 +48,16 @@ public class MemberService {
     private final ApplicationEventPublisher events;
     private final Clock clock;
 
+    /**
+     * A data de entrada da página inteira sai de uma consulta só. Resolver membro a membro traria
+     * de volta o N+1 que o EntityGraph da listagem existe para evitar.
+     */
     @Transactional(readOnly = true)
     public Page<MemberResponse> findAll(MemberFilter filter, Pageable pageable) {
-        return repository.findAll(MemberSpecs.matching(filter), pageable).map(MemberResponse::from);
+        Page<Member> page = repository.findAll(MemberSpecs.matching(filter), pageable);
+        Map<UUID, Instant> joinDates = history.joinDatesOf(
+                page.getContent().stream().map(member -> member.getId()).toList());
+        return page.map(member -> MemberResponse.from(member, joinDates.get(member.getId())));
     }
 
     public MemberSummaryResponse summarize(MemberFilter filter, MemberSummaryService.ContextAccess access) {
@@ -73,17 +83,37 @@ public class MemberService {
 
     @Transactional(readOnly = true)
     public MemberResponse findById(UUID id) {
-        return MemberResponse.from(findMember(id));
+        return respond(findMember(id));
     }
 
     @Transactional
-    MemberResponse retire(UUID id) {
-        return transition(id, MemberStatus.ALUMNUS);
+    MemberResponse changeStatus(UUID id, MemberStatus target) {
+        Member member = repository.findForStatusChange(id)
+                .filter(candidate -> !candidate.isDeleted())
+                .orElseThrow(() -> new ResourceNotFoundException("Membro não encontrado"));
+        lifecycle.changeStatus(member, target);
+        return respond(member);
     }
 
+    /**
+     * Soft delete: a linha fica, o membro some. O histórico é atualizado junto — sem isso, quem
+     * saiu estando ativo seguiria pesando no quadro médio do turnover.
+     */
     @Transactional
-    MemberResponse reactivate(UUID id) {
-        return transition(id, MemberStatus.ACTIVE);
+    void delete(UUID id) {
+        Member member = repository.findForStatusChange(id)
+                .filter(candidate -> !candidate.isDeleted())
+                .orElseThrow(() -> new ResourceNotFoundException("Membro não encontrado"));
+        lifecycle.delete(member, clock.instant());
+    }
+
+    /** Desfaz a deleção. Restaurar quem não está deletado é no-op, não erro. */
+    @Transactional
+    MemberResponse restore(UUID id) {
+        Member member = repository.findForStatusChange(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Membro não encontrado"));
+        lifecycle.restore(member);
+        return respond(member);
     }
 
     @Transactional
@@ -95,7 +125,17 @@ public class MemberService {
         events.publishEvent(new MemberAssigned(member.getTenantId(), member.getId(),
                 member.getAccountId(), member.getName(), nameOf(role), nameOf(department),
                 clock.instant()));
-        return MemberResponse.from(member);
+        return respond(member);
+    }
+
+    /**
+     * Toda resposta de um membro só carrega a data de entrada, inclusive as das mutações: devolver
+     * o campo nulo aqui e preenchido no GET faria o cliente apagar a data ao reaproveitar a
+     * resposta na linha que acabou de mudar.
+     */
+    private MemberResponse respond(Member member) {
+        return MemberResponse.from(member,
+                history.joinDatesOf(List.of(member.getId())).get(member.getId()));
     }
 
     private static String nameOf(Role role) {
@@ -106,15 +146,10 @@ public class MemberService {
         return department == null ? null : department.getName();
     }
 
-    private MemberResponse transition(UUID id, MemberStatus status) {
-        Member member = repository.findForStatusChange(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Membro não encontrado"));
-        lifecycle.changeStatus(member, status);
-        return MemberResponse.from(member);
-    }
-
+    /** Membro deletado não existe para quem consome a API: é 404, não 200 com um campo a mais. */
     private Member findMember(UUID id) {
         return repository.findById(id)
+                .filter(member -> !member.isDeleted())
                 .orElseThrow(() -> new ResourceNotFoundException("Membro não encontrado"));
     }
 

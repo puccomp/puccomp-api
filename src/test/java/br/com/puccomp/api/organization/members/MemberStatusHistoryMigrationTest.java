@@ -72,11 +72,24 @@ class MemberStatusHistoryMigrationTest {
                 assertThat(scalar(statement,
                         "select count(*) from member_status_history where from_status is not null")).isZero();
 
-                // O estado observado é o que o membro tinha — inclusive alumni e inativos antigos,
-                // que continuam sendo observação e não saídas produzidas pela migration.
+                // O estado observado é o que o membro tinha. INACTIVE é a exceção, e por uma
+                // migration posterior: a V24 tirou o valor do enum e converteu quem o tinha em
+                // alumnus removido. Continua sendo observação, nunca uma saída inventada aqui.
+                Map<String, String> esperado = Map.of(
+                        "ACTIVE", "ACTIVE", "ALUMNUS", "ALUMNUS", "INACTIVE", "ALUMNUS");
                 membros.forEach((status, id) -> assertThat(text(statement,
                         "select to_status from member_status_history where member_id = '%s'".formatted(id)))
-                        .isEqualTo(status));
+                        .isEqualTo(esperado.get(status)));
+
+                // E só o antigo INACTIVE saiu de vista: a conversão não pode levar junto quem
+                // tinha vínculo vivo.
+                assertThat(scalar(statement,
+                        "select count(*) from members where deleted_at is not null")).isEqualTo(1);
+                assertThat(text(statement,
+                        "select status from members where id = '%s'".formatted(membros.get("INACTIVE"))))
+                        .isEqualTo("ALUMNUS");
+                assertThat(scalar(statement,
+                        "select count(*) from members where deleted_at is null")).isEqualTo(2);
 
                 // A data do evento é o marco da EJ, e o histórico começa exatamente ali: nenhuma
                 // data antiga foi inventada a partir de updated_at ou de aceite presumido.

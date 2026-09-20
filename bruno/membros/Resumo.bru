@@ -18,6 +18,8 @@ params:query {
   ~standing: MEMBER
   ~has_role: false
   ~has_department: false
+  ~q: ana
+  ~include_deleted: true
 }
 
 auth:bearer {
@@ -30,8 +32,8 @@ docs {
   
   ## Irmão da listagem
   
-  Aceita exatamente os mesmos filtros de "Listar", com a mesma normalização e as mesmas rejeições —
-  inclusive o alias depreciado departmentId. page, size e sort NÃO têm efeito: o resumo agrega todo
+  Aceita exatamente os mesmos filtros de "Listar", inclusive q, com a mesma normalização e as
+  mesmas rejeições — inclusive o alias depreciado departmentId. page, size e sort NÃO têm efeito: o resumo agrega todo
   o conjunto filtrado, não a página.
   
   ## Duas populações, de propósito
@@ -55,7 +57,7 @@ docs {
   continuam nas distribuições: os membros continuam pertencendo ao recorte.
   
   Ordenação: recursos por contagem decrescente, desempate pelo id em ordem textual e a categoria sem
-  vínculo por último no empate; enums na ordem declarada (ACTIVE, ALUMNUS, INACTIVE, PENDING e
+  vínculo por último no empate; enums na ordem declarada (ACTIVE, ALUMNUS e
   OWNER, MEMBER).
   
   gaps.without_role e gaps.without_department contam os membros ACTIVE do recorte sem esses vínculos.

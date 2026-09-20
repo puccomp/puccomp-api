@@ -339,8 +339,8 @@ class CandidateApplicationIntegrationTest extends AbstractIntegrationTest {
         grantToRole(token, recruiterRoleId, "recruitment:read");
         UUID aposentado = seeder.seedAccount(tenantId, "veterano@alumni.dev", "senha123",
                 Standing.MEMBER, recruiterRoleId);
-        assertThat(post("/v1/members/" + aposentado + "/retire", null, token, String.class)
-                .getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(put("/v1/members/" + aposentado + "/status", Map.of("value", "ALUMNUS"), token,
+                String.class).getStatusCode()).isEqualTo(HttpStatus.OK);
 
         // Aposentar agora avisa o próprio membro; esse aviso não é o que este teste mede.
         drainMail();

@@ -1,0 +1,29 @@
+meta {
+  name: Remover
+  type: http
+  seq: 7
+}
+
+delete {
+  url: {{base_url}}/v1/members/{{member_id}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{access_token}}
+}
+
+docs {
+  Remove um membro da EJ. Exige members:write. Responde 204.
+
+  A pessoa perde todo o acesso na hora — inclusive com um token emitido antes — e some da listagem,
+  do resumo e de todas as distribuições. Um GET do mesmo id passa a devolver 404, e uma segunda
+  remoção também.
+
+  A saída continua contando no relatório histórico: o intervalo ativo é encerrado na remoção, senão
+  quem saiu seguiria pesando no turnover para sempre.
+
+  O registro permanece no banco. Para ver quem saiu, use include_deleted=true em "Listar"; para
+  desfazer, use "Restaurar".
+}

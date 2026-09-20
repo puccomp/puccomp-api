@@ -39,7 +39,7 @@ class MemberDirectoryService implements MemberDirectory {
     @Override
     @Transactional(readOnly = true)
     public List<ActiveMember> listActiveMembers() {
-        return members.findByStatus(MemberStatus.ACTIVE).stream()
+        return members.findByStatusAndDeletedAtIsNull(MemberStatus.ACTIVE).stream()
                 .filter(m -> m.getAccountId() != null)
                 .map(m -> new ActiveMember(
                         m.getId(),
@@ -52,7 +52,7 @@ class MemberDirectoryService implements MemberDirectory {
     @Override
     @Transactional(readOnly = true)
     public Optional<MemberProfile> findProfile(UUID memberId) {
-        return members.findById(memberId).map(m -> new MemberProfile(
+        return members.findById(memberId).filter(m -> !m.isDeleted()).map(m -> new MemberProfile(
                 m.getId(),
                 m.getName(),
                 NamedRef.of(m.getCourse().getId(), m.getCourse().getName()),

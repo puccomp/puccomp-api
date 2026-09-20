@@ -8,5 +8,14 @@ enum MemberStatusEventKind {
 
     CREATED,
 
-    STATUS_CHANGED
+    STATUS_CHANGED,
+
+    /**
+     * Saiu da EJ. É uma saída de verdade — encerra o intervalo ativo e conta no turnover —, mesmo
+     * que a projeção {@code Member.status} não mude: quem some do contrato some estando ativo.
+     */
+    DELETED,
+
+    /** Voltou depois de uma deleção. Reativação, nunca admissão: a entrada original não se repete. */
+    RESTORED
 }

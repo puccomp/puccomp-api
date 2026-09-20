@@ -115,8 +115,6 @@ public class MemberSummaryService {
         return switch (status) {
             case ACTIVE -> "Ativo";
             case ALUMNUS -> "Alumni";
-            case INACTIVE -> "Inativo";
-            case PENDING -> "Pendente";
         };
     }
 

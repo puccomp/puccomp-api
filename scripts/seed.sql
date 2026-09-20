@@ -51,26 +51,33 @@ ON CONFLICT (tenant_id, name) DO NOTHING;
 -- membros: quem tem cargo de diretoria herda a diretoria do cargo; quem tem cargo genérico
 -- (Presidente, Vice-Presidente, Trainee) recebe a diretoria informada aqui.
 WITH t AS (SELECT id FROM tenants WHERE slug = 'ej-comp')
-INSERT INTO members (id, tenant_id, account_id, name, standing, status, course_id, role_id, department_id)
-SELECT gen_random_uuid(), t.id, NULL, m.name, 'MEMBER', m.status,
+INSERT INTO members (id, tenant_id, account_id, name, email, standing, status, course_id, role_id, department_id)
+SELECT gen_random_uuid(), t.id, NULL, m.name, m.email, 'MEMBER', m.status,
        (SELECT id FROM courses WHERE tenant_id = t.id AND name = m.course),
        (SELECT id FROM roles WHERE tenant_id = t.id AND name = m.role),
        COALESCE(
            (SELECT department_id FROM roles WHERE tenant_id = t.id AND name = m.role),
            (SELECT id FROM departments WHERE tenant_id = t.id AND name = m.department))
 FROM t, (VALUES
-    ('Ana Lima',         'ACTIVE',   'Engenharia de Software',   'Presidente',            'Presidência'),
-    ('Bruno Carvalho',   'ACTIVE',   'Ciência da Computação',    'Vice-Presidente',       'Presidência'),
-    ('Carla Mendes',     'ACTIVE',   'Sistemas de Informação',   'Diretor Comercial',     NULL),
-    ('Diego Souza',      'ACTIVE',   'Engenharia de Computação', 'Diretor de Tecnologia', NULL),
-    ('Eduarda Ferreira', 'ACTIVE',   'Ciência de Dados',         'Diretor de Marketing',  NULL),
-    ('Felipe Rocha',     'ACTIVE',   'Ciência da Computação',    'Trainee',               'Tecnologia'),
-    ('Gabriela Costa',   'ACTIVE',   'Engenharia de Software',   'Trainee',               'Projetos'),
-    ('Henrique Alves',   'PENDING',  'Sistemas de Informação',   'Trainee',               'Comercial'),
-    ('Isabela Nunes',    'PENDING',  'Ciência da Computação',    'Trainee',               'Marketing'),
-    ('João Pereira',     'INACTIVE', 'Engenharia de Software',   'Trainee',               'Projetos')
-) AS m(name, status, course, role, department)
+    ('Ana Lima',         'ana.lima@ej-comp.dev',         'ACTIVE',   'Engenharia de Software',   'Presidente',            'Presidência'),
+    ('Bruno Carvalho',   'bruno.carvalho@ej-comp.dev',   'ACTIVE',   'Ciência da Computação',    'Vice-Presidente',       'Presidência'),
+    ('Carla Mendes',     'carla.mendes@ej-comp.dev',     'ACTIVE',   'Sistemas de Informação',   'Diretor Comercial',     NULL),
+    ('Diego Souza',      'diego.souza@ej-comp.dev',      'ACTIVE',   'Engenharia de Computação', 'Diretor de Tecnologia', NULL),
+    ('Eduarda Ferreira', 'eduarda.ferreira@ej-comp.dev', 'ACTIVE',   'Ciência de Dados',         'Diretor de Marketing',  NULL),
+    ('Felipe Rocha',     'felipe.rocha@ej-comp.dev',     'ACTIVE',   'Ciência da Computação',    'Trainee',               'Tecnologia'),
+    ('Gabriela Costa',   'gabriela.costa@ej-comp.dev',   'ACTIVE',   'Engenharia de Software',   'Trainee',               'Projetos'),
+    ('Henrique Alves',   'henrique.alves@ej-comp.dev',   'ACTIVE',   'Sistemas de Informação',   'Trainee',               'Comercial'),
+    ('Isabela Nunes',    'isabela.nunes@ej-comp.dev',    'ALUMNUS',  'Ciência da Computação',    'Trainee',               'Marketing'),
+    -- sem e-mail de propósito: exercita o membro que a busca por e-mail não alcança
+    ('João Pereira',     NULL,                           'ALUMNUS',  'Engenharia de Software',   'Trainee',               'Projetos')
+) AS m(name, email, status, course, role, department)
 WHERE NOT EXISTS (SELECT 1 FROM members ex WHERE ex.tenant_id = t.id AND ex.name = m.name);
+
+-- Um membro removido, para o ambiente de dev exercitar include_deleted e restore. Ele não aparece
+-- em /v1/members nem nas contagens do resumo.
+UPDATE members SET deleted_at = now()
+WHERE name = 'Isabela Nunes'
+  AND tenant_id = (SELECT id FROM tenants WHERE slug = 'ej-comp');
 
 -- convites em estados distintos (pendente, expirado, revogado). Os tokens em claro ficam
 -- aqui de propósito: são de desenvolvimento e o banco guarda só o sha256 deles.

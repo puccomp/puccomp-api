@@ -471,7 +471,7 @@ class MemberHistoryIntegrationTest extends AbstractIntegrationTest {
     }
 
     private void retire(String bearer, UUID memberId) {
-        post("/v1/members/" + memberId + "/retire", null, bearer, String.class);
+        put("/v1/members/" + memberId + "/status", Map.of("value", "ALUMNUS"), bearer, String.class);
     }
 
     private void reactivate(UUID memberId) {
@@ -479,7 +479,7 @@ class MemberHistoryIntegrationTest extends AbstractIntegrationTest {
     }
 
     private void reactivate(String bearer, UUID memberId) {
-        post("/v1/members/" + memberId + "/reactivate", null, bearer, String.class);
+        put("/v1/members/" + memberId + "/status", Map.of("value", "ACTIVE"), bearer, String.class);
     }
 
     private String rawHistory(String query) {

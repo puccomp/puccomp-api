@@ -34,20 +34,21 @@ interface MemberRepository extends JpaRepository<Member, UUID>, JpaSpecification
     @Query("select m from Member m where m.id = :id")
     Optional<Member> findForStatusChange(@Param("id") UUID id);
 
-    @Query("select m.role.id as roleId, m.status as status from Member m where m.id = :id")
+    @Query("select m.role.id as roleId, m.status as status from Member m where m.id = :id and m.deletedAt is null")
     Optional<AccessRow> findAccessById(@Param("id") UUID id);
 
     @EntityGraph(attributePaths = "role")
-    List<Member> findByStatus(MemberStatus status);
+    List<Member> findByStatusAndDeletedAtIsNull(MemberStatus status);
 
     @Query(value = "select id as member_id, tenant_id as tenant_id, standing as standing "
-            + "from members where account_id = :accountId and status in ('ACTIVE', 'ALUMNUS')",
+            + "from members where account_id = :accountId and status in ('ACTIVE', 'ALUMNUS') "
+            + "and deleted_at is null",
             nativeQuery = true)
     List<MembershipRow> findMembershipsByAccountId(@Param("accountId") UUID accountId);
 
     @Query(value = "select id as member_id, tenant_id as tenant_id, standing as standing "
             + "from members where account_id = :accountId and tenant_id = :tenantId "
-            + "and status in ('ACTIVE', 'ALUMNUS')", nativeQuery = true)
+            + "and status in ('ACTIVE', 'ALUMNUS') and deleted_at is null", nativeQuery = true)
     Optional<MembershipRow> findMembership(@Param("accountId") UUID accountId, @Param("tenantId") UUID tenantId);
 
     interface AccessRow {

@@ -60,7 +60,8 @@ class MembershipNotifications {
         return switch (event.transition()) {
             case RETIRED -> "Você agora é alumnus";
             case REACTIVATED -> "Seu vínculo foi reativado";
-            case DEACTIVATED -> "Seu vínculo foi desativado";
+            case REMOVED -> "Seu vínculo com a EJ foi encerrado";
+            case RESTORED -> "Seu vínculo com a EJ foi restaurado";
         };
     }
 
@@ -70,7 +71,9 @@ class MembershipNotifications {
                     + "histórico do que viveu na EJ, mas não pode mais alterar dados.";
             case REACTIVATED -> "Seu vínculo voltou a ser ativo. Você recupera o acesso que o seu "
                     + "cargo concede.";
-            case DEACTIVATED -> "Seu vínculo foi desativado e o seu acesso à EJ foi suspenso.";
+            case REMOVED -> "Seu vínculo com a EJ foi encerrado e o seu acesso foi revogado.";
+            case RESTORED -> "Seu vínculo com a EJ foi restaurado, com o acesso que você tinha "
+                    + "antes de sair.";
         };
     }
 

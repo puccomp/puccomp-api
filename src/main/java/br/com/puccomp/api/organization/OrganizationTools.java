@@ -186,7 +186,8 @@ public class OrganizationTools {
 
     private static MemberFilter filtro(MemberStatus status, Standing standing,
                                        UUID departmentId, UUID roleId, UUID courseId) {
-        return new MemberFilter(departmentId, null, roleId, courseId, status, standing, null, null);
+        return new MemberFilter(departmentId, null, roleId, courseId, status, standing, null, null,
+                null, null);
     }
 
     /**
