@@ -13,11 +13,15 @@ import java.util.UUID;
  * @param email    nulo em membro sem conta associada — linha de baseline ou de seed
  * @param joinedAt primeira ativação conhecida. Nulo em membro de baseline, o que significa "já
  *                 estava na EJ quando o rastreamento começou", nunca "entrou agora"
+ * @param leftAt   fim do intervalo ativo, quando ele acabou. Nulo em quem está ativo e em quem
+ *                 saiu antes do rastreamento — a mesma ambiguidade de {@code joinedAt}, e o
+ *                 {@code status} é quem separa os dois casos
  */
 public record MemberResponse(UUID id, String name, String email, MemberStatus status, Standing standing,
-                             NamedRef course, NamedRef role, NamedRef department, Instant joinedAt) {
+                             NamedRef course, NamedRef role, NamedRef department, Instant joinedAt,
+                             Instant leftAt) {
 
-    static MemberResponse from(Member member, Instant joinedAt) {
+    static MemberResponse from(Member member) {
         var role = member.getRole();
         var department = member.getDepartment();
         return new MemberResponse(
@@ -29,7 +33,8 @@ public record MemberResponse(UUID id, String name, String email, MemberStatus st
                 NamedRef.of(member.getCourse().getId(), member.getCourse().getName()),
                 role != null ? NamedRef.of(role.getId(), role.getName()) : null,
                 department != null ? NamedRef.of(department.getId(), department.getName()) : null,
-                joinedAt
+                member.getJoinedAt(),
+                member.getLeftAt()
         );
     }
 }

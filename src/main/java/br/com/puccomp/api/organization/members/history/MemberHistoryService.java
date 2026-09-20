@@ -20,7 +20,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 /**
  * Métricas temporais do quadro, calculadas sobre o histórico de vínculos.
@@ -79,21 +78,27 @@ public class MemberHistoryService {
                 series(window, trackedSince, month -> countActivations(histories, window, month, false)),
                 series(window, trackedSince,
                         month -> BigDecimal.valueOf(activeCount(histories, window.endOf(month)))),
+                series(window, trackedSince,
+                        month -> BigDecimal.valueOf(alumniCount(histories, window.endOf(month)))),
+                series(window, trackedSince,
+                        month -> BigDecimal.valueOf(existingCount(histories, window.endOf(month)))),
                 covered ? cohorts(histories, window) : null);
     }
 
     /**
-     * Data de entrada dos membros pedidos: o início da primeira ativação de quem nasceu sob
-     * rastreamento. Membro de baseline fica de fora do mapa — ele não tem admissão conhecida, e
-     * devolver o marco do rastreamento inventaria uma entrada que ninguém viu.
+     * Turnover restrito a um conjunto de membros.
+     *
+     * <p><b>O recorte usa a atribuição de hoje.</b> Cargo, diretoria e curso não têm histórico, e
+     * por isso "turnover do Comercial" aqui significa "saídas de quem hoje está lotado no
+     * Comercial" — não "saídas que o Comercial teve", que exigiria saber onde cada pessoa estava
+     * em cada mês. É a razão de o relatório de {@code /members/history} recusar esses filtros:
+     * lá a série mensal e as coortes tornariam a aproximação indefensável. Num escalar de janela
+     * fechada ela é utilizável, desde que rotulada.
      */
     @Transactional(readOnly = true)
-    public Map<UUID, Instant> joinDatesOf(Collection<UUID> memberIds) {
-        if (memberIds.isEmpty()) return Map.of();
-        return MembershipTimeline.from(events.findOrderedByMemberIds(memberIds)).stream()
-                .flatMap(history -> history.admission().stream()
-                        .map(admission -> Map.entry(history.memberId(), admission.start())))
-                .collect(Collectors.toUnmodifiableMap(Map.Entry::getKey, Map.Entry::getValue));
+    public BigDecimal turnoverOf(Collection<UUID> memberIds, ReportWindow window) {
+        if (memberIds.isEmpty()) return null;
+        return turnover(MembershipTimeline.from(events.findOrderedByMemberIds(memberIds)), window);
     }
 
     private static MemberHistoryResponse.Period period(ReportWindow window) {
@@ -135,6 +140,14 @@ public class MemberHistoryService {
 
     private static long activeCount(List<MemberHistory> histories, Instant instant) {
         return histories.stream().filter(history -> history.activeJustBefore(instant)).count();
+    }
+
+    private static long alumniCount(List<MemberHistory> histories, Instant instant) {
+        return histories.stream().filter(history -> history.alumnusJustBefore(instant)).count();
+    }
+
+    private static long existingCount(List<MemberHistory> histories, Instant instant) {
+        return histories.stream().filter(history -> history.existsJustBefore(instant)).count();
     }
 
     /**

@@ -55,6 +55,15 @@ public record MemberHistoryResponse(
                 + "exclusivo de cada mês")
         List<TimePoint> headcountByMonth,
 
+        @Schema(name = "alumni_by_month", description = "Quem já existia e não estava no quadro "
+                + "ativo naquele mês. É o alumnus de então, reconstruído do histórico, não o de "
+                + "hoje projetado para trás")
+        List<TimePoint> alumniByMonth,
+
+        @Schema(name = "total_by_month", description = "Vínculos existentes no mês: a soma das "
+                + "outras duas séries. Quem foi removido sai da contagem a partir da remoção")
+        List<TimePoint> totalByMonth,
+
         @Schema(description = "Admissões conhecidas por semestre civil e retenção no encerramento da "
                 + "janela. null quando a janela não está integralmente coberta")
         List<Cohort> cohorts

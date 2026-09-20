@@ -33,6 +33,8 @@ public class MemberLifecycle {
     /** Criação de membro — inclusive pelo aceite de convite e pelo seeder. */
     @Transactional(propagation = Propagation.MANDATORY)
     public void recordCreation(Member member) {
+        Instant at = clock.instant();
+        if (member.getStatus() == MemberStatus.ACTIVE) member.recordJoin(at);
         append(member.getId(), MemberStatusEventKind.CREATED, null, member.getStatus());
     }
 
@@ -44,7 +46,16 @@ public class MemberLifecycle {
     public void changeStatus(Member member, MemberStatus target) {
         MemberStatus current = member.getStatus();
         if (current == target) return;
+        Instant at = clock.instant();
         member.changeStatus(target);
+        // A projeção acompanha o evento: entrada só na primeira ativação, saída em aberto enquanto
+        // o vínculo estiver ativo. Sem isso a mediana de permanência leria datas paradas no tempo.
+        if (target == MemberStatus.ACTIVE) {
+            member.recordJoin(at);
+            member.clearLeave();
+        } else {
+            member.recordLeave(at);
+        }
         append(member.getId(), MemberStatusEventKind.STATUS_CHANGED, current, target);
         // Aqui, e não no serviço que chamou: é o funil por onde toda mudança passa.
         transitionOf(target).ifPresent(transition -> publish(member, transition));
@@ -59,6 +70,8 @@ public class MemberLifecycle {
     public void delete(Member member, Instant at) {
         if (member.isDeleted()) return;
         member.delete(at);
+        // Quem sai estando ativo sai agora; quem já era alumnus conserva a saída que teve.
+        if (member.getStatus() == MemberStatus.ACTIVE) member.recordLeave(at);
         append(member.getId(), MemberStatusEventKind.DELETED, member.getStatus(), member.getStatus());
         publish(member, MemberStatusChanged.Transition.REMOVED);
     }

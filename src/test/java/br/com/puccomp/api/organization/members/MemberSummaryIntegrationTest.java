@@ -169,6 +169,64 @@ class MemberSummaryIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    @DisplayName("kind distingue a ausência de vínculo da cauda agregada, que id nulo sozinho não faz")
+    void shouldDiscriminateAbsentFromOthers() {
+        JsonNode inteira = summary("").path("by_role");
+        assertThat(kinds(inteira)).contains("ITEM", "ABSENT").doesNotContain("OTHERS");
+        assertThat(categoryWithNullId(inteira).path("key").path("kind").asText()).isEqualTo("ABSENT");
+
+        JsonNode cortada = summary("?slice_limit=1").path("by_role");
+        List<String> tipos = kinds(cortada);
+        assertThat(tipos).containsExactly("ITEM", "OTHERS", "ABSENT");
+    }
+
+    @Test
+    @DisplayName("slice_limit corta só as identificadas, e a soma continua igual ao total")
+    void shouldCapIdentifiedCategoriesOnly() {
+        JsonNode inteira = summary("");
+        JsonNode cortada = summary("?slice_limit=1");
+
+        assertThat(sumOf(cortada.path("by_role"))).isEqualTo(sumOf(inteira.path("by_role")))
+                .isEqualTo(cortada.path("total").path("value").asLong());
+        // A categoria sem vínculo não ocupa a vaga do limite nem cai dentro de "Outros". Repare
+        // que aqui categoryWithNullId não serviria: com a cauda presente há duas de id nulo, e é
+        // exatamente essa ambiguidade que o kind existe para resolver.
+        assertThat(categoryOfKind(cortada.path("by_role"), "ABSENT").path("count").asLong())
+                .isEqualTo(categoryOfKind(inteira.path("by_role"), "ABSENT").path("count").asLong());
+        // Enum de cardinalidade fixa não é cortado: a ordem declarada carrega significado.
+        assertThat(cortada.path("by_status")).hasSameSizeAs(inteira.path("by_status"));
+    }
+
+    @Test
+    @DisplayName("slice_limit fora de 1..20 é 400, em vez de cortar em silêncio")
+    void shouldRejectSliceLimitOutOfRange() {
+        assertThat(getWithToken("/v1/members/summary?slice_limit=0", token).getStatusCode())
+                .isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(getWithToken("/v1/members/summary?slice_limit=21", token).getStatusCode())
+                .isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    @DisplayName("as lacunas dizem onde estão os ativos sem cargo, não só quantos são")
+    void shouldBreakGapsDownByDepartment() {
+        JsonNode gaps = summary("").path("gaps");
+        JsonNode porDiretoria = gaps.path("without_role_by_department");
+
+        assertThat(sumOf(porDiretoria)).isEqualTo(gaps.path("without_role").asLong());
+        // Quem não tem cargo nem diretoria é a categoria ausente, não some da conta.
+        assertThat(kinds(porDiretoria)).containsAnyOf("ITEM", "ABSENT");
+    }
+
+    @Test
+    @DisplayName("turnover_months fora de 1..24 é 400")
+    void shouldRejectTurnoverWindowOutOfRange() {
+        assertThat(getWithToken("/v1/members/summary?turnover_months=0", token).getStatusCode())
+                .isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(getWithToken("/v1/members/summary?turnover_months=25", token).getStatusCode())
+                .isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
     @DisplayName("as lacunas contam só ativos do recorte: status=ALUMNUS zera as duas")
     void shouldCountGapsAmongActiveMembersOnly() {
         JsonNode resumo = summary("");
@@ -412,6 +470,18 @@ class MemberSummaryIntegrationTest extends AbstractIntegrationTest {
         for (JsonNode slice : distribution)
             if (id.equals(slice.path("key").path("id").asText())) return slice.path("count").asLong();
         return 0;
+    }
+
+    private static JsonNode categoryOfKind(JsonNode distribution, String kind) {
+        for (JsonNode slice : distribution)
+            if (kind.equals(slice.path("key").path("kind").asText())) return slice;
+        throw new AssertionError("distribuição sem categoria " + kind);
+    }
+
+    private static List<String> kinds(JsonNode distribution) {
+        List<String> kinds = new java.util.ArrayList<>();
+        for (JsonNode slice : distribution) kinds.add(slice.path("key").path("kind").asText());
+        return kinds;
     }
 
     private static List<String> ids(JsonNode distribution) {

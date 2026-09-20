@@ -23,9 +23,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
-import java.time.Instant;
-import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
@@ -48,20 +45,16 @@ public class MemberService {
     private final ApplicationEventPublisher events;
     private final Clock clock;
 
-    /**
-     * A data de entrada da página inteira sai de uma consulta só. Resolver membro a membro traria
-     * de volta o N+1 que o EntityGraph da listagem existe para evitar.
-     */
     @Transactional(readOnly = true)
     public Page<MemberResponse> findAll(MemberFilter filter, Pageable pageable) {
-        Page<Member> page = repository.findAll(MemberSpecs.matching(filter), pageable);
-        Map<UUID, Instant> joinDates = history.joinDatesOf(
-                page.getContent().stream().map(member -> member.getId()).toList());
-        return page.map(member -> MemberResponse.from(member, joinDates.get(member.getId())));
+        return repository.findAll(MemberSpecs.matching(filter), MemberSorts.translate(pageable))
+                .map(MemberResponse::from);
     }
 
-    public MemberSummaryResponse summarize(MemberFilter filter, MemberSummaryService.ContextAccess access) {
-        return summaries.summarize(filter, access);
+    public MemberSummaryResponse summarize(MemberFilter filter, MemberSummaryService.ContextAccess access,
+                                           MemberSummaryService.SliceLimit limit,
+                                           int turnoverMonths) {
+        return summaries.summarize(filter, access, limit, turnoverMonths);
     }
 
     /**
@@ -83,7 +76,7 @@ public class MemberService {
 
     @Transactional(readOnly = true)
     public MemberResponse findById(UUID id) {
-        return respond(findMember(id));
+        return MemberResponse.from(findMember(id));
     }
 
     @Transactional
@@ -92,7 +85,7 @@ public class MemberService {
                 .filter(candidate -> !candidate.isDeleted())
                 .orElseThrow(() -> new ResourceNotFoundException("Membro não encontrado"));
         lifecycle.changeStatus(member, target);
-        return respond(member);
+        return MemberResponse.from(member);
     }
 
     /**
@@ -113,7 +106,7 @@ public class MemberService {
         Member member = repository.findForStatusChange(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Membro não encontrado"));
         lifecycle.restore(member);
-        return respond(member);
+        return MemberResponse.from(member);
     }
 
     @Transactional
@@ -125,17 +118,7 @@ public class MemberService {
         events.publishEvent(new MemberAssigned(member.getTenantId(), member.getId(),
                 member.getAccountId(), member.getName(), nameOf(role), nameOf(department),
                 clock.instant()));
-        return respond(member);
-    }
-
-    /**
-     * Toda resposta de um membro só carrega a data de entrada, inclusive as das mutações: devolver
-     * o campo nulo aqui e preenchido no GET faria o cliente apagar a data ao reaproveitar a
-     * resposta na linha que acabou de mudar.
-     */
-    private MemberResponse respond(Member member) {
-        return MemberResponse.from(member,
-                history.joinDatesOf(List.of(member.getId())).get(member.getId()));
+        return MemberResponse.from(member);
     }
 
     private static String nameOf(Role role) {

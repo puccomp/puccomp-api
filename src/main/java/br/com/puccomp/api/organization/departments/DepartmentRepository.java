@@ -6,6 +6,8 @@ import java.util.UUID;
 
 interface DepartmentRepository extends JpaRepository<Department, UUID> {
 
+    java.util.List<Department> findAllByActiveTrueOrderByNameAsc();
+
     boolean existsByNameIgnoreCase(String name);
 
     boolean existsByIdAndActiveTrue(UUID id);

@@ -104,7 +104,8 @@ public class OrganizationTools {
 
         return json.writeValueAsString(members.summarize(
                 filtro(status, standing, department_id, role_id, course_id),
-                new MemberSummaryService.ContextAccess(pode("roles:read"), pode("departments:read"))));
+                new MemberSummaryService.ContextAccess(pode("roles:read"), pode("departments:read")),
+                MemberSummaryService.SliceLimit.none(), 12));
     }
 
     @McpTool(name = "roles_list",

@@ -19,6 +19,7 @@ import jakarta.persistence.criteria.Root;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -44,6 +45,9 @@ class MemberAggregations {
     record EnumCount<E extends Enum<E>>(E value, long count) { }
 
     record RoleOccupancy(UUID id, String name, Integer maxSeats, long occupied) { }
+
+    /** Entrada e saída de uma pessoa do recorte. {@code leftAt} nulo é vínculo em curso. */
+    record TenureRow(Instant joinedAt, Instant leftAt) { }
 
     long total(MemberFilter filter) {
         CriteriaBuilder builder = entityManager.getCriteriaBuilder();
@@ -79,6 +83,61 @@ class MemberAggregations {
     }
 
     record ActiveCounts(long active, long withoutRole, long withoutDepartment) { }
+
+    /**
+     * As duas datas de cada pessoa do recorte, cruas. A mediana é calculada em memória: em Criteria
+     * ela exigiria agregado ordenado, e consulta nativa perderia o filtro de tenant do Hibernate —
+     * uma EJ tem dezenas a poucas centenas de membros, e o relatório histórico já lê nessa ordem
+     * de grandeza pelo mesmo motivo.
+     */
+    /** Os ids do recorte, para o histórico recortar o turnover pela mesma população. */
+    List<UUID> ids(MemberFilter filter) {
+        CriteriaBuilder builder = entityManager.getCriteriaBuilder();
+        CriteriaQuery<UUID> query = builder.createQuery(UUID.class);
+        Root<Member> root = query.from(Member.class);
+        query.select(root.get("id")).where(matching(root, query, builder, filter));
+        return entityManager.createQuery(query).getResultList();
+    }
+
+    List<TenureRow> tenures(MemberFilter filter) {
+        CriteriaBuilder builder = entityManager.getCriteriaBuilder();
+        CriteriaQuery<Tuple> query = builder.createTupleQuery();
+        Root<Member> root = query.from(Member.class);
+        query.select(builder.tuple(root.get("joinedAt"), root.get("leftAt")))
+                .where(matching(root, query, builder, filter));
+
+        return entityManager.createQuery(query).getResultList().stream()
+                .map(row -> new TenureRow(row.get(0, Instant.class), row.get(1, Instant.class)))
+                .toList();
+    }
+
+    /**
+     * Ativos sem cargo, agrupados pela diretoria onde estão. Responde "qual diretoria tem gente sem
+     * cargo", que a contagem total de lacunas não alcança.
+     */
+    List<RefCount> withoutRoleByDepartment(MemberFilter filter) {
+        CriteriaBuilder builder = entityManager.getCriteriaBuilder();
+        CriteriaQuery<Tuple> query = builder.createTupleQuery();
+        Root<Member> root = query.from(Member.class);
+        var joined = root.join("department", JoinType.LEFT);
+        Path<UUID> id = joined.get("id");
+        Path<String> name = joined.get("name");
+
+        query.select(builder.tuple(id, name, builder.count(root)))
+                .where(builder.and(
+                        matching(root, query, builder, filter),
+                        builder.equal(root.get("status"), MemberStatus.ACTIVE),
+                        builder.isNull(root.get("role"))))
+                .groupBy(id, name);
+
+        return entityManager.createQuery(query).getResultList().stream()
+                .map(row -> new RefCount(row.get(0, UUID.class), row.get(1, String.class),
+                        row.get(2, Long.class)))
+                .sorted(Comparator.comparingLong((RefCount row) -> row.count()).reversed()
+                        .thenComparing(row -> row.id(),
+                                Comparator.nullsLast(CriteriaAggregates.BY_TEXTUAL_ID)))
+                .toList();
+    }
 
     List<RefCount> byDepartment(MemberFilter filter) {
         return byReference(filter, "department");

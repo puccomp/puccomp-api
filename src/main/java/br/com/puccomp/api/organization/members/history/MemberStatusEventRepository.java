@@ -22,10 +22,7 @@ interface MemberStatusEventRepository extends JpaRepository<MemberStatusEvent, U
     @Query("select e from MemberStatusEvent e order by e.memberId asc, e.sequence asc")
     List<MemberStatusEvent> findAllOrdered();
 
-    /**
-     * O mesmo histórico, restrito a alguns vínculos. Existe para a página da listagem: carregar a
-     * EJ inteira serve a um relatório mensal e não a vinte linhas.
-     */
+    /** O mesmo histórico, restrito a alguns vínculos — o turnover de um recorte do quadro. */
     @Query("select e from MemberStatusEvent e where e.memberId in :memberIds "
             + "order by e.memberId asc, e.sequence asc")
     List<MemberStatusEvent> findOrderedByMemberIds(@Param("memberIds") Collection<UUID> memberIds);

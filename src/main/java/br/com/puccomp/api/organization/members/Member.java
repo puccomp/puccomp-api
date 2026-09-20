@@ -65,6 +65,15 @@ public class Member {
     @Column(name = "deleted_at")
     private Instant deletedAt;
 
+    /** Primeira ativação conhecida. Nulo em membro de baseline: a entrada dele é anterior ao
+     *  rastreamento e continua desconhecida. Nunca se move depois de gravada. */
+    @Column(name = "joined_at")
+    private Instant joinedAt;
+
+    /** Fim do intervalo ativo em curso, quando ele acaba. Nulo enquanto o membro está ativo. */
+    @Column(name = "left_at")
+    private Instant leftAt;
+
     // Package-private de propósito: mudar o estado sem registrar o evento correspondente é
     // exatamente o que o histórico de vínculos existe para impedir. Passe pelo MemberLifecycle.
     public void changeStatus(MemberStatus status) {
@@ -80,6 +89,19 @@ public class Member {
     // deixaria o removido contando no turnover para sempre. Passe pelo MemberLifecycle.
     public void delete(Instant at) {
         this.deletedAt = at;
+    }
+
+    /** Só a primeira ativação vira entrada: reativar não reescreve a data original. */
+    public void recordJoin(Instant at) {
+        if (joinedAt == null) joinedAt = at;
+    }
+
+    public void recordLeave(Instant at) {
+        this.leftAt = at;
+    }
+
+    public void clearLeave() {
+        this.leftAt = null;
     }
 
     public void restore() {

@@ -17,6 +17,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.UUID;
 
 @Tag(name = "Diretorias")
@@ -46,6 +47,15 @@ public class DepartmentController {
             @ParameterObject @PageableDefault(size = 20, sort = {"name", "id"}, direction = Sort.Direction.ASC)
             Pageable pageable) {
         return service.findAll(pageable);
+    }
+
+    @Operation(summary = "Catálogo das diretorias ativas, sem paginação",
+            description = "Para preencher filtro e seletor. Devolve a lista inteira, ordenada por "
+                    + "nome — sem page nem size, para a lista nunca vir incompleta em silêncio.")
+    @PreAuthorize("hasAuthority('departments:read')")
+    @GetMapping("/options")
+    public List<DepartmentResponse> options() {
+        return service.findOptions();
     }
 
     @Operation(summary = "Busca diretoria por ID")

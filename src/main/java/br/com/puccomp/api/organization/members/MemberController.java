@@ -80,11 +80,21 @@ public class MemberController {
 @PreAuthorize("hasAuthority('members:read') and (#filter.includeDeleted() != true or hasAuthority('members:write'))")
     @GetMapping("/summary")
     public MemberSummaryResponse summary(@ParameterObject MemberFilter filter,
+                                         @Parameter(description = "Categorias identificadas por "
+                                                 + "distribuição de recurso, de 1 a 20. Sem ele a "
+                                                 + "distribuição vem inteira", example = "6")
+                                         @RequestParam(name = "slice_limit", required = false)
+                                         Integer sliceLimit,
+                                         @Parameter(description = "Meses civis completos da janela "
+                                                 + "de turnover, de 1 a 24", example = "12")
+                                         @RequestParam(name = "turnover_months", defaultValue = "12")
+                                         int turnoverMonths,
                                          Authentication authentication,
                                          HttpServletResponse response) {
         response.setHeader("Cache-Control", "private, no-store");
         return service.summarize(filter, new MemberSummaryService.ContextAccess(
-                has(authentication, "roles:read"), has(authentication, "departments:read")));
+                        has(authentication, "roles:read"), has(authentication, "departments:read")),
+                new MemberSummaryService.SliceLimit(sliceLimit), turnoverMonths);
     }
 
     @Operation(summary = "Relatório temporal do quadro: entradas, saídas, retenção e permanência",
