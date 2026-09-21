@@ -139,9 +139,11 @@ class McpServerIntegrationTest extends AbstractIntegrationTest {
         // manda de volta em arguments. Os dois saem do mesmo lugar, então basta olhar o catálogo.
         String catalogo = mcp(pat, jsonRpc(10, "tools/list", null)).getBody();
         assertThat(catalogo).contains("\"department_id\"").contains("\"min_term\"")
-                .contains("\"has_cv\"").contains("\"process_id\"");
+                .contains("\"has_cv\"").contains("\"process_id\"")
+                .contains("\"slice_limit\"").contains("\"turnover_months\"");
         assertThat(catalogo).doesNotContain("departmentId").doesNotContain("minTerm")
-                .doesNotContain("hasCv").doesNotContain("processId");
+                .doesNotContain("hasCv").doesNotContain("processId")
+                .doesNotContain("sliceLimit").doesNotContain("turnoverMonths");
     }
 
     @Test
@@ -151,6 +153,9 @@ class McpServerIntegrationTest extends AbstractIntegrationTest {
         seeder.seedAccount(tenant, "dono-bind@ej.dev", "senha123", Standing.OWNER);
         UUID cargo = seeder.seedCargo(tenant, "Diretor de Bind");
         seeder.seedAccount(tenant, "com-cargo@ej.dev", "senha123", Standing.MEMBER, cargo);
+        // Dois cargos distintos, senão não há cauda para slice_limit cortar mais abaixo.
+        UUID outroCargo = seeder.seedCargo(tenant, "Analista de Bind");
+        seeder.seedAccount(tenant, "outro-cargo@ej.dev", "senha123", Standing.MEMBER, outroCargo);
 
         String pat = criarPat(login("dono-bind@ej.dev", "senha123"), null);
         String comFiltro = mcp(pat, chamada(11, "members_list",
@@ -159,6 +164,18 @@ class McpServerIntegrationTest extends AbstractIntegrationTest {
         // Um nome que o schema publica mas a vinculação ignora passaria despercebido: a chamada
         // responderia 200 com o quadro inteiro, e o agente concluiria que o filtro não achou nada.
         assertThat(comFiltro).contains("com-cargo@ej.dev").doesNotContain("dono-bind@ej.dev");
+
+        // q é o que torna a superfície útil para um agente: sem ele, achar alguém pelo nome
+        // exigiria paginar o quadro inteiro e comparar strings do lado de fora.
+        String porNome = mcp(pat, chamada(12, "members_list",
+                Map.of("q", "com-cargo"))).getBody();
+        assertThat(porNome).contains("com-cargo@ej.dev").doesNotContain("dono-bind@ej.dev");
+
+        // E o corte de cauda precisa mesmo cortar: aceito e ignorado, a resposta cresceria em
+        // silêncio a cada cargo novo da EJ.
+        String cortado = mcp(pat, chamada(13, "members_summary",
+                Map.of("slice_limit", 1))).getBody();
+        assertThat(cortado).contains("OTHERS");
     }
 
     @Test

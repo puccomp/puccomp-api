@@ -1,0 +1,55 @@
+meta {
+  name: Chamar members_summary
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{base_url}}/mcp
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{pat_token}}
+}
+
+headers {
+  Accept: application/json, text/event-stream
+}
+
+body:json {
+  {
+    "jsonrpc": "2.0",
+    "id": 3,
+    "method": "tools/call",
+    "params": {
+      "name": "members_summary",
+      "arguments": {
+        "slice_limit": 6,
+        "turnover_months": 12
+      }
+    }
+  }
+}
+
+docs {
+  Exige members:read. O resultado deve bater com GET /v1/members/summary em membros/ — é a mesma
+  consulta, pelo mesmo serviço.
+
+  arguments aceita os mesmos filtros de members_list, mais slice_limit e turnover_months. Esses dois
+  moldam a resposta, não recortam população.
+
+  slice_limit (1 a 20) corta a cauda das distribuições por recurso e agrega o resto numa categoria
+  key.kind = OTHERS. Vale usar sempre numa EJ grande: sem ele a resposta cresce a cada cargo novo, e
+  cada categoria a mais é contexto gasto à toa. A categoria sem vínculo (ABSENT) nunca entra na
+  cauda nem ocupa vaga do limite.
+
+  key.kind é o que separa ABSENT de OTHERS — os dois têm id nulo, e o rótulo é texto de exibição.
+
+  tenure é o tempo de casa do recorte; use median_months, não average_months.
+
+  turnover mede as saídas na janela, mas o recorte usa a atribuição de HOJE: com department_id ele
+  descreve as saídas de quem hoje está na diretoria, não as saídas que a diretoria teve. Não relate
+  esse número como "turnover da diretoria".
+}
