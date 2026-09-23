@@ -25,9 +25,15 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.test.context.bean.override.convention.TestBean;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -48,6 +54,8 @@ class NotificationFlowsIntegrationTest extends AbstractIntegrationTest {
 
     private static final Pattern ACCEPT_TOKEN = Pattern.compile("token=([A-Za-z0-9_\\-]+)");
 
+    private static final AtomicReference<Duration> AHEAD = new AtomicReference<>(Duration.ZERO);
+
     @Autowired
     private TestSeeder seeder;
 
@@ -60,6 +68,23 @@ class NotificationFlowsIntegrationTest extends AbstractIntegrationTest {
 
     static TaskExecutor mailTaskExecutor() {
         return new SyncTaskExecutor();
+    }
+
+    /** Hora real adiantada sob demanda: é o que faz um prazo vencer sem o teste esperar por ele. */
+    @TestBean(name = "clock")
+    private Clock clock;
+
+    static Clock clock() {
+        return new Clock() {
+            @Override public ZoneId getZone() { return ZoneId.of("UTC"); }
+            @Override public Clock withZone(ZoneId zone) { return this; }
+            @Override public Instant instant() { return Instant.now().plus(AHEAD.get()); }
+        };
+    }
+
+    @BeforeEach
+    void resetClock() {
+        AHEAD.set(Duration.ZERO);
     }
 
     @BeforeEach
@@ -89,6 +114,37 @@ class NotificationFlowsIntegrationTest extends AbstractIntegrationTest {
         assertThat(delivered(2)).containsExactlyInAnyOrder(
                 entry("ana@example.com", "Resultado disponível: PS Fases"),
                 entry("bruno@example.com", "Resultado disponível: PS Fases"));
+    }
+
+    @Test
+    @DisplayName("repetir a mudança de fase não reenvia o aviso a quem se inscreveu")
+    void shouldNotNotifyTwiceWhenPhaseIsRepeated() {
+        String owner = ownerOf("EJ Repetida", "ej-repetida-not", "dono@repetida.dev");
+        UUID processId = openProcess(owner, "PS Repetido");
+        submit("ej-repetida-not", processId, "ana@example.com");
+        changeStatus(owner, processId, SelectionProcessStatus.CLOSED);
+        drainMail();
+
+        changeStatus(owner, processId, SelectionProcessStatus.CLOSED);
+        assertNothingDelivered();
+    }
+
+    @Test
+    @DisplayName("vencido o prazo, pedir IN_REVIEW grava a fase e avisa os candidatos uma vez")
+    void shouldNotifyOnceWhenReviewIsRequestedPastDeadline() {
+        String owner = ownerOf("EJ Vencida", "ej-vencida-not", "dono@vencida.dev");
+        UUID processId = openProcess(owner, "PS Vencido", Instant.now().plus(1, ChronoUnit.DAYS));
+        submit("ej-vencida-not", processId, "ana@example.com");
+        drainMail();
+
+        AHEAD.set(Duration.ofDays(2));
+        changeStatus(owner, processId, SelectionProcessStatus.IN_REVIEW);
+        assertThat(delivered(1))
+                .containsExactly(entry("ana@example.com", "Inscrições encerradas: PS Vencido"));
+
+        drainMail();
+        changeStatus(owner, processId, SelectionProcessStatus.IN_REVIEW);
+        assertNothingDelivered();
     }
 
     @Test
@@ -181,6 +237,10 @@ class NotificationFlowsIntegrationTest extends AbstractIntegrationTest {
         }
     }
 
+    private void assertNothingDelivered() {
+        Mockito.verify(mailSender, Mockito.after(DRAIN_WINDOW).never()).send(Mockito.any(MimeMessage.class));
+    }
+
     /** Zera os avisos da montagem do cenário, cujo número varia — o que se mede vem depois. */
     private void drainMail() {
         Mockito.verify(mailSender, Mockito.after(DRAIN_WINDOW).atLeast(0))
@@ -196,8 +256,12 @@ class NotificationFlowsIntegrationTest extends AbstractIntegrationTest {
     }
 
     private UUID openProcess(String token, String title) {
+        return openProcess(token, title, null);
+    }
+
+    private UUID openProcess(String token, String title, Instant closesAt) {
         UUID processId = post("/v1/recruitment/processes",
-                new SelectionProcessRequest(title, null, null, null, null, null, null), token,
+                new SelectionProcessRequest(title, null, null, closesAt, null, null, null), token,
                 SelectionProcessResponse.class).getBody().id();
         changeStatus(token, processId, SelectionProcessStatus.OPEN);
         drainMail();

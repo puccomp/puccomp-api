@@ -29,4 +29,10 @@ docs {
   para IN_REVIEW manualmente serve para encerrar as inscrições antes do prazo.
 
   O status devolvido é o efetivo. Quem manda em "aceita inscrição agora?" é accepting_applications.
+
+  Pedir o status em que o processo já está responde 200 sem efeito — nem reenvia o aviso de fase
+  aos candidatos. A exceção é IN_REVIEW num processo vencido: ali a fase era só derivada, e o
+  pedido a grava e avisa quem se inscreveu pela primeira vez.
+
+  A resposta não traz application_count nem last_application_at; eles ficam em "Buscar".
 }

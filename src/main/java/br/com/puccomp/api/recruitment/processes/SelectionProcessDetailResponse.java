@@ -3,13 +3,10 @@ package br.com.puccomp.api.recruitment.processes;
 import java.time.Instant;
 import java.util.UUID;
 
-/**
- * A listagem não devolve {@code description}: é TEXT e pode carregar um edital inteiro, que ninguém
- * lê numa linha de tabela. Para isso existe o detalhe.
- */
-public record SelectionProcessSummaryResponse(
+public record SelectionProcessDetailResponse(
         UUID id,
         String title,
+        String description,
         SelectionProcessStatus status,
         boolean acceptingApplications,
         long applicationCount,
@@ -17,13 +14,17 @@ public record SelectionProcessSummaryResponse(
         Instant opensAt,
         Instant closesAt,
         Instant resultAt,
-        Instant createdAt
+        Short minTerm,
+        Short maxTerm,
+        Instant createdAt,
+        Instant updatedAt
 ) {
-    static SelectionProcessSummaryResponse from(SelectionProcess process,
-                                                ApplicationCounts.ApplicationStats stats, Instant at) {
-        return new SelectionProcessSummaryResponse(
+    static SelectionProcessDetailResponse from(SelectionProcess process,
+                                               ApplicationCounts.ApplicationStats stats, Instant at) {
+        return new SelectionProcessDetailResponse(
                 process.getId(),
                 process.getTitle(),
+                process.getDescription(),
                 process.effectiveStatus(at),
                 process.isAcceptingApplications(at),
                 stats.total(),
@@ -31,6 +32,10 @@ public record SelectionProcessSummaryResponse(
                 process.getOpensAt(),
                 process.getClosesAt(),
                 process.getResultAt(),
-                process.getCreatedAt());
+                process.getMinTerm(),
+                process.getMaxTerm(),
+                process.getCreatedAt(),
+                process.getUpdatedAt()
+        );
     }
 }

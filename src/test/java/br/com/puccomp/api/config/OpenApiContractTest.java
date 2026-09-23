@@ -139,6 +139,29 @@ class OpenApiContractTest extends AbstractIntegrationTest {
     }
 
     @Test
+    @DisplayName("criar processo devolve 201 com Location e o processo sem a contagem de inscrições")
+    @SuppressWarnings("unchecked")
+    void shouldDescribeProcessCreationAndDetailSeparately() {
+        var created = (Map<String, Object>) ((Map<String, Object>)
+                operation("/v1/recruitment/processes", "post").get("responses")).get("201");
+        assertThat((Map<String, Object>) created.get("headers")).containsKey("Location");
+        assertThat(created.get("content").toString()).contains("#/components/schemas/SelectionProcessResponse");
+
+        var schemas = (Map<String, Object>) ((Map<String, Object>) spec().get("components")).get("schemas");
+        assertThat(propertyNames(schemas, "SelectionProcessResponse"))
+                .doesNotContain("applicationcount", "lastapplicationat");
+        assertThat(propertyNames(schemas, "SelectionProcessDetailResponse"))
+                .contains("applicationcount", "lastapplicationat");
+    }
+
+    /** Sem o separador: o spec ainda publica em camelCase o que o JSON serializa em snake_case. */
+    @SuppressWarnings("unchecked")
+    private static List<String> propertyNames(Map<String, Object> schemas, String schema) {
+        var properties = (Map<String, Object>) ((Map<String, Object>) schemas.get(schema)).get("properties");
+        return properties.keySet().stream().map(name -> name.replace("_", "").toLowerCase()).toList();
+    }
+
+    @Test
     @DisplayName("respostas saem como application/json, não como */*")
     void shouldDeclareJsonResponses() {
         assertThat(operation("/v1/auth/me", "get").get("responses"))
