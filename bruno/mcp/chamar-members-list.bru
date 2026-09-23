@@ -43,6 +43,10 @@ docs {
   o quadro inteiro. A superfície do MCP é snake_case nos dois sentidos, igual à do REST — inclusive
   nos nomes dos argumentos.
 
+  sort escolhe a ordem entre NAME (padrão), JOINED_AT_DESC, JOINED_AT_ASC, LEFT_AT_DESC e
+  LEFT_AT_ASC — um enum fechado, em vez do sort livre do REST, mas com a mesma tradução: data
+  desconhecida no fim e id como desempate.
+
   has_role=false responde "quem está sem cargo", e has_department=false, "quem está sem diretoria".
   Combinar false com o id correspondente (has_role=false e role_id) é contraditório e volta como
   erro da ferramenta, não como lista vazia.

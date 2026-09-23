@@ -47,7 +47,11 @@ public class MemberController {
 
                     email é nulo em membro sem conta associada. joined_at é a primeira ativação
                     conhecida, e nulo significa que o membro já estava na EJ quando o rastreamento
-                    começou — nunca que entrou agora.""")
+                    começou — nunca que entrou agora.
+
+                    sort aceita joined_at e left_at pelo nome público. Data desconhecida vai para o
+                    fim nos dois sentidos, e o id desempata qualquer ordem, então a paginação não
+                    repete nem pula membros empatados.""")
     @ApiResponse(responseCode = "400", description = "Filtro inválido ou combinação contraditória",
             content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     @ApiResponse(responseCode = "403", description = "include_deleted=true sem members:write",

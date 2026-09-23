@@ -15,9 +15,12 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.jdbc.core.JdbcTemplate;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
+import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -45,6 +48,9 @@ class McpServerIntegrationTest extends AbstractIntegrationTest {
 
     @Autowired
     private TestSeeder seeder;
+
+    @Autowired
+    private JdbcTemplate jdbc;
 
     @Test
     @DisplayName("o endpoint MCP nasce autenticado: sem credencial é 401")
@@ -224,6 +230,33 @@ class McpServerIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    @DisplayName("sort ordena como o REST, e quem não tem data de entrada vai para o fim")
+    void shouldSortLikeRest() {
+        UUID tenant = seeder.seedTenant("EJ MCP ordem", "ej-mcp-ordem");
+        seeder.seedAccount(tenant, "dono@ordem.dev", "senha123", Standing.OWNER);
+        UUID antigo = seeder.seedAccount(tenant, "antigo@ordem.dev", "senha123", Standing.MEMBER);
+        UUID recente = seeder.seedAccount(tenant, "recente@ordem.dev", "senha123", Standing.MEMBER);
+        UUID baseline = seeder.seedAccount(tenant, "baseline@ordem.dev", "senha123", Standing.MEMBER);
+        entrada(antigo, "2024-03-01T12:00:00Z");
+        entrada(recente, "2026-08-01T12:00:00Z");
+        entrada(baseline, null);
+        String owner = login("dono@ordem.dev", "senha123");
+        String pat = criarPat(owner, null);
+
+        assertThat(mcp(pat, jsonRpc(21, "tools/list", null)).getBody())
+                .contains("JOINED_AT_DESC", "LEFT_AT_DESC");
+
+        List<String> recentes = emails(resultado(pat, "members_list",
+                Map.of("standing", "MEMBER", "sort", "JOINED_AT_DESC")).get("items"));
+
+        // Com o nulo primeiro, "quem entrou por último" começaria por quem já estava na EJ.
+        assertThat(recentes)
+                .containsExactly("recente@ordem.dev", "antigo@ordem.dev", "baseline@ordem.dev");
+        assertThat(recentes).isEqualTo(
+                emails(json(owner, "/v1/members?standing=MEMBER&sort=joined_at,desc").get("content")));
+    }
+
+    @Test
     @DisplayName("o escopo recorta por módulo: members:read não abre o financeiro")
     void shouldScopeToolsPerModule() {
         String pat = patDe("EJ MCP módulos", "ej-mcp-modulos", "dono-modulos@ej.dev",
@@ -314,6 +347,11 @@ class McpServerIntegrationTest extends AbstractIntegrationTest {
         headers.setBearerAuth(token);
         return mapper.readTree(rest.exchange(path, HttpMethod.GET, new HttpEntity<>(headers), String.class)
                 .getBody());
+    }
+
+    private void entrada(UUID member, String quando) {
+        jdbc.update("update members set joined_at = ? where id = ?",
+                quando == null ? null : Timestamp.from(Instant.parse(quando)), member);
     }
 
     private static List<String> emails(JsonNode members) {

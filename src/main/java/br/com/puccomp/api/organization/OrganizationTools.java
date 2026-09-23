@@ -34,6 +34,24 @@ public class OrganizationTools {
     private static final String HAS_DEPARTMENT = "true traz só quem tem diretoria; false só quem "
             + "não tem. false junto com department_id é contraditório e devolve erro";
 
+    /**
+     * Campos e sentidos fechados, em vez do sort livre do REST: o agente escolhe no schema, sem
+     * adivinhar nome de campo. Os nomes são os públicos, e passam pela mesma tradução do REST.
+     */
+    public enum MemberOrder {
+        NAME(Sort.by(Sort.Direction.ASC, "name")),
+        JOINED_AT_DESC(Sort.by(Sort.Direction.DESC, "joined_at")),
+        JOINED_AT_ASC(Sort.by(Sort.Direction.ASC, "joined_at")),
+        LEFT_AT_DESC(Sort.by(Sort.Direction.DESC, "left_at")),
+        LEFT_AT_ASC(Sort.by(Sort.Direction.ASC, "left_at"));
+
+        private final Sort sort;
+
+        MemberOrder(Sort sort) {
+            this.sort = sort;
+        }
+    }
+
     private final MemberService members;
     private final RoleService roles;
     private final DepartmentService departments;
@@ -47,9 +65,9 @@ public class OrganizationTools {
                     Lista os membros da Empresa Júnior. Exige a permissão members:read.
 
                     Todos os filtros são opcionais e combinam por E; sem nenhum, devolve o quadro \
-                    inteiro em ordem alfabética. Os filtros por id esperam o id devolvido pela \
-                    ferramenta do cadastro correspondente, não o nome. Consulte 'total' para saber \
-                    se vale pedir a próxima página, em vez de supor.
+                    inteiro em ordem alfabética, e sort escolhe outra ordem. Os filtros por id \
+                    esperam o id devolvido pela ferramenta do cadastro correspondente, não o nome. \
+                    Consulte 'total' para saber se vale pedir a próxima página, em vez de supor.
 
                     Para contagens e distribuições do quadro inteiro, prefira members_summary: ele \
                     responde de uma vez o que esta listagem só responderia paginando tudo.
@@ -77,13 +95,18 @@ public class OrganizationTools {
                     description = "Busca por nome ou e-mail, sem acento e sem diferenciar "
                             + "maiúsculas: 'joao' encontra 'João'. Termo com menos de dois "
                             + "caracteres não filtra nada") String q,
+            @McpToolParam(required = false,
+                    description = "Ordem da lista; o padrão é NAME. JOINED_AT_DESC traz primeiro "
+                            + "quem entrou por último, e LEFT_AT_DESC quem saiu por último. Quem não "
+                            + "tem a data — anterior ao rastreamento, ou ainda ativo no caso de "
+                            + "left_at — vem sempre no fim, nos dois sentidos") MemberOrder sort,
             @McpToolParam(required = false, description = "Página, começando em 0") Integer page,
             @McpToolParam(required = false,
                     description = "Itens por página, no máximo 100; o padrão é 20") Integer size) {
 
         return json.writeValueAsString(ToolPage.of(members.findAll(
                 toFilter(status, standing, department_id, role_id, course_id, has_role, has_department, q),
-                ToolPage.request(page, size, BY_NAME))));
+                ToolPage.request(page, size, (sort == null ? MemberOrder.NAME : sort).sort))));
     }
 
     @McpTool(name = "members_get",

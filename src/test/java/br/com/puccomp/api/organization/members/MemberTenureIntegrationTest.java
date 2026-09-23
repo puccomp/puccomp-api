@@ -102,15 +102,32 @@ class MemberTenureIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
-    @DisplayName("ordenar por joined_at usa o nome público do campo, em snake_case")
+    @DisplayName("ordenar por joined_at usa o nome público do campo, com a data desconhecida no fim")
     void shouldSortByJoinDate() throws Exception {
-        List<String> recentes = nomes("/v1/members?standing=MEMBER&sort=joined_at,desc");
+        // Nos dois sentidos: no padrão do Postgres o nulo viria primeiro em desc, e "quem entrou
+        // por último" começaria por quem já estava na EJ antes do rastreamento.
+        assertThat(nomes("/v1/members?standing=MEMBER&sort=joined_at,desc"))
+                .containsExactly("Dois Meses", "Seis Meses", "Saiu Aos Quatro", "Doze Meses", "Sem Data");
+        assertThat(nomes("/v1/members?standing=MEMBER&sort=joined_at,asc"))
+                .containsExactly("Doze Meses", "Saiu Aos Quatro", "Seis Meses", "Dois Meses", "Sem Data");
+    }
 
-        // Quem tem data vem do mais recente ao mais antigo. "Sem Data" é nulo, e a posição dele
-        // é convenção do Postgres (nulo primeiro em desc), não contrato — por isso só a ordem
-        // relativa dos quatro conhecidos é afirmada.
-        assertThat(recentes).filteredOn(nome -> !"Sem Data".equals(nome))
-                .containsExactly("Dois Meses", "Seis Meses", "Saiu Aos Quatro", "Doze Meses");
+    @Test
+    @DisplayName("left_at ordena quem saiu e deixa no fim quem continua ativo")
+    void shouldSortByLeaveDate() throws Exception {
+        assertThat(nomes("/v1/members?standing=MEMBER&sort=left_at,desc").getFirst())
+                .isEqualTo("Saiu Aos Quatro");
+    }
+
+    @Test
+    @DisplayName("empate no campo pedido é desfeito pelo id, e a paginação não repete nem pula ninguém")
+    void shouldBreakTiesById() throws Exception {
+        List<String> ids = new ArrayList<>();
+        for (int page = 0; page < 5; page++)
+            mapper.readTree(getWithToken("/v1/members?standing=MEMBER&sort=status,asc&size=1&page=" + page,
+                    token).getBody()).path("content").forEach(member -> ids.add(member.path("id").asText()));
+
+        assertThat(ids).hasSize(5).doesNotHaveDuplicates();
     }
 
     private JsonNode summary(String query) throws Exception {
