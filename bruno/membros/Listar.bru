@@ -55,8 +55,12 @@ docs {
   ## Ordenação
 
   sort aceita name, status, joined_at e left_at, em snake_case como o resto da query string.
-  "Quem entrou mais recentemente" é sort=joined_at,desc. Nulo fica por último em asc e primeiro em
-  desc, que é a convenção do Postgres — não conte com ela para nada além de apresentação.
+  "Quem entrou mais recentemente" é sort=joined_at,desc. Data desconhecida fica no fim nos dois
+  sentidos: sem isso, a primeira página de joined_at,desc seria só de quem já estava na EJ antes
+  do rastreamento.
+
+  O id desempata qualquer ordem. sort=status,asc empata quase todo mundo em ACTIVE, e sem o
+  desempate a paginação repetiria uns e pularia outros.
 
   ## Campos da resposta
 
