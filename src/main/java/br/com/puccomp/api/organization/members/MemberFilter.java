@@ -48,7 +48,16 @@ public record MemberFilter(
 
         @BindParam("has_department")
         @Schema(name = "has_department", description = "true traz só quem tem diretoria; false só quem não tem")
-        Boolean hasDepartment
+        Boolean hasDepartment,
+
+        @Schema(description = "Texto livre sobre nome e e-mail, sem acento e sem diferenciar "
+                + "maiúsculas. Termo com menos de dois caracteres não filtra nada")
+        String q,
+
+        @BindParam("include_deleted")
+        @Schema(name = "include_deleted", description = "true traz também quem saiu da EJ. Exige "
+                + "members:write; sem ela é 403. O padrão traz só os vínculos vivos")
+        Boolean includeDeleted
 ) {
 
     /**

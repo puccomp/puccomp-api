@@ -33,34 +33,68 @@ public class MemberLifecycle {
     /** Criação de membro — inclusive pelo aceite de convite e pelo seeder. */
     @Transactional(propagation = Propagation.MANDATORY)
     public void recordCreation(Member member) {
+        Instant at = clock.instant();
+        if (member.getStatus() == MemberStatus.ACTIVE) member.recordJoin(at);
         append(member.getId(), MemberStatusEventKind.CREATED, null, member.getStatus());
     }
 
     /**
      * Transição para o mesmo estado é no-op: repetir "aposentar" não pode duplicar a saída nem
-     * mover a data dela. Trocar {@code ALUMNUS} por {@code INACTIVE} também não é uma segunda saída
-     * — quem já não estava ativo não sai de novo —, e isso cai naturalmente do registro por estado.
+     * mover a data dela.
      */
     @Transactional(propagation = Propagation.MANDATORY)
     public void changeStatus(Member member, MemberStatus target) {
         MemberStatus current = member.getStatus();
         if (current == target) return;
+        Instant at = clock.instant();
         member.changeStatus(target);
+        // A projeção acompanha o evento: entrada só na primeira ativação, saída em aberto enquanto
+        // o vínculo estiver ativo. Sem isso a mediana de permanência leria datas paradas no tempo.
+        if (target == MemberStatus.ACTIVE) {
+            member.recordJoin(at);
+            member.clearLeave();
+        } else {
+            member.recordLeave(at);
+        }
         append(member.getId(), MemberStatusEventKind.STATUS_CHANGED, current, target);
         // Aqui, e não no serviço que chamou: é o funil por onde toda mudança passa.
-        transitionOf(target).ifPresent(transition -> publisher.publishEvent(new MemberStatusChanged(
-                member.getTenantId(), member.getId(), member.getAccountId(), member.getName(),
-                transition, clock.instant())));
+        transitionOf(target).ifPresent(transition -> publish(member, transition));
     }
 
-    /** Voltar a PENDING não muda nada que a pessoa precise ler: o convite é que ainda não virou vínculo. */
+    /**
+     * Saída da EJ. O evento é gravado mesmo com a projeção {@code status} intacta: quem sai estando
+     * ativo precisa ter o intervalo encerrado, senão segue contando no quadro médio do turnover
+     * para sempre. Deletar duas vezes não gera duas saídas.
+     */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void delete(Member member, Instant at) {
+        if (member.isDeleted()) return;
+        member.delete(at);
+        // Quem sai estando ativo sai agora; quem já era alumnus conserva a saída que teve.
+        if (member.getStatus() == MemberStatus.ACTIVE) member.recordLeave(at);
+        append(member.getId(), MemberStatusEventKind.DELETED, member.getStatus(), member.getStatus());
+        publish(member, MemberStatusChanged.Transition.REMOVED);
+    }
+
+    /** Devolve o vínculo no estado em que ele saiu — reativação, nunca uma segunda admissão. */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void restore(Member member) {
+        if (!member.isDeleted()) return;
+        member.restore();
+        append(member.getId(), MemberStatusEventKind.RESTORED, member.getStatus(), member.getStatus());
+        publish(member, MemberStatusChanged.Transition.RESTORED);
+    }
+
     private static Optional<MemberStatusChanged.Transition> transitionOf(MemberStatus target) {
-        return Optional.ofNullable(switch (target) {
+        return Optional.of(switch (target) {
             case ALUMNUS -> MemberStatusChanged.Transition.RETIRED;
             case ACTIVE -> MemberStatusChanged.Transition.REACTIVATED;
-            case INACTIVE -> MemberStatusChanged.Transition.DEACTIVATED;
-            case PENDING -> null;
         });
+    }
+
+    private void publish(Member member, MemberStatusChanged.Transition transition) {
+        publisher.publishEvent(new MemberStatusChanged(member.getTenantId(), member.getId(),
+                member.getAccountId(), member.getName(), transition, clock.instant()));
     }
 
     /** Marco de cobertura da EJ. Vale inclusive para EJ que ainda não tem membro nenhum. */

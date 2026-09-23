@@ -18,6 +18,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.UUID;
 
 @Tag(name = "Cargos")
@@ -51,6 +52,15 @@ public class RoleController {
             @ParameterObject @PageableDefault(size = 20, sort = {"name", "id"}, direction = Sort.Direction.ASC)
             Pageable pageable) {
         return service.findAll(departmentId, pageable);
+    }
+
+    @Operation(summary = "Catálogo dos cargos ativos, sem paginação",
+            description = "Para preencher filtro e seletor. Devolve a lista inteira, ordenada por "
+                    + "nome — sem page nem size, para a lista nunca vir incompleta em silêncio.")
+    @PreAuthorize("hasAuthority('roles:read')")
+    @GetMapping("/options")
+    public List<RoleResponse> options() {
+        return service.findOptions();
     }
 
     @Operation(summary = "Busca cargo por ID")

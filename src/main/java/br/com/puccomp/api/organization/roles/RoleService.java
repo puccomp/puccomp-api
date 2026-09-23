@@ -11,6 +11,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -34,6 +35,16 @@ public class RoleService {
                 .maxSeats(request.maxSeats())
                 .build();
         return RoleResponse.from(repository.save(role));
+    }
+
+    /**
+     * O catálogo inteiro dos cargos ativos, sem paginação — como o de cursos. Existe para preencher
+     * filtro: uma página de 100 numa EJ maior deixaria a lista incompleta sem avisar ninguém, que é
+     * o pior jeito de quebrar.
+     */
+    @Transactional(readOnly = true)
+    public List<RoleResponse> findOptions() {
+        return repository.findAllByActiveTrueOrderByNameAsc().stream().map(RoleResponse::from).toList();
     }
 
     @Transactional(readOnly = true)

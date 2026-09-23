@@ -157,12 +157,12 @@ final class DevFixture {
             Pessoa.saiu("Thiago Nogueira Alencar", 0, "DEV", 0, 22, "ALUMNUS"),
             Pessoa.saiu("Camila Rocha Vieira", 1, "DEV", 0, 14, "ALUMNUS"),
             // Saiu e voltou: a saída de lá continua contada, e o afastamento é reconstituído.
-            Pessoa.voltou("Lucas Andrade Pimenta", 1, "ANALISTA_RH", 6, 18, "INACTIVE", 24),
+            Pessoa.voltou("Lucas Andrade Pimenta", 1, "ANALISTA_RH", 6, 18, "ALUMNUS", 24),
             Pessoa.ativa("Isabela Martins Leal", 0, "DEV", 6),
             Pessoa.ativa("Beatriz Nunes Carvalho", 4, "DESIGNER", 6),
             Pessoa.ativa("Vinícius Prado Camargo", 1, "GERENTE_PROJETOS", 12),
             Pessoa.ativa("Sofia Barreto Queiroz", 4, "DESIGNER", 18),
-            Pessoa.saiu("Davi Lucca Freitas", 0, "TRAINEE", 18, 23, "INACTIVE"),
+            Pessoa.saiu("Davi Lucca Freitas", 0, "TRAINEE", 18, 23, "ALUMNUS"),
             Pessoa.ativa("Valentina Peixoto Cruz", 4, "DESIGNER", 22),
             // Único ocupante de um cargo desativado: some da capacidade, fica na composição.
             Pessoa.ativa("Renata Aguiar Pontes", 1, "COORD_QUALIDADE", 22),

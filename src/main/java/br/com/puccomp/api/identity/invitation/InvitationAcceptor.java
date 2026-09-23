@@ -55,8 +55,8 @@ class InvitationAcceptor {
             throw new ResourceNotFoundException("Curso não encontrado");
 
         var memberId = memberProvisioning.createMember(
-                account.getId(), request.name().trim(), request.courseId(), invitation.getRoleId(),
-                invitation.getStanding());
+                account.getId(), request.name().trim(), account.getEmail(), request.courseId(),
+                invitation.getRoleId(), invitation.getStanding());
 
         Instant acceptedAt = Instant.now();
         invitation.markAccepted(acceptedAt);

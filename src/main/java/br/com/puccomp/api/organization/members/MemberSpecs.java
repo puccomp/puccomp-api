@@ -1,5 +1,6 @@
 package br.com.puccomp.api.organization.members;
 
+import br.com.puccomp.api.shared.text.SearchTerm;
 import jakarta.persistence.criteria.Predicate;
 import org.springframework.data.jpa.domain.Specification;
 
@@ -12,6 +13,8 @@ import java.util.List;
  * passam a descrever populações diferentes sem ninguém perceber.
  */
 public final class MemberSpecs {
+
+    private static final char ESCAPE = '\\';
 
     private MemberSpecs() { }
 
@@ -43,6 +46,17 @@ public final class MemberSpecs {
                 predicates.add(filter.hasDepartment()
                         ? builder.isNotNull(root.get("department"))
                         : builder.isNull(root.get("department")));
+
+            // Contra a coluna gerada, não contra o nome: é ela que está normalizada como o termo e
+            // é ela que tem índice. Quem não tem e-mail simplesmente não casa pelo segundo ramo.
+            // O default da listagem é quem tem vínculo hoje. Quem saiu não é um status a ignorar
+            // em cada contagem: ele simplesmente não está lá.
+            if (!Boolean.TRUE.equals(filter.includeDeleted()))
+                predicates.add(builder.isNull(root.get("deletedAt")));
+
+            SearchTerm.like(filter.q()).ifPresent(term -> predicates.add(builder.or(
+                    builder.like(root.get("searchName"), term, ESCAPE),
+                    builder.like(builder.lower(root.get("email")), term, ESCAPE))));
 
             return builder.and(predicates.toArray(Predicate[]::new));
         };

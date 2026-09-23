@@ -466,12 +466,38 @@ class MemberHistoryIntegrationTest extends AbstractIntegrationTest {
                         + "order by sequence", memberId);
     }
 
+    @Test
+    @DisplayName("as três séries são irmãs: total é ativos mais alumni, mês a mês")
+    void shouldPublishOneSeriesPerTab() throws Exception {
+        JsonNode relatorio = mapper.readTree(getWithToken("/v1/members/history", token).getBody());
+
+        JsonNode ativos = relatorio.path("headcount_by_month");
+        JsonNode alumni = relatorio.path("alumni_by_month");
+        JsonNode total = relatorio.path("total_by_month");
+
+        assertThat(alumni).hasSameSizeAs(ativos);
+        assertThat(total).hasSameSizeAs(ativos);
+        for (int i = 0; i < total.size(); i++) {
+            JsonNode ponto = total.get(i);
+            assertThat(ponto.path("date").asText()).isEqualTo(ativos.get(i).path("date").asText());
+            // Mês sem cobertura é nulo nas três, nunca zero numa e nulo noutra.
+            if (ponto.path("value").isNull()) {
+                assertThat(ativos.get(i).path("value").isNull()).isTrue();
+                assertThat(alumni.get(i).path("value").isNull()).isTrue();
+                continue;
+            }
+            assertThat(ponto.path("value").asLong())
+                    .isEqualTo(ativos.get(i).path("value").asLong()
+                            + alumni.get(i).path("value").asLong());
+        }
+    }
+
     private void retire(UUID memberId) {
         retire(token, memberId);
     }
 
     private void retire(String bearer, UUID memberId) {
-        post("/v1/members/" + memberId + "/retire", null, bearer, String.class);
+        put("/v1/members/" + memberId + "/status", Map.of("value", "ALUMNUS"), bearer, String.class);
     }
 
     private void reactivate(UUID memberId) {
@@ -479,7 +505,7 @@ class MemberHistoryIntegrationTest extends AbstractIntegrationTest {
     }
 
     private void reactivate(String bearer, UUID memberId) {
-        post("/v1/members/" + memberId + "/reactivate", null, bearer, String.class);
+        put("/v1/members/" + memberId + "/status", Map.of("value", "ACTIVE"), bearer, String.class);
     }
 
     private String rawHistory(String query) {

@@ -24,7 +24,10 @@ public record MemberStatusChanged(
         /** Voltou ao quadro ativo. */
         REACTIVATED,
 
-        /** Desativado: sem acesso. */
-        DEACTIVATED
+        /** Saiu da EJ: perde todo o acesso e some do contrato. */
+        REMOVED,
+
+        /** Voltou depois de ter saído. */
+        RESTORED
     }
 }

@@ -48,6 +48,13 @@ public class OrganizationTools {
                     Para contagens e distribuições do quadro inteiro, prefira members_summary: ele \
                     responde de uma vez o que esta listagem só responderia paginando tudo.
 
+                    Cada membro traz nome, e-mail, situação, curso, cargo, diretoria, joined_at e \
+                    left_at. joined_at nulo significa que a pessoa já estava na EJ quando o \
+                    rastreamento começou, e não que entrou agora; left_at nulo é quem está ativo \
+                    ou saiu antes do rastreamento — quem separa os dois casos é o status.
+
+                    Quem saiu da EJ não aparece aqui de forma alguma: a remoção some do contrato.
+
                     Devolve {items, total, page, pages}.""")
     @PreAuthorize("hasAuthority('members:read')")
     public String membersList(
@@ -58,12 +65,16 @@ public class OrganizationTools {
             @McpToolParam(required = false, description = "Diretoria atual do membro") UUID department_id,
             @McpToolParam(required = false, description = "Cargo atual do membro") UUID role_id,
             @McpToolParam(required = false, description = "Curso do membro") UUID course_id,
+            @McpToolParam(required = false,
+                    description = "Busca por nome ou e-mail, sem acento e sem diferenciar "
+                            + "maiúsculas: 'joao' encontra 'João'. Termo com menos de dois "
+                            + "caracteres não filtra nada") String q,
             @McpToolParam(required = false, description = "Página, começando em 0") Integer page,
             @McpToolParam(required = false,
                     description = "Itens por página, no máximo 100; o padrão é 20") Integer size) {
 
         return json.writeValueAsString(ToolPage.of(members.findAll(
-                filtro(status, standing, department_id, role_id, course_id),
+                filtro(status, standing, department_id, role_id, course_id, q),
                 ToolPage.request(page, size, BY_NAME))));
     }
 
@@ -71,8 +82,11 @@ public class OrganizationTools {
             annotations = @McpTool.McpAnnotations(readOnlyHint = true, destructiveHint = false,
                     idempotentHint = true, openWorldHint = false),
             description = """
-                    Busca um membro da EJ pelo id, com o curso, o cargo e a diretoria atuais. \
-                    Exige a permissão members:read.""")
+                    Busca um membro da EJ pelo id, com o curso, o cargo e a diretoria atuais, \
+                    mais o e-mail e as datas de entrada e de saída. Exige a permissão members:read.
+
+                    Membro removido da EJ não é encontrado por aqui: ele deixou de existir para a \
+                    API.""")
     @PreAuthorize("hasAuthority('members:read')")
     public String membersGet(
             @McpToolParam(description = "Id do membro, como devolvido por members_list") UUID id) {
@@ -93,18 +107,44 @@ public class OrganizationTools {
 
                     Dentro dele, seats e unfilled_roles exigem também roles:read, e \
                     empty_departments exige também departments:read. Sem a permissão adicional o \
-                    bloco vem nulo, o que significa ausência de permissão e não EJ vazia.""")
+                    bloco vem nulo, o que significa ausência de permissão e não EJ vazia.
+
+                    tenure é o tempo de casa do recorte, em meses: quem está ativo conta até \
+                    agora, quem saiu conta até a saída. Use a mediana, não a média — um fundador \
+                    antigo puxa a média. unknown_start são os membros anteriores ao rastreamento, \
+                    que ficam fora das duas medidas.
+
+                    turnover são as saídas na janela de turnover_months sobre o quadro médio. \
+                    CUIDADO ao filtrar: o recorte usa a atribuição de HOJE, então department_id \
+                    descreve as saídas de quem hoje está nessa diretoria, e não as saídas que a \
+                    diretoria teve — cargo e diretoria não têm histórico. Não relate esse número \
+                    como turnover de uma diretoria.
+
+                    Nas distribuições, key.kind diz o que a categoria é: ITEM é uma categoria \
+                    real, ABSENT é quem não tem o vínculo, e OTHERS é a cauda agregada por \
+                    slice_limit. Os dois últimos têm id nulo, e só o kind os distingue.""")
     @PreAuthorize("hasAuthority('members:read')")
     public String membersSummary(
             @McpToolParam(required = false, description = "Situação do vínculo") MemberStatus status,
             @McpToolParam(required = false, description = "Tipo de vínculo com a EJ") Standing standing,
             @McpToolParam(required = false, description = "Diretoria atual do membro") UUID department_id,
             @McpToolParam(required = false, description = "Cargo atual do membro") UUID role_id,
-            @McpToolParam(required = false, description = "Curso do membro") UUID course_id) {
+            @McpToolParam(required = false, description = "Curso do membro") UUID course_id,
+            @McpToolParam(required = false, description = "Busca por nome ou e-mail") String q,
+            @McpToolParam(required = false,
+                    description = "Quantas categorias identificadas manter em cada distribuição "
+                            + "por recurso, de 1 a 20; o resto vira uma categoria OTHERS. Sem ele "
+                            + "a distribuição vem inteira, o que numa EJ grande é resposta longa "
+                            + "à toa") Integer slice_limit,
+            @McpToolParam(required = false,
+                    description = "Meses da janela de turnover, de 1 a 24; o padrão é 12")
+            Integer turnover_months) {
 
         return json.writeValueAsString(members.summarize(
-                filtro(status, standing, department_id, role_id, course_id),
-                new MemberSummaryService.ContextAccess(pode("roles:read"), pode("departments:read"))));
+                filtro(status, standing, department_id, role_id, course_id, q),
+                new MemberSummaryService.ContextAccess(pode("roles:read"), pode("departments:read")),
+                new MemberSummaryService.SliceLimit(slice_limit),
+                turnover_months == null ? 12 : turnover_months));
     }
 
     @McpTool(name = "roles_list",
@@ -184,9 +224,11 @@ public class OrganizationTools {
         return json.writeValueAsString(ToolPage.of(courses.findAll()));
     }
 
-    private static MemberFilter filtro(MemberStatus status, Standing standing,
-                                       UUID departmentId, UUID roleId, UUID courseId) {
-        return new MemberFilter(departmentId, null, roleId, courseId, status, standing, null, null);
+    /** include_deleted fica de fora: ele exige members:write, e a superfície MCP é de leitura. */
+    private static MemberFilter filtro(MemberStatus status, Standing standing, UUID departmentId,
+                                       UUID roleId, UUID courseId, String q) {
+        return new MemberFilter(departmentId, null, roleId, courseId, status, standing, null, null,
+                q, null);
     }
 
     /**

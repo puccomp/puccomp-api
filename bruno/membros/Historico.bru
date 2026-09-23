@@ -134,6 +134,15 @@ docs {
     ]
   }
   ```
+
+  ## Três séries irmãs
+
+  headcount_by_month é o quadro ativo, alumni_by_month é quem existia e não estava ativo naquele mês,
+  e total_by_month é a soma das duas. As três têm os mesmos meses e as mesmas lacunas: mês sem
+  cobertura é nulo nas três, nunca zero numa e nulo noutra.
+
+  O alumnus de cada mês é reconstruído do histórico, não é o alumnus de hoje projetado para trás.
+  Quem foi removido sai de total_by_month a partir da remoção.
 }
 
 auth:bearer {

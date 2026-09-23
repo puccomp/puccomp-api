@@ -34,6 +34,15 @@ public record ReportWindow(YearMonth from, YearMonth to, ZoneId zone) {
         return window;
     }
 
+    /** Os {@code months} meses civis completos que antecedem o mês corrente. */
+    public static ReportWindow lastMonths(int months, ZoneId zone, Instant now) {
+        YearMonth currentMonth = YearMonth.from(now.atZone(zone));
+        if (months < 1 || months > MAX_MONTHS)
+            throw new ValidationException(
+                    "A janela aceita de 1 a %d meses completos".formatted(MAX_MONTHS));
+        return new ReportWindow(currentMonth.minusMonths(months), currentMonth, zone);
+    }
+
     private void validate(YearMonth currentMonth) {
         long months = months();
         if (months <= 0)
@@ -54,15 +63,15 @@ public record ReportWindow(YearMonth from, YearMonth to, ZoneId zone) {
         }
     }
 
-    long months() {
+    public long months() {
         return java.time.temporal.ChronoUnit.MONTHS.between(from, to);
     }
 
-    Instant start() {
+    public Instant start() {
         return startOf(from);
     }
 
-    Instant end() {
+    public Instant end() {
         return startOf(to);
     }
 

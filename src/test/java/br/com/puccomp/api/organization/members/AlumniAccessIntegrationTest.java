@@ -13,6 +13,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
+import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -26,37 +27,46 @@ class AlumniAccessIntegrationTest extends AbstractIntegrationTest {
     @Test
     @DisplayName("aposentar vale na hora: o mesmo token do membro passa a ter acesso somente leitura")
     void shouldGiveRetiredMemberLiveReadOnlyAccess() {
-        UUID tenant = seeder.seedTenant("EJ Alumni", "ej-alumni");
-        seeder.seedAccount(tenant, "dono@alumni.dev", "senha123", Standing.OWNER);
-        UUID veteranoId = seeder.seedAccount(tenant, "veterano@alumni.dev", "senha123", Standing.MEMBER);
+        // slug e e-mail são únicos no banco inteiro, e o CandidateApplicationIntegrationTest
+        // também semeia uma "EJ Alumni": fixar os dois faz a segunda classe da rodada quebrar.
+        String sufixo = UUID.randomUUID().toString().substring(0, 8);
+        UUID tenant = seeder.seedTenant("EJ Alumni", "ej-alumni-" + sufixo);
+        seeder.seedAccount(tenant, "dono-" + sufixo + "@alumni.dev", "senha123", Standing.OWNER);
+        UUID veteranoId = seeder.seedAccount(tenant, "veterano-" + sufixo + "@alumni.dev", "senha123", Standing.MEMBER);
 
-        String owner = login("dono@alumni.dev", "senha123");
-        String veterano = login("veterano@alumni.dev", "senha123");
+        String owner = login("dono-" + sufixo + "@alumni.dev", "senha123");
+        String veterano = login("veterano-" + sufixo + "@alumni.dev", "senha123");
 
         assertThat(getWithToken("/v1/members", veterano).getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
 
-        assertThat(post("/v1/members/" + veteranoId + "/retire", owner).getStatusCode())
+        assertThat(status(veteranoId, "ALUMNUS", owner).getStatusCode())
                 .isEqualTo(HttpStatus.OK);
 
         assertThat(getWithToken("/v1/members", veterano).getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(post("/v1/members/" + veteranoId + "/reactivate", veterano).getStatusCode())
+        assertThat(status(veteranoId, "ACTIVE", veterano).getStatusCode())
                 .isEqualTo(HttpStatus.FORBIDDEN);
     }
 
     @Test
     @DisplayName("reativar um alumni restaura o acesso de membro comum")
     void shouldRestoreAccessWhenReactivated() {
-        UUID tenant = seeder.seedTenant("EJ Retorno", "ej-retorno");
-        seeder.seedAccount(tenant, "dono@retorno.dev", "senha123", Standing.OWNER);
-        UUID veteranoId = seeder.seedAccount(tenant, "veterano@retorno.dev", "senha123", Standing.MEMBER);
-        String owner = login("dono@retorno.dev", "senha123");
+        String sufixo = UUID.randomUUID().toString().substring(0, 8);
+        UUID tenant = seeder.seedTenant("EJ Retorno", "ej-retorno-" + sufixo);
+        seeder.seedAccount(tenant, "dono-" + sufixo + "@retorno.dev", "senha123", Standing.OWNER);
+        UUID veteranoId = seeder.seedAccount(tenant, "veterano-" + sufixo + "@retorno.dev", "senha123", Standing.MEMBER);
+        String owner = login("dono-" + sufixo + "@retorno.dev", "senha123");
 
-        post("/v1/members/" + veteranoId + "/retire", owner);
-        assertThat(post("/v1/members/" + veteranoId + "/reactivate", owner).getStatusCode())
+        status(veteranoId, "ALUMNUS", owner);
+        assertThat(status(veteranoId, "ACTIVE", owner).getStatusCode())
                 .isEqualTo(HttpStatus.OK);
 
-        String veterano = login("veterano@retorno.dev", "senha123");
+        String veterano = login("veterano-" + sufixo + "@retorno.dev", "senha123");
         assertThat(getWithToken("/v1/members", veterano).getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+    }
+
+    private ResponseEntity<String> status(UUID memberId, String value, String bearerToken) {
+        return put("/v1/members/" + memberId + "/status", Map.of("value", value), bearerToken,
+                String.class);
     }
 
     private ResponseEntity<String> post(String path, String bearerToken) {

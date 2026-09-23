@@ -5,6 +5,7 @@ import br.com.puccomp.api.shared.aggregation.Slice;
 import br.com.puccomp.api.shared.reference.NamedRef;
 import io.swagger.v3.oas.annotations.media.Schema;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 /**
@@ -43,19 +44,69 @@ public record MemberSummaryResponse(
         @Schema(name = "by_standing", description = "Na ordem declarada em Standing")
         List<Slice> byStanding,
 
+        @Schema(description = "Tempo de casa do conjunto filtrado. null quando ninguém do recorte "
+                + "tem data de entrada conhecida")
+        Tenure tenure,
+
+        @Schema(description = "Saídas de ACTIVE na janela sobre o quadro médio, restrito a quem "
+                + "passa pelo filtro. Fração sem limite superior. previous é sempre nulo. "
+                + "ATENÇÃO: o recorte usa a atribuição de HOJE — cargo, diretoria e curso não têm "
+                + "histórico, então um filtro de diretoria descreve as saídas de quem hoje está "
+                + "nela, não as saídas que a diretoria teve. null sem ninguém no recorte")
+        Metric turnover,
+
+        @Schema(name = "turnover_period", description = "A janela de meses civis completos usada "
+                + "em turnover. null quando turnover é null")
+        Period turnoverPeriod,
+
         Gaps gaps,
 
         @Schema(name = "organization_context")
         OrganizationContext organizationContext
 ) {
 
-    /** Contam somente membros ACTIVE do conjunto filtrado — {@code status=ALUMNUS} zera os dois. */
+    /** Janela meia-aberta em que o turnover foi medido: from inclusive, to exclusivo. */
+    public record Period(java.time.Instant from, java.time.Instant to, long months) { }
+
+    /**
+     * Tempo decorrido na EJ, do primeiro ingresso até agora para quem está ativo, e até a saída
+     * para quem saiu. O mesmo campo responde as três leituras: quanto tempo estão aqui, quanto
+     * tempo ficaram, ou a mistura.
+     *
+     * <p><b>Não é o {@code average_tenure_months} do relatório histórico.</b> Lá a média cobre só
+     * intervalos ativos encerrados na janela, descontando afastamento; aqui é tempo decorrido da
+     * população filtrada, inclusive de quem ainda está. Os dois números são corretos e diferentes,
+     * e comparar um com o outro não significa nada.
+     */
+    public record Tenure(
+            @Schema(name = "median_months", description = "Mediana em meses de 365,2425/12 dias, "
+                    + "duas casas. É a que se exibe: um fundador de cinco anos puxa a média e faz "
+                    + "a equipe parecer mais veterana do que é. null sem ninguém elegível")
+            BigDecimal medianMonths,
+
+            @Schema(name = "average_months", description = "Média dos mesmos elegíveis, para "
+                    + "comparar com a mediana. null sem ninguém elegível")
+            BigDecimal averageMonths,
+
+            @Schema(name = "unknown_start", description = "Membros do recorte sem data de entrada "
+                    + "conhecida — de baseline, anteriores ao rastreamento. Ficam fora das duas "
+                    + "medidas, e publicá-los evita apresentar a mediana como se cobrisse todos")
+            long unknownStart
+    ) { }
+
+    /** Contam somente membros ACTIVE do conjunto filtrado — {@code status=ALUMNUS} zera tudo. */
     public record Gaps(
             @Schema(name = "without_role", description = "Membros ativos do recorte sem cargo")
             long withoutRole,
 
             @Schema(name = "without_department", description = "Membros ativos do recorte sem diretoria")
-            long withoutDepartment
+            long withoutDepartment,
+
+            @Schema(name = "without_role_by_department",
+                    description = "Onde estão os ativos sem cargo, da maior contagem para a menor. "
+                            + "key.kind ABSENT é quem não tem nem cargo nem diretoria. "
+                            + "slice_limit não corta esta lista")
+            List<Slice> withoutRoleByDepartment
     ) { }
 
     /**

@@ -8,6 +8,7 @@ import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.TenantId;
 
+import java.time.Instant;
 import java.util.UUID;
 
 @Entity
@@ -32,6 +33,14 @@ public class Member {
     @Column(nullable = false)
     private String name;
 
+    /** Cópia do e-mail da conta, para o contrato público e para a busca alcançarem os dois no
+     *  mesmo predicado. Nulo em membro sem conta associada. */
+    private String email;
+
+    /** Gerada pelo banco a partir de {@code name}; existe só para o JPQL da busca alcançá-la. */
+    @Column(name = "search_name", insertable = false, updatable = false)
+    private String searchName;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Standing standing;
@@ -52,6 +61,19 @@ public class Member {
     @JoinColumn(name = "department_id")
     private Department department;
 
+    /** Preenchido, o membro deixou de existir para quem consome a API. Nulo é o vínculo vivo. */
+    @Column(name = "deleted_at")
+    private Instant deletedAt;
+
+    /** Primeira ativação conhecida. Nulo em membro de baseline: a entrada dele é anterior ao
+     *  rastreamento e continua desconhecida. Nunca se move depois de gravada. */
+    @Column(name = "joined_at")
+    private Instant joinedAt;
+
+    /** Fim do intervalo ativo em curso, quando ele acaba. Nulo enquanto o membro está ativo. */
+    @Column(name = "left_at")
+    private Instant leftAt;
+
     // Package-private de propósito: mudar o estado sem registrar o evento correspondente é
     // exatamente o que o histórico de vínculos existe para impedir. Passe pelo MemberLifecycle.
     public void changeStatus(MemberStatus status) {
@@ -61,5 +83,32 @@ public class Member {
     void assign(Role role, Department department) {
         this.role = role;
         this.department = department;
+    }
+
+    // Package-private pelo mesmo motivo do changeStatus: deletar sem fechar o intervalo ativo
+    // deixaria o removido contando no turnover para sempre. Passe pelo MemberLifecycle.
+    public void delete(Instant at) {
+        this.deletedAt = at;
+    }
+
+    /** Só a primeira ativação vira entrada: reativar não reescreve a data original. */
+    public void recordJoin(Instant at) {
+        if (joinedAt == null) joinedAt = at;
+    }
+
+    public void recordLeave(Instant at) {
+        this.leftAt = at;
+    }
+
+    public void clearLeave() {
+        this.leftAt = null;
+    }
+
+    public void restore() {
+        this.deletedAt = null;
+    }
+
+    public boolean isDeleted() {
+        return deletedAt != null;
     }
 }

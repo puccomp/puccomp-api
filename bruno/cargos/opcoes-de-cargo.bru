@@ -1,0 +1,25 @@
+meta {
+  name: Opções de cargo
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{base_url}}/v1/roles/options
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{access_token}}
+}
+
+docs {
+  Catálogo dos cargos ATIVOS, ordenado por nome. Exige roles:read.
+
+  Devolve um array puro, sem envelope de página, e não aceita page nem size. É o endpoint para
+  preencher filtro e seletor: a listagem paginada tem teto de 100, e numa EJ maior o seletor
+  mostraria menos cargos do que existem sem nenhum sinal de que faltou alguém.
+
+  Cargo desativado não aparece — ele não é uma opção válida. Para vê-lo, use "Listar cargos".
+}

@@ -1,0 +1,22 @@
+meta {
+  name: Opções de diretoria
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{base_url}}/v1/departments/options
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{access_token}}
+}
+
+docs {
+  Catálogo das diretorias ATIVAS, ordenado por nome. Exige departments:read.
+
+  Array puro, sem envelope de página e sem page nem size — o irmão de "Opções de cargo", pelo mesmo
+  motivo: filtro incompleto em silêncio é o pior jeito de quebrar.
+}

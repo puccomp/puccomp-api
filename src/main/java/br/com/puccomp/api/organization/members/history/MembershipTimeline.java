@@ -37,6 +37,8 @@ final class MembershipTimeline {
         private final UUID memberId;
         private final List<ActivityInterval> intervals = new ArrayList<>();
         private Instant baselineAt;
+        private Instant knownSince;
+        private Instant goneAt;
         private ActivityInterval open;
         private boolean createdUnderTracking;
         private boolean hadActivation;
@@ -46,6 +48,7 @@ final class MembershipTimeline {
         }
 
         private void apply(MemberStatusEvent event) {
+            if (knownSince == null) knownSince = event.getOccurredAt();
             boolean wasActive = open != null;
             boolean isActive = event.getToStatus() == MemberStatus.ACTIVE;
 
@@ -63,11 +66,25 @@ final class MembershipTimeline {
                     if (isActive && !wasActive) {
                         open = activation(event.getOccurredAt());
                     } else if (!isActive && wasActive) {
-                        // Sair de ACTIVE encerra o intervalo. Trocar ALUMNUS por INACTIVE não passa
-                        // por aqui: quem já não estava ativo não sai uma segunda vez.
+                        // Sair de ACTIVE encerra o intervalo. Quem já não estava ativo não sai uma
+                        // segunda vez, e isso cai naturalmente do registro por estado.
                         intervals.add(open.closedAt(event.getOccurredAt()));
                         open = null;
                     }
+                }
+                // A deleção encerra o intervalo de quem estava ativo; deletar um alumnus não é
+                // saída nenhuma, porque ele já tinha saído do quadro.
+                case DELETED -> {
+                    goneAt = event.getOccurredAt();
+                    if (wasActive) {
+                        intervals.add(open.closedAt(event.getOccurredAt()));
+                        open = null;
+                    }
+                }
+                // Restaurar devolve o intervalo só a quem estava ativo quando saiu.
+                case RESTORED -> {
+                    goneAt = null;
+                    if (isActive && !wasActive) open = activation(event.getOccurredAt());
                 }
             }
         }
@@ -87,7 +104,7 @@ final class MembershipTimeline {
             List<ActivityInterval> all = new ArrayList<>(intervals);
             if (open != null) all.add(open);
             all.sort(java.util.Comparator.comparing(interval -> interval.start()));
-            return new MemberHistory(memberId, baselineAt, List.copyOf(all));
+            return new MemberHistory(memberId, baselineAt, knownSince, goneAt, List.copyOf(all));
         }
     }
 }

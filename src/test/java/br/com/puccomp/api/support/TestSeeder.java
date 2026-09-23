@@ -72,7 +72,25 @@ public class TestSeeder {
             UUID courseId = courseCatalog.listActive().stream().findFirst()
                     .map(CourseCatalog.CourseOption::id)
                     .orElseGet(() -> courseProvisioning.createCourse("Ciência da Computação"));
-            return memberProvisioning.createMember(accountId, email, courseId, roleId, standing);
+            return memberProvisioning.createMember(accountId, email, email, courseId, roleId, standing);
+        } finally {
+            TenantContext.clear();
+        }
+    }
+
+    /** Conta e membro com nome próprio, para quando o teste precisa distinguir nome de e-mail. */
+    public UUID seedMember(UUID tenantId, String name, String email, Standing standing) {
+        UUID accountId = accounts.save(Account.builder()
+                .email(email)
+                .passwordHash(passwordEncoder.encode("senha123"))
+                .status(AccountStatus.ACTIVE)
+                .build()).getId();
+        TenantContext.set(tenantId);
+        try {
+            UUID courseId = courseCatalog.listActive().stream().findFirst()
+                    .map(CourseCatalog.CourseOption::id)
+                    .orElseGet(() -> courseProvisioning.createCourse("Ciência da Computação"));
+            return memberProvisioning.createMember(accountId, name, email, courseId, null, standing);
         } finally {
             TenantContext.clear();
         }

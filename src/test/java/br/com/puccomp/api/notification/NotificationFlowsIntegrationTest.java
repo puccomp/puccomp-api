@@ -99,13 +99,13 @@ class NotificationFlowsIntegrationTest extends AbstractIntegrationTest {
         UUID memberId = seeder.seedAccount(tenant, "membro@vinculo.dev", "senha123", Standing.MEMBER);
         String owner = login("dono@vinculo.dev", "senha123");
 
-        assertThat(post("/v1/members/" + memberId + "/retire", null, owner, String.class)
+        assertThat(put("/v1/members/" + memberId + "/status", Map.of("value", "ALUMNUS"), owner, String.class)
                 .getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(delivered(1))
                 .containsExactly(entry("membro@vinculo.dev", "Você agora é alumnus"));
 
         drainMail();
-        assertThat(post("/v1/members/" + memberId + "/reactivate", null, owner, String.class)
+        assertThat(put("/v1/members/" + memberId + "/status", Map.of("value", "ACTIVE"), owner, String.class)
                 .getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(delivered(1))
                 .containsExactly(entry("membro@vinculo.dev", "Seu vínculo foi reativado"));

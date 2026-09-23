@@ -98,13 +98,16 @@ class BearerAuthenticationFilter extends OncePerRequestFilter {
     }
 
     private Set<String> effectivePermissions(AuthPrincipal principal) {
-        MemberDirectory.MemberAccess access = principal.memberId() == null ? null
-                : memberDirectory.findAccess(principal.memberId()).orElse(null);
-        return permissionResolver.effectiveAuthorities(new PermissionResolver.Subject(
-                principal.memberId(),
-                access != null ? access.roleId() : null,
-                principal.standing(),
-                access != null && access.readOnly()));
+        if (principal.memberId() == null)
+            return permissionResolver.effectiveAuthorities(new PermissionResolver.Subject(
+                    null, null, principal.standing(), false));
+
+        // Token emitido antes de o vínculo acabar continua sendo apresentado: sem esta recusa, um
+        // dono removido manteria acesso total até o token expirar, porque o OWNER do claim basta.
+        return memberDirectory.findAccess(principal.memberId())
+                .map(access -> permissionResolver.effectiveAuthorities(new PermissionResolver.Subject(
+                        principal.memberId(), access.roleId(), principal.standing(), access.readOnly())))
+                .orElseGet(Set::of);
     }
 
     private String bearerToken(HttpServletRequest request) {

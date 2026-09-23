@@ -4,6 +4,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
@@ -20,4 +21,9 @@ interface MemberStatusEventRepository extends JpaRepository<MemberStatusEvent, U
      */
     @Query("select e from MemberStatusEvent e order by e.memberId asc, e.sequence asc")
     List<MemberStatusEvent> findAllOrdered();
+
+    /** O mesmo histórico, restrito a alguns vínculos — o turnover de um recorte do quadro. */
+    @Query("select e from MemberStatusEvent e where e.memberId in :memberIds "
+            + "order by e.memberId asc, e.sequence asc")
+    List<MemberStatusEvent> findOrderedByMemberIds(@Param("memberIds") Collection<UUID> memberIds);
 }

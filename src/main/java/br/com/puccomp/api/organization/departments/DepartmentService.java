@@ -30,6 +30,13 @@ public class DepartmentService implements DepartmentCatalog {
         return DepartmentResponse.from(repository.save(department));
     }
 
+    /** Catálogo inteiro das diretorias ativas, sem paginação — o irmão de RoleService.findOptions. */
+    @Transactional(readOnly = true)
+    public java.util.List<DepartmentResponse> findOptions() {
+        return repository.findAllByActiveTrueOrderByNameAsc().stream()
+                .map(DepartmentResponse::from).toList();
+    }
+
     @Transactional(readOnly = true)
     public Page<DepartmentResponse> findAll(Pageable pageable) {
         return repository.findAll(pageable).map(DepartmentResponse::from);

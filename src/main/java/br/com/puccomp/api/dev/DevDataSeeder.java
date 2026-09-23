@@ -244,7 +244,7 @@ class DevDataSeeder implements ApplicationRunner {
 
             turma.add(sai && saida > entrada
                     ? DevFixture.Pessoa.saiu(aprovado.nome(), aprovado.curso(), cargo, entrada,
-                            saida, i % 8 == 3 ? "ALUMNUS" : "INACTIVE")
+                            saida, "ALUMNUS")
                     : DevFixture.Pessoa.ativa(aprovado.nome(), aprovado.curso(), cargo, entrada));
         }
         return turma;

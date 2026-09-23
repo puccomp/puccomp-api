@@ -29,6 +29,9 @@ class MemberRepositoryN1Test extends AbstractIntegrationTest {
     MemberRepository memberRepository;
 
     @Autowired
+    MemberService memberService;
+
+    @Autowired
     EntityManager entityManager;
 
     Statistics statistics;
@@ -37,11 +40,14 @@ class MemberRepositoryN1Test extends AbstractIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        tenantId = seeder.seedTenant("EJ N1 Membros", "ej-n1-membros-" + UUID.randomUUID());
+        String suffix = UUID.randomUUID().toString().substring(0, 8);
+        tenantId = seeder.seedTenant("EJ N1 Membros", "ej-n1-membros-" + suffix);
 
+        // O e-mail da conta é único no banco inteiro, e o fixture roda uma vez por teste da classe.
         for (int i = 0; i < 5; i++) {
             seeder.seedCourse(tenantId, "Curso " + i);
-            seeder.seedAccount(tenantId, "membro" + i + "@n1.com", "senha123", Standing.MEMBER);
+            seeder.seedAccount(tenantId, "membro" + i + "-" + suffix + "@n1.com", "senha123",
+                    Standing.MEMBER);
         }
 
         SessionFactory sessionFactory = entityManager.getEntityManagerFactory().unwrap(SessionFactory.class);
@@ -51,7 +57,7 @@ class MemberRepositoryN1Test extends AbstractIntegrationTest {
     }
 
     private static MemberFilter noFilter() {
-        return new MemberFilter(null, null, null, null, null, null, null, null);
+        return new MemberFilter(null, null, null, null, null, null, null, null, null, null);
     }
 
     @Test
@@ -73,6 +79,23 @@ class MemberRepositoryN1Test extends AbstractIntegrationTest {
             // getQueryExecutionCount ignora carga preguiçosa de associação; quem denuncia o
             // N+1 é o entity fetch, disparado quando o curso fica de fora do grafo.
             assertThat(statistics.getEntityFetchCount()).isZero();
+        } finally {
+            TenantContext.clear();
+        }
+    }
+
+    @Test
+    @DisplayName("a data de entrada da página inteira sai de uma consulta só, não de uma por membro")
+    void shouldResolveJoinDatesInASingleQuery() {
+        TenantContext.set(tenantId);
+        try {
+            var page = memberService.findAll(noFilter(), PageRequest.of(0, 20));
+
+            assertThat(page.getContent()).hasSize(5);
+            assertThat(page.getContent()).allSatisfy(member ->
+                    assertThat(member.joinedAt()).isNotNull());
+            // listagem, contagem da página e histórico. Uma consulta por membro seria 5 a mais.
+            assertThat(statistics.getQueryExecutionCount()).isLessThanOrEqualTo(3);
         } finally {
             TenantContext.clear();
         }

@@ -47,11 +47,14 @@ public class MemberService {
 
     @Transactional(readOnly = true)
     public Page<MemberResponse> findAll(MemberFilter filter, Pageable pageable) {
-        return repository.findAll(MemberSpecs.matching(filter), pageable).map(MemberResponse::from);
+        return repository.findAll(MemberSpecs.matching(filter), MemberSorts.translate(pageable))
+                .map(MemberResponse::from);
     }
 
-    public MemberSummaryResponse summarize(MemberFilter filter, MemberSummaryService.ContextAccess access) {
-        return summaries.summarize(filter, access);
+    public MemberSummaryResponse summarize(MemberFilter filter, MemberSummaryService.ContextAccess access,
+                                           MemberSummaryService.SliceLimit limit,
+                                           int turnoverMonths) {
+        return summaries.summarize(filter, access, limit, turnoverMonths);
     }
 
     /**
@@ -77,13 +80,33 @@ public class MemberService {
     }
 
     @Transactional
-    MemberResponse retire(UUID id) {
-        return transition(id, MemberStatus.ALUMNUS);
+    MemberResponse changeStatus(UUID id, MemberStatus target) {
+        Member member = repository.findForStatusChange(id)
+                .filter(candidate -> !candidate.isDeleted())
+                .orElseThrow(() -> new ResourceNotFoundException("Membro não encontrado"));
+        lifecycle.changeStatus(member, target);
+        return MemberResponse.from(member);
     }
 
+    /**
+     * Soft delete: a linha fica, o membro some. O histórico é atualizado junto — sem isso, quem
+     * saiu estando ativo seguiria pesando no quadro médio do turnover.
+     */
     @Transactional
-    MemberResponse reactivate(UUID id) {
-        return transition(id, MemberStatus.ACTIVE);
+    void delete(UUID id) {
+        Member member = repository.findForStatusChange(id)
+                .filter(candidate -> !candidate.isDeleted())
+                .orElseThrow(() -> new ResourceNotFoundException("Membro não encontrado"));
+        lifecycle.delete(member, clock.instant());
+    }
+
+    /** Desfaz a deleção. Restaurar quem não está deletado é no-op, não erro. */
+    @Transactional
+    MemberResponse restore(UUID id) {
+        Member member = repository.findForStatusChange(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Membro não encontrado"));
+        lifecycle.restore(member);
+        return MemberResponse.from(member);
     }
 
     @Transactional
@@ -106,15 +129,10 @@ public class MemberService {
         return department == null ? null : department.getName();
     }
 
-    private MemberResponse transition(UUID id, MemberStatus status) {
-        Member member = repository.findForStatusChange(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Membro não encontrado"));
-        lifecycle.changeStatus(member, status);
-        return MemberResponse.from(member);
-    }
-
+    /** Membro deletado não existe para quem consome a API: é 404, não 200 com um campo a mais. */
     private Member findMember(UUID id) {
         return repository.findById(id)
+                .filter(member -> !member.isDeleted())
                 .orElseThrow(() -> new ResourceNotFoundException("Membro não encontrado"));
     }
 

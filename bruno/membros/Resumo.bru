@@ -18,6 +18,10 @@ params:query {
   ~standing: MEMBER
   ~has_role: false
   ~has_department: false
+  ~q: ana
+  ~include_deleted: true
+  ~slice_limit: 6
+  ~turnover_months: 12
 }
 
 auth:bearer {
@@ -30,10 +34,45 @@ docs {
   
   ## Irmão da listagem
   
-  Aceita exatamente os mesmos filtros de "Listar", com a mesma normalização e as mesmas rejeições —
-  inclusive o alias depreciado departmentId. page, size e sort NÃO têm efeito: o resumo agrega todo
+  Aceita exatamente os mesmos filtros de "Listar", inclusive q, com a mesma normalização e as
+  mesmas rejeições — inclusive o alias depreciado departmentId. page, size e sort NÃO têm efeito: o resumo agrega todo
   o conjunto filtrado, não a página.
   
+  ## slice_limit e turnover_months moldam, não filtram
+
+  São os dois únicos parâmetros que existem aqui e não em "Listar" — eles não recortam população.
+
+  slice_limit (1 a 20) corta as distribuições POR RECURSO (by_department, by_role, by_course) nas N
+  maiores e agrega o resto num balde key.kind = OTHERS. Fora de faixa é 400, nunca corte silencioso.
+  by_status e by_standing não são cortados: são enums de cardinalidade fixa cuja ordem declarada
+  carrega significado.
+
+  A categoria sem vínculo (key.kind = ABSENT) NUNCA entra em OTHERS nem ocupa uma das vagas do
+  limite — ela é a acionável. Por isso a resposta pode ter até slice_limit + 2 entradas, e os dois
+  baldes vêm sempre por último. A soma dos count continua igual a total, com ou sem limite.
+
+  key.kind é o que distingue ABSENT de OTHERS: os dois têm id nulo, e o rótulo é texto de exibição,
+  não contrato.
+
+  ## tenure: tempo de casa
+
+  Tempo DECORRIDO de cada pessoa do recorte: quem está ativo conta até agora, quem saiu conta até a
+  saída. Mediana e média em meses de 365,2425/12 dias; exiba a mediana, porque um fundador de cinco
+  anos puxa a média. unknown_start são os de baseline, que ficam fora das duas medidas.
+
+  NÃO é o average_tenure_months do relatório histórico: lá a média cobre só intervalos encerrados
+  DENTRO da janela, descontando afastamento. Os dois números são corretos e diferentes.
+
+  ## turnover: leia o recorte com cuidado
+
+  Saídas de ACTIVE na janela de turnover_months (1 a 24, padrão 12) sobre o quadro médio, restrito a
+  quem passa pelo filtro.
+
+  O recorte usa a atribuição de HOJE. Cargo, diretoria e curso não têm histórico, então
+  ?department_id=X descreve "as saídas de quem hoje está nessa diretoria", não "as saídas que a
+  diretoria teve". É a mesma razão de /members/history recusar esses filtros: lá, com série mensal e
+  coortes, a aproximação seria indefensável.
+
   ## Duas populações, de propósito
   
   total, active_headcount, as cinco distribuições e gaps descrevem o CONJUNTO FILTRADO.
@@ -55,9 +94,12 @@ docs {
   continuam nas distribuições: os membros continuam pertencendo ao recorte.
   
   Ordenação: recursos por contagem decrescente, desempate pelo id em ordem textual e a categoria sem
-  vínculo por último no empate; enums na ordem declarada (ACTIVE, ALUMNUS, INACTIVE, PENDING e
+  vínculo por último no empate; enums na ordem declarada (ACTIVE, ALUMNUS e
   OWNER, MEMBER).
   
+  gaps.without_role_by_department diz ONDE estão os ativos sem cargo, não só quantos são. A soma bate
+  com without_role, e slice_limit não corta essa lista.
+
   gaps.without_role e gaps.without_department contam os membros ACTIVE do recorte sem esses vínculos.
   Logo status=ALUMNUS devolve zero nos dois, mesmo havendo alumni sem cargo.
   

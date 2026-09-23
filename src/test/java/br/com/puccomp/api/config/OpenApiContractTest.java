@@ -41,8 +41,15 @@ class OpenApiContractTest extends AbstractIntegrationTest {
         // O cliente monta o mesmo recorte nos dois; se um filtro só existir num deles, a tabela e o
         // gráfico ao lado dela passam a descrever populações diferentes.
         assertThat(resumo).contains("department_id", "departmentId", "role_id", "course_id",
-                "status", "standing", "has_role", "has_department");
-        assertThat(listagem).containsAll(resumo);
+                "status", "standing", "has_role", "has_department", "q", "include_deleted");
+
+        // slice_limit e turnover_months moldam o resumo, não recortam população: são os únicos
+        // parâmetros que podem existir só de um lado sem quebrar a invariante acima.
+        var apresentacao = java.util.Set.of("slice_limit", "turnover_months");
+        assertThat(listagem).containsAll(
+                resumo.stream().filter(name -> !apresentacao.contains(name)).toList());
+        assertThat(resumo).containsAll(apresentacao);
+        assertThat(listagem).doesNotContainAnyElementsOf(apresentacao);
         // page, size e sort descrevem a página; no resumo não têm efeito, e não são publicados.
         assertThat(resumo).doesNotContain("page", "size", "sort");
 

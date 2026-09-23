@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;
+import java.util.List;
 import java.util.UUID;
 
 interface RoleRepository extends JpaRepository<Role, UUID> {
@@ -19,6 +20,8 @@ interface RoleRepository extends JpaRepository<Role, UUID> {
 
     @EntityGraph(attributePaths = "department")
     Page<Role> findAllByDepartmentId(UUID departmentId, Pageable pageable);
+
+    List<Role> findAllByActiveTrueOrderByNameAsc();
 
     @EntityGraph(attributePaths = "department")
     Optional<Role> findById(UUID id);

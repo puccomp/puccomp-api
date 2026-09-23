@@ -13,11 +13,13 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.YearMonth;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.UUID;
 
 /**
  * Métricas temporais do quadro, calculadas sobre o histórico de vínculos.
@@ -76,7 +78,27 @@ public class MemberHistoryService {
                 series(window, trackedSince, month -> countActivations(histories, window, month, false)),
                 series(window, trackedSince,
                         month -> BigDecimal.valueOf(activeCount(histories, window.endOf(month)))),
+                series(window, trackedSince,
+                        month -> BigDecimal.valueOf(alumniCount(histories, window.endOf(month)))),
+                series(window, trackedSince,
+                        month -> BigDecimal.valueOf(existingCount(histories, window.endOf(month)))),
                 covered ? cohorts(histories, window) : null);
+    }
+
+    /**
+     * Turnover restrito a um conjunto de membros.
+     *
+     * <p><b>O recorte usa a atribuição de hoje.</b> Cargo, diretoria e curso não têm histórico, e
+     * por isso "turnover do Comercial" aqui significa "saídas de quem hoje está lotado no
+     * Comercial" — não "saídas que o Comercial teve", que exigiria saber onde cada pessoa estava
+     * em cada mês. É a razão de o relatório de {@code /members/history} recusar esses filtros:
+     * lá a série mensal e as coortes tornariam a aproximação indefensável. Num escalar de janela
+     * fechada ela é utilizável, desde que rotulada.
+     */
+    @Transactional(readOnly = true)
+    public BigDecimal turnoverOf(Collection<UUID> memberIds, ReportWindow window) {
+        if (memberIds.isEmpty()) return null;
+        return turnover(MembershipTimeline.from(events.findOrderedByMemberIds(memberIds)), window);
     }
 
     private static MemberHistoryResponse.Period period(ReportWindow window) {
@@ -118,6 +140,14 @@ public class MemberHistoryService {
 
     private static long activeCount(List<MemberHistory> histories, Instant instant) {
         return histories.stream().filter(history -> history.activeJustBefore(instant)).count();
+    }
+
+    private static long alumniCount(List<MemberHistory> histories, Instant instant) {
+        return histories.stream().filter(history -> history.alumnusJustBefore(instant)).count();
+    }
+
+    private static long existingCount(List<MemberHistory> histories, Instant instant) {
+        return histories.stream().filter(history -> history.existsJustBefore(instant)).count();
     }
 
     /**
