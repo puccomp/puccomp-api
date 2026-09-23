@@ -1,5 +1,6 @@
 package br.com.puccomp.api.mcp;
 
+import br.com.puccomp.api.organization.departments.DepartmentResponse;
 import br.com.puccomp.api.shared.reference.Standing;
 import br.com.puccomp.api.support.AbstractIntegrationTest;
 import br.com.puccomp.api.support.TestSeeder;
@@ -14,6 +15,8 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -21,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -140,10 +144,12 @@ class McpServerIntegrationTest extends AbstractIntegrationTest {
         String catalogo = mcp(pat, jsonRpc(10, "tools/list", null)).getBody();
         assertThat(catalogo).contains("\"department_id\"").contains("\"min_term\"")
                 .contains("\"has_cv\"").contains("\"process_id\"")
-                .contains("\"slice_limit\"").contains("\"turnover_months\"");
+                .contains("\"slice_limit\"").contains("\"turnover_months\"")
+                .contains("\"has_role\"").contains("\"has_department\"");
         assertThat(catalogo).doesNotContain("departmentId").doesNotContain("minTerm")
                 .doesNotContain("hasCv").doesNotContain("processId")
-                .doesNotContain("sliceLimit").doesNotContain("turnoverMonths");
+                .doesNotContain("sliceLimit").doesNotContain("turnoverMonths")
+                .doesNotContain("hasRole").doesNotContain("hasDepartment");
     }
 
     @Test
@@ -176,6 +182,45 @@ class McpServerIntegrationTest extends AbstractIntegrationTest {
         String cortado = mcp(pat, chamada(13, "members_summary",
                 Map.of("slice_limit", 1))).getBody();
         assertThat(cortado).contains("OTHERS");
+    }
+
+    @Test
+    @DisplayName("has_role e has_department recortam na ferramenta o mesmo conjunto que no REST")
+    void shouldMatchRestOnPresenceFilters() {
+        UUID tenant = seeder.seedTenant("EJ MCP presença", "ej-mcp-presenca");
+        seeder.seedAccount(tenant, "dono@presenca.dev", "senha123", Standing.OWNER);
+        UUID cargo = seeder.seedCargo(tenant, "Cargo de Presença");
+        seeder.seedAccount(tenant, "com-cargo@presenca.dev", "senha123", Standing.MEMBER, cargo);
+        UUID lotado = seeder.seedAccount(tenant, "com-diretoria@presenca.dev", "senha123", Standing.MEMBER);
+        String owner = login("dono@presenca.dev", "senha123");
+        UUID diretoria = post("/v1/departments", Map.of("name", "Projetos", "description", "Projetos"),
+                owner, DepartmentResponse.class).getBody().id();
+        assertThat(put("/v1/members/" + lotado + "/assignment",
+                Map.of("department_id", diretoria.toString()), owner, String.class).getStatusCode())
+                .isEqualTo(HttpStatus.OK);
+        String pat = criarPat(owner, null);
+
+        for (Map<String, Object> recorte : List.<Map<String, Object>>of(
+                Map.of("has_role", true),
+                Map.of("has_department", true),
+                Map.of("has_role", false, "has_department", false))) {
+            String query = recorte.entrySet().stream()
+                    .map(entry -> entry.getKey() + "=" + entry.getValue())
+                    .collect(Collectors.joining("&"));
+            List<String> pelaApi = emails(json(owner, "/v1/members?" + query).get("content"));
+
+            assertThat(pelaApi).as("recorte %s", recorte).hasSize(1);
+            assertThat(emails(resultado(pat, "members_list", recorte).get("items")))
+                    .as("members_list %s", recorte).isEqualTo(pelaApi);
+            assertThat(resultado(pat, "members_summary", recorte).get("total").get("value").asInt())
+                    .as("members_summary %s", recorte).isEqualTo(pelaApi.size());
+        }
+
+        // Contradição é recusada, não respondida com zero: o agente precisa saber que a pergunta
+        // não descrevia conjunto nenhum.
+        assertThat(mcp(pat, chamada(20, "members_list",
+                Map.of("has_role", false, "role_id", cargo.toString()))).getBody())
+                .contains("\"isError\":true").contains("has_role=false não combina com role_id");
     }
 
     @Test
@@ -253,6 +298,28 @@ class McpServerIntegrationTest extends AbstractIntegrationTest {
         assertThat(res.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(res.getBody()).contains("\"isError\":true").contains("não encontrado");
         assertThat(res.getBody()).doesNotContain("br.com.puccomp.api.shared.exception");
+    }
+
+    private final ObjectMapper mapper = new ObjectMapper();
+
+    /** O resultado da ferramenta chega como texto JSON dentro do envelope JSON-RPC. */
+    private JsonNode resultado(String pat, String tool, Map<String, Object> argumentos) {
+        JsonNode content = mapper.readTree(mcp(pat, chamada(30, tool, argumentos)).getBody())
+                .get("result").get("content");
+        return mapper.readTree(content.get(0).get("text").asString());
+    }
+
+    private JsonNode json(String token, String path) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(token);
+        return mapper.readTree(rest.exchange(path, HttpMethod.GET, new HttpEntity<>(headers), String.class)
+                .getBody());
+    }
+
+    private static List<String> emails(JsonNode members) {
+        List<String> emails = new ArrayList<>();
+        for (JsonNode member : members) emails.add(member.get("email").asString());
+        return emails;
     }
 
     private String patDe(String nome, String slug, String email, List<String> scopes) {
