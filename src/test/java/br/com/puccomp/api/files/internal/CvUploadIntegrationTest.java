@@ -177,6 +177,70 @@ class CvUploadIntegrationTest extends AbstractIntegrationTest {
         return jdbc.sql("select count(*) from stored_files where tenant_id = ?").param(tenant).query(Long.class).single();
     }
 
+    @Test
+    @DisplayName("o detalhe descreve o currículo sem assinar; a URL sai de /cv, assinada na hora")
+    void signsCvOnlyOnDemand() throws Exception {
+        assertThat(submit("cv.pdf", "application/pdf", PdfValidatorTest.pdf(d -> { })).getStatusCode())
+                .isEqualTo(HttpStatus.CREATED);
+        UUID application = applicationOf("candidato@example.com");
+        clearInvocations(storage);
+
+        var detail = getWithToken(detailPath(application), token);
+        assertThat(detail.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(detail.getBody()).contains("\"cv\":{", "cv.pdf", "content_type")
+                .doesNotContain("download_url", "X-Amz");
+        assertThat(detail.getHeaders().getCacheControl()).isEqualTo("private, no-store");
+        verify(storage, never()).downloadUrl(anyString(), anyString(), anyString(), any(Duration.class));
+
+        var cv = getWithToken(detailPath(application) + "/cv", token);
+        assertThat(cv.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(cv.getBody()).contains("cv.pdf", "download_url", "download_expires_at", "X-Amz-Signature");
+        assertThat(cv.getHeaders().getCacheControl()).isEqualTo("private, no-store");
+        verify(storage).downloadUrl(eq("puccomp-private-dev"), startsWith(tenant + "/files/"), anyString(),
+                any(Duration.class));
+    }
+
+    @Test
+    @DisplayName("detalhe e currículo exigem recruitment:read, ficam no tenant, e /cv sem anexo é 404")
+    void guardsDetailAndCv() throws Exception {
+        submit("cv.pdf", "application/pdf", PdfValidatorTest.pdf(d -> { }));
+        UUID withCv = applicationOf("candidato@example.com");
+        assertThat(post("/v1/public/" + slug + "/processes/" + process + "/applications",
+                Map.of("full_name", "Bia", "email", "sem-cv@example.com", "phone", "31999990000",
+                        "course_id", courseId.toString(), "privacy_consent", true),
+                null, String.class).getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        UUID withoutCv = applicationOf("sem-cv@example.com");
+
+        assertThat(getWithToken(detailPath(withoutCv), token).getBody()).contains("\"cv\":null");
+        assertThat(getWithToken(detailPath(withoutCv) + "/cv", token).getStatusCode())
+                .isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(getWithToken(detailPath(UUID.randomUUID()), token).getStatusCode())
+                .isEqualTo(HttpStatus.NOT_FOUND);
+
+        assertThat(getWithToken(detailPath(withCv), null).getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        seeder.seedAccount(tenant, slug + "member@example.com", "senha123", Standing.MEMBER);
+        String member = login(slug + "member@example.com", "senha123");
+        assertThat(getWithToken(detailPath(withCv), member).getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(getWithToken(detailPath(withCv) + "/cv", member).getStatusCode())
+                .isEqualTo(HttpStatus.FORBIDDEN);
+
+        UUID other = seeder.seedTenant("Outra EJ", "other-" + slug);
+        seeder.seedAccount(other, slug + "other@example.com", "senha123", Standing.OWNER);
+        String outsider = login(slug + "other@example.com", "senha123");
+        assertThat(getWithToken(detailPath(withCv), outsider).getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(getWithToken(detailPath(withCv) + "/cv", outsider).getStatusCode())
+                .isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
+    private UUID applicationOf(String email) {
+        return jdbc.sql("select id from candidate_applications where process_id = ? and email = ?")
+                .param(process).param(email).query(UUID.class).single();
+    }
+
+    private static String detailPath(UUID application) {
+        return "/v1/recruitment/applications/" + application;
+    }
+
     private long applicationCount() {
         return jdbc.sql("select count(*) from candidate_applications where tenant_id = ?").param(tenant).query(Long.class).single();
     }

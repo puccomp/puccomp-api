@@ -88,6 +88,9 @@ public class RecruitmentTools {
                     maior que 1 é quem voltou, e first_applied_at diz desde quando. Os dois olham \
                     para a EJ inteira, e nenhum filtro desta consulta os restringe.
 
+                    cv descreve o currículo anexado (nome, tipo e tamanho) ou vem nulo. O arquivo \
+                    em si não é acessível por aqui.
+
                     Devolve {items, total, page, pages}.""")
     @PreAuthorize("hasAuthority('recruitment:read')")
     public String applicationsList(

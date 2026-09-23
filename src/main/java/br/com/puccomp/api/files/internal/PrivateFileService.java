@@ -1,6 +1,7 @@
 package br.com.puccomp.api.files.internal;
 
 import br.com.puccomp.api.files.FileDownload;
+import br.com.puccomp.api.files.FileMetadata;
 import br.com.puccomp.api.files.FileService;
 import br.com.puccomp.api.files.FileUpload;
 import br.com.puccomp.api.shared.exception.ServiceUnavailableException;
@@ -18,6 +19,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.Semaphore;
+import java.util.stream.Collectors;
 
 @Service
 class PrivateFileService implements FileService {
@@ -84,6 +86,16 @@ class PrivateFileService implements FileService {
                     url, expiresAt));
         }
         return Map.copyOf(result);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Map<UUID, FileMetadata> metadata(Collection<UUID> fileIds) {
+        UUID tenant = tenant();
+        if (fileIds.isEmpty()) return Map.of();
+        return repository.readyFiles(new HashSet<>(fileIds), tenant).stream()
+                .collect(Collectors.toUnmodifiableMap(file -> file.id(), file -> new FileMetadata(
+                        file.id(), file.filename(), file.contentType(), file.size())));
     }
 
     private ObjectStorage objects() {

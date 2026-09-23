@@ -1,0 +1,31 @@
+meta {
+  name: Currículo da inscrição
+  type: http
+  seq: 12
+}
+
+get {
+  url: {{base_url}}/v1/recruitment/applications/{{application_id}}/cv
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{access_token}}
+}
+
+script:post-response {
+  if (res.getStatus() === 200)
+    bru.setVar("cv_download_url", res.getBody().download_url);
+}
+
+docs {
+  Assina uma URL nova a cada chamada: { id, filename, content_type, size, download_url,
+  download_expires_at }. A URL permite GET direto no S3, sem Authorization, por 5 minutos — por
+  isso é pedida na hora de abrir o arquivo, e não ao montar a tela.
+
+  404 quando a inscrição não existe ou não tem currículo; 503 quando o armazenamento está
+  desligado. Requer recruitment:read; resposta sem cache.
+
+  Depois de rodar, "Baixar currículo" já usa a URL gerada aqui.
+}

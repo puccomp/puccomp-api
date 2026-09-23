@@ -23,4 +23,10 @@ public interface FileService {
      * resultado: um arquivo problemático não derruba a listagem inteira do consumidor.
      */
     Map<UUID, FileDownload> downloads(Collection<UUID> fileIds);
+
+    /**
+     * Mesmas regras de {@link #downloads(Collection)}, sem assinar URL: descreve o anexo sem
+     * conceder acesso a ele, e por isso também não depende do armazenamento estar habilitado.
+     */
+    Map<UUID, FileMetadata> metadata(Collection<UUID> fileIds);
 }

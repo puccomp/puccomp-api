@@ -8,4 +8,9 @@ import java.util.UUID;
 public record FileDownload(UUID id, String filename,
                            @Schema(name = "content_type") String contentType, long size,
                            @Schema(name = "download_url") String downloadUrl,
-                           @Schema(name = "download_expires_at") Instant downloadExpiresAt) { }
+                           @Schema(name = "download_expires_at") Instant downloadExpiresAt) {
+
+    public FileMetadata metadata() {
+        return new FileMetadata(id, filename, contentType, size);
+    }
+}

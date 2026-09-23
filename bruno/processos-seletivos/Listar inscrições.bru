@@ -28,12 +28,18 @@ auth:bearer {
   token: {{access_token}}
 }
 
+script:post-response {
+  if (res.getStatus() === 200 && res.getBody().content.length > 0)
+    bru.setEnvVar("application_id", res.getBody().content[0].id);
+}
+
 docs {
   Exige recruitment:read e pertence ao tenant autenticado. Resposta sem cache.
   Cada inscrição inclui cv: null quando não há currículo, ou:
   { id, filename, content_type, size, download_url, download_expires_at }.
   download_url permite GET direto no S3, sem Authorization da API, por 5 minutos.
-  Consulte a listagem novamente para renovar URLs expiradas; não persista essas URLs.
+  Transitório: a URL vai sair desta listagem, que passará a trazer só os metadados. Para abrir o
+  arquivo, use "Currículo da inscrição", que assina na hora do clique; não persista essas URLs.
 
   Cada linha traz também o histórico daquele e-mail na EJ inteira:
   applications_count (quantas inscrições, contando esta) e first_applied_at (a primeira delas).
