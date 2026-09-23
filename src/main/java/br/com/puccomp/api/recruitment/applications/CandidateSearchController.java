@@ -1,7 +1,12 @@
 package br.com.puccomp.api.recruitment.applications;
 
+import br.com.puccomp.api.files.FileDownload;
 import br.com.puccomp.api.recruitment.applications.summary.ApplicationHistorySummaryResponse;
+import br.com.puccomp.api.shared.exception.ErrorResponse;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -12,8 +17,11 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.UUID;
 
 @Tag(name = "Inscrições")
 @RestController
@@ -31,16 +39,47 @@ public class CandidateSearchController {
                     + "from e to — mais process_id, que recorta um processo sem trocar de rota.\n\n"
                     + "Cada linha já responde a reincidência sem varrer as páginas: applications_count "
                     + "maior que 1 é quem voltou, e first_applied_at diz desde quando. Os dois olham "
-                    + "para a EJ inteira, e nenhum filtro desta consulta os restringe.")
+                    + "para a EJ inteira, e nenhum filtro desta consulta os restringe.\n\n"
+                    + "cv.download_url nesta listagem é transitória e vai sair: para abrir o arquivo, "
+                    + "use GET /v1/recruitment/applications/{applicationId}/cv.")
     @PreAuthorize("hasAuthority('recruitment:read')")
     @GetMapping
-    public Page<CandidateApplicationResponse> search(
+    public Page<SignedCandidateApplicationResponse> search(
             @ParameterObject CandidateApplicationFilter filter,
             @ParameterObject @PageableDefault(size = 20, sort = {"createdAt", "id"},
                     direction = Sort.Direction.DESC) Pageable pageable,
             HttpServletResponse response) {
         response.setHeader("Cache-Control", "private, no-store");
-        return service.searchAcrossProcesses(filter, pageable);
+        return service.searchAcrossProcessesSigned(filter, pageable);
+    }
+
+    @Operation(summary = "Busca uma inscrição por ID",
+            description = "cv descreve o currículo — nome, tipo e tamanho — sem dar acesso a ele; o "
+                    + "arquivo sai de GET /v1/recruitment/applications/{applicationId}/cv. "
+                    + "applications_count e first_applied_at descrevem o histórico do e-mail na EJ "
+                    + "inteira.")
+    @ApiResponse(responseCode = "404", description = "Inscrição não encontrada",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    @PreAuthorize("hasAuthority('recruitment:read')")
+    @GetMapping("/{applicationId}")
+    public CandidateApplicationResponse getById(@PathVariable UUID applicationId, HttpServletResponse response) {
+        response.setHeader("Cache-Control", "private, no-store");
+        return service.findById(applicationId);
+    }
+
+    @Operation(summary = "Gera o acesso temporário ao currículo de uma inscrição",
+            description = "Cada chamada assina uma URL nova, que permite GET direto no armazenamento, "
+                    + "sem Authorization, até download_expires_at. Chame no momento de abrir o "
+                    + "arquivo, e não ao montar a tela: a URL vence em minutos.")
+    @ApiResponse(responseCode = "404", description = "Inscrição não encontrada ou sem currículo",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    @ApiResponse(responseCode = "503", description = "Armazenamento de arquivos indisponível",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    @PreAuthorize("hasAuthority('recruitment:read')")
+    @GetMapping("/{applicationId}/cv")
+    public FileDownload cv(@PathVariable UUID applicationId, HttpServletResponse response) {
+        response.setHeader("Cache-Control", "private, no-store");
+        return service.cvOf(applicationId);
     }
 
     @Operation(summary = "Retrato agregado das inscrições da EJ inteira",

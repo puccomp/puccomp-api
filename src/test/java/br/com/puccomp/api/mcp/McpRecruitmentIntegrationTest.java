@@ -180,6 +180,24 @@ class McpRecruitmentIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    @DisplayName("a listagem descreve o currículo sem assinar URL, que não teria uso nas mãos do agente")
+    void shouldDescribeCvWithoutSigningIt() {
+        UUID fileId = UUID.randomUUID();
+        jdbc.update("""
+                insert into stored_files (id, tenant_id, filename, content_type, size, bucket, object_key, state)
+                values (?, ?, 'curriculo-ana.pdf', 'application/pdf', 2048, 'bucket-teste', ?, 'READY')
+                """, fileId, tenantId, tenantId + "/files/" + fileId + ".pdf");
+        jdbc.update("update candidate_applications set cv_file_id = ? where tenant_id = ? and email = ?",
+                fileId, tenantId, "ana@example.com");
+
+        // O armazenamento está desligado neste teste: assinar aqui responderia 503, e não a lista.
+        String listagem = texto(chamar("recruitment_applications_list", Map.of("q", "ana")));
+
+        assertThat(listagem).contains("curriculo-ana.pdf", "content_type")
+                .doesNotContain("download_url", "download_expires_at");
+    }
+
+    @Test
     @DisplayName("sem recruitment:read o escopo fecha o módulo inteiro")
     void shouldRequireRecruitmentScope() {
         String estreito = criarPat(token, List.of("members:read"));

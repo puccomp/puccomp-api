@@ -1,0 +1,26 @@
+meta {
+  name: Buscar inscrição
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{base_url}}/v1/recruitment/applications/{{application_id}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{access_token}}
+}
+
+docs {
+  Uma inscrição pelo id, de qualquer processo da EJ. "Listar inscrições" preenche application_id
+  com a primeira linha.
+
+  cv descreve o currículo — { id, filename, content_type, size } — sem dar acesso a ele, ou vem
+  null. Para o arquivo, use "Currículo da inscrição".
+
+  applications_count e first_applied_at descrevem o histórico do e-mail na EJ inteira, como na
+  listagem. Requer recruitment:read; resposta sem cache.
+}

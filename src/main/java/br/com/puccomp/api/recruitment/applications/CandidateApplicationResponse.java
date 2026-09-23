@@ -1,6 +1,6 @@
 package br.com.puccomp.api.recruitment.applications;
 
-import br.com.puccomp.api.files.FileDownload;
+import br.com.puccomp.api.files.FileMetadata;
 import br.com.puccomp.api.shared.reference.NamedRef;
 import io.swagger.v3.oas.annotations.media.Schema;
 
@@ -8,6 +8,11 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
+/**
+ * A inscrição com o currículo só descrito, nunca acessível: a URL assinada sai de
+ * {@code GET /v1/recruitment/applications/{id}/cv}, na hora de abrir o arquivo. Assinar ao listar
+ * entregava links que venciam antes do clique e que iam parar no contexto de agentes via MCP.
+ */
 public record CandidateApplicationResponse(
         UUID id,
         NamedRef process,
@@ -17,7 +22,7 @@ public record CandidateApplicationResponse(
         NamedRef course,
         @Schema(name = "current_term") Short currentTerm,
         List<String> links,
-        FileDownload cv,
+        FileMetadata cv,
         @Schema(name = "privacy_consent_at") Instant privacyConsentAt,
         @Schema(name = "submitted_at") Instant submittedAt,
 
@@ -37,7 +42,7 @@ public record CandidateApplicationResponse(
     /** O histórico do e-mail na EJ, resolvido em lote para a página inteira. */
     record History(long applicationsCount, Instant firstAppliedAt) { }
 
-    static CandidateApplicationResponse from(CandidateApplication application, FileDownload cv,
+    static CandidateApplicationResponse from(CandidateApplication application, FileMetadata cv,
                                             String courseName, History history) {
         return new CandidateApplicationResponse(
                 application.getId(),

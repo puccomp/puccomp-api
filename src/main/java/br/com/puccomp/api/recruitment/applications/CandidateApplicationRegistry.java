@@ -1,5 +1,7 @@
 package br.com.puccomp.api.recruitment.applications;
 
+import br.com.puccomp.api.files.FileDownload;
+import br.com.puccomp.api.files.FileMetadata;
 import br.com.puccomp.api.files.FileService;
 import br.com.puccomp.api.organization.CourseCatalog;
 import br.com.puccomp.api.recruitment.ApplicationSubmitted;
@@ -22,6 +24,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
@@ -38,16 +41,47 @@ class CandidateApplicationRegistry {
     private final ApplicationEventPublisher events;
 
     @Transactional(readOnly = true)
-    Page<CandidateApplicationResponse> listByProcess(UUID processId, CandidateApplicationFilter filter,
-                                                     Pageable pageable) {
+    Page<SignedCandidateApplicationResponse> listByProcessSigned(UUID processId, CandidateApplicationFilter filter,
+                                                                 Pageable pageable) {
         requireProcess(processId);
-        return present(applications.findAll(CandidateApplicationSpecs.matching(processId, filter), pageable));
+        return presentSigned(applications.findAll(CandidateApplicationSpecs.matching(processId, filter), pageable));
     }
 
     /** Sem processId no recorte: o filtro de tenant do Hibernate já limita à EJ de quem chama. */
     @Transactional(readOnly = true)
     Page<CandidateApplicationResponse> searchAcrossProcesses(CandidateApplicationFilter filter, Pageable pageable) {
-        return present(applications.findAll(CandidateApplicationSpecs.matching(null, filter), pageable));
+        Page<CandidateApplication> page = applications.findAll(CandidateApplicationSpecs.matching(null, filter), pageable);
+        return page.map(presenter(page.getContent(), files.metadata(cvIds(page.getContent()))));
+    }
+
+    @Transactional(readOnly = true)
+    Page<SignedCandidateApplicationResponse> searchAcrossProcessesSigned(CandidateApplicationFilter filter,
+                                                                         Pageable pageable) {
+        return presentSigned(applications.findAll(CandidateApplicationSpecs.matching(null, filter), pageable));
+    }
+
+    @Transactional(readOnly = true)
+    CandidateApplicationResponse findById(UUID applicationId) {
+        CandidateApplication application = findOwned(applicationId);
+        List<CandidateApplication> single = List.of(application);
+        return presenter(single, files.metadata(cvIds(single))).apply(application);
+    }
+
+    /** Assina a cada chamada: a URL vence em minutos, e quem pede está prestes a abrir o arquivo. */
+    @Transactional(readOnly = true)
+    FileDownload cvOf(UUID applicationId) {
+        UUID cvFileId = findOwned(applicationId).getCvFileId();
+        if (cvFileId == null)
+            throw new ResourceNotFoundException("Esta inscrição não tem currículo");
+        FileDownload download = files.downloads(List.of(cvFileId)).get(cvFileId);
+        if (download == null)
+            throw new ResourceNotFoundException("Currículo não encontrado");
+        return download;
+    }
+
+    private CandidateApplication findOwned(UUID applicationId) {
+        return applications.findById(applicationId)
+                .orElseThrow(() -> new ResourceNotFoundException("Inscrição não encontrada"));
     }
 
     private void requireProcess(UUID processId) {
@@ -55,23 +89,36 @@ class CandidateApplicationRegistry {
             throw new ResourceNotFoundException("Processo seletivo não encontrado");
     }
 
-    private Page<CandidateApplicationResponse> present(Page<CandidateApplication> page) {
-        var downloads = files.downloads(page.stream().map(application -> application.getCvFileId())
-                .filter(Objects::nonNull).toList());
+    private Page<SignedCandidateApplicationResponse> presentSigned(Page<CandidateApplication> page) {
+        Map<UUID, FileDownload> downloads = files.downloads(cvIds(page.getContent()));
+        var present = presenter(page.getContent(), downloads.entrySet().stream()
+                .collect(Collectors.toMap(Map.Entry::getKey, entry -> entry.getValue().metadata())));
+        return page.map(application -> SignedCandidateApplicationResponse.from(present.apply(application),
+                application.getCvFileId() == null ? null : downloads.get(application.getCvFileId())));
+    }
+
+    /** Curso, currículo e histórico resolvidos em lote para todas as inscrições de uma vez. */
+    private Function<CandidateApplication, CandidateApplicationResponse> presenter(
+            List<CandidateApplication> page, Map<UUID, FileMetadata> cvs) {
         Map<UUID, String> courseNames = courses.namesOf(
                 page.stream().map(application -> application.getCourseId()).toList());
         Map<String, CandidateApplicationResponse.History> histories = historiesOf(page);
-        return page.map(application -> CandidateApplicationResponse.from(application,
-                application.getCvFileId() == null ? null : downloads.get(application.getCvFileId()),
+        return application -> CandidateApplicationResponse.from(application,
+                application.getCvFileId() == null ? null : cvs.get(application.getCvFileId()),
                 courseNames.get(application.getCourseId()),
-                historyOf(application, histories)));
+                historyOf(application, histories));
+    }
+
+    private static List<UUID> cvIds(List<CandidateApplication> applications) {
+        return applications.stream().map(application -> application.getCvFileId())
+                .filter(Objects::nonNull).toList();
     }
 
     /**
      * Uma consulta agrupada para a página inteira, ao lado de currículo e curso: por linha seriam
      * tantas consultas quanto inscrições, para um dado que a triagem lê em toda linha.
      */
-    private Map<String, CandidateApplicationResponse.History> historiesOf(Page<CandidateApplication> page) {
+    private Map<String, CandidateApplicationResponse.History> historiesOf(List<CandidateApplication> page) {
         List<String> emails = page.stream().map(application -> key(application.getEmail())).distinct().toList();
         if (emails.isEmpty()) return Map.of();
         return applications.aggregateByEmails(emails).stream()

@@ -32,7 +32,9 @@ public class CandidateApplicationController {
 
     @Operation(summary = "Lista as inscrições recebidas em um processo seletivo",
             description = "cv contém metadados e download_url pré-assinada, válida até download_expires_at. "
-                    + "É null para inscrições sem currículo. Consulte novamente para renovar o acesso. "
+                    + "É null para inscrições sem currículo. A URL nesta listagem é transitória e vai "
+                    + "sair: para abrir o arquivo, use GET /v1/recruitment/applications/{applicationId}/cv, "
+                    + "que assina na hora. "
                     + "applications_count e first_applied_at descrevem o histórico do e-mail na EJ "
                     + "inteira, e não este processo: nenhum filtro os restringe.\n\n"
                     + "Os filtros são combináveis: q (nome ou e-mail, ignorando acento), course_id, "
@@ -41,14 +43,14 @@ public class CandidateApplicationController {
             content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     @PreAuthorize("hasAuthority('recruitment:read')")
     @GetMapping
-    public Page<CandidateApplicationResponse> listByProcess(
+    public Page<SignedCandidateApplicationResponse> listByProcess(
             @PathVariable UUID processId,
             @ParameterObject CandidateApplicationFilter filter,
             @ParameterObject @PageableDefault(size = 20, sort = {"createdAt", "id"},
                     direction = Sort.Direction.DESC) Pageable pageable,
             HttpServletResponse response) {
         response.setHeader("Cache-Control", "private, no-store");
-        return service.listByProcess(processId, filter, pageable);
+        return service.listByProcessSigned(processId, filter, pageable);
     }
 
     @Operation(summary = "Retrato agregado das inscrições de um processo seletivo",

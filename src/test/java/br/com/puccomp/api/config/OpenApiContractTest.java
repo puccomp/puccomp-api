@@ -120,7 +120,7 @@ class OpenApiContractTest extends AbstractIntegrationTest {
     }
 
     @Test
-    @DisplayName("inscrição aceita JSON e multipart; URL de currículo só aparece no DTO privado")
+    @DisplayName("inscrição aceita JSON e multipart; URL de currículo só sai do DTO privado de download")
     @SuppressWarnings("unchecked")
     void shouldDescribeCvUploadAndPrivateDownload() {
         var post = operation("/v1/public/{orgSlug}/processes/{processId}/applications", "post");
@@ -136,6 +136,14 @@ class OpenApiContractTest extends AbstractIntegrationTest {
         var download = (Map<String, Object>) schemas.get("FileDownload");
         assertThat((Map<String, Object>) download.get("properties"))
                 .containsOnlyKeys("id", "filename", "content_type", "size", "download_url", "download_expires_at");
+        var metadata = (Map<String, Object>) schemas.get("FileMetadata");
+        assertThat((Map<String, Object>) metadata.get("properties"))
+                .containsOnlyKeys("id", "filename", "content_type", "size");
+        assertThat(((Map<String, Object>) response.get("properties")).get("cv").toString())
+                .contains("#/components/schemas/FileMetadata");
+        assertThat((Map<String, Object>) spec().get("paths")).containsKeys(
+                "/v1/recruitment/applications/{applicationId}",
+                "/v1/recruitment/applications/{applicationId}/cv");
     }
 
     @Test

@@ -1,5 +1,6 @@
 package br.com.puccomp.api.recruitment.applications;
 
+import br.com.puccomp.api.files.FileDownload;
 import br.com.puccomp.api.files.FileService;
 import br.com.puccomp.api.files.FileUpload;
 import br.com.puccomp.api.recruitment.applications.summary.ApplicationHistorySummaryResponse;
@@ -21,13 +22,26 @@ public class CandidateApplicationService {
     private final ApplicationSummaryService summaries;
     private final FileService files;
 
-    Page<CandidateApplicationResponse> listByProcess(UUID processId, CandidateApplicationFilter filter,
-                                                     Pageable pageable) {
-        return registry.listByProcess(processId, filter, pageable);
+    Page<SignedCandidateApplicationResponse> listByProcessSigned(UUID processId, CandidateApplicationFilter filter,
+                                                                 Pageable pageable) {
+        return registry.listByProcessSigned(processId, filter, pageable);
     }
 
     public Page<CandidateApplicationResponse> searchAcrossProcesses(CandidateApplicationFilter filter, Pageable pageable) {
         return registry.searchAcrossProcesses(filter, pageable);
+    }
+
+    Page<SignedCandidateApplicationResponse> searchAcrossProcessesSigned(CandidateApplicationFilter filter,
+                                                                         Pageable pageable) {
+        return registry.searchAcrossProcessesSigned(filter, pageable);
+    }
+
+    CandidateApplicationResponse findById(UUID applicationId) {
+        return registry.findById(applicationId);
+    }
+
+    FileDownload cvOf(UUID applicationId) {
+        return registry.cvOf(applicationId);
     }
 
     public ApplicationSummaryResponse summarize(UUID processId, CandidateApplicationFilter filter) {
