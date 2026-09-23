@@ -23,14 +23,14 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class PublicProcessController {
 
-    private final SelectionProcessService service;
+    private final SelectionProcessQueryService queries;
 
     @Operation(summary = "Lista os processos seletivos abertos da EJ")
     @ApiResponse(responseCode = "404", description = "EJ não encontrada",
             content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     @GetMapping
     public List<PublicProcessResponse> listOpen() {
-        return service.listOpen();
+        return queries.listOpen();
     }
 
     @Operation(summary = "Detalha um processo seletivo publicado",
@@ -39,6 +39,6 @@ public class PublicProcessController {
             content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     @GetMapping("/{processId}")
     public PublicProcessResponse getPublishedById(@PathVariable UUID processId) {
-        return service.findPublishedById(processId);
+        return queries.findPublishedById(processId);
     }
 }

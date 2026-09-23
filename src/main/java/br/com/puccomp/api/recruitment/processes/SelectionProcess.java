@@ -82,12 +82,18 @@ public class SelectionProcess extends Auditable {
         return maxTerm == null || term <= maxTerm;
     }
 
-    public void changeStatusTo(SelectionProcessStatus target, Instant at) {
+    /**
+     * Devolve se o status gravado mudou. A transição é julgada pelo efetivo, mas a mudança pelo
+     * gravado: um processo vencido já é IN_REVIEW para o mundo, e pedir IN_REVIEW nele grava a fase
+     * que até então só era derivada — é o primeiro aviso que os candidatos recebem dela.
+     */
+    public boolean changeStatusTo(SelectionProcessStatus target, Instant at) {
         SelectionProcessStatus current = effectiveStatus(at);
-        if (current == target) return;
-        if (!current.canTransitionTo(target))
+        if (current != target && !current.canTransitionTo(target))
             throw new ConflictException("Não é possível mudar o processo de %s para %s".formatted(current, target));
+        if (status == target) return false;
         this.status = target;
+        return true;
     }
 
     /**

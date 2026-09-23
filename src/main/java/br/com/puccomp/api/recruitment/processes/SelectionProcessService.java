@@ -1,78 +1,24 @@
 package br.com.puccomp.api.recruitment.processes;
 
 import br.com.puccomp.api.recruitment.SelectionProcessPhaseChanged;
-import br.com.puccomp.api.shared.text.SearchTerm;
 import br.com.puccomp.api.shared.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Clock;
 import java.time.Instant;
-import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
-public class SelectionProcessService implements ProcessDirectory {
+class SelectionProcessService {
 
     private final SelectionProcessRepository repository;
-    private final ApplicationCounts applicationCounts;
     private final ApplicationEventPublisher events;
-
-    @Transactional(readOnly = true)
-    public Page<SelectionProcessSummaryResponse> findAll(SelectionProcessStatus status, String query,
-                                                   Pageable pageable) {
-        Instant now = Instant.now();
-        Page<SelectionProcess> page = pageOf(status, SearchTerm.like(query), now, pageable);
-        Map<UUID, ApplicationCounts.ApplicationStats> stats = statsFor(page.getContent().stream()
-                .map(process -> process.getId()).toList());
-
-        return page.map(process -> SelectionProcessSummaryResponse.from(process, statsOf(stats, process), now));
-    }
-
-    /**
-     * O filtro casa com o status efetivo, não com o gravado — senão um processo cujo prazo venceu
-     * sumiria de {@code IN_REVIEW} e apareceria em {@code OPEN}, contradizendo o que a resposta diz.
-     */
-    private Page<SelectionProcess> pageOf(SelectionProcessStatus status, Optional<String> term,
-                                          Instant now, Pageable pageable) {
-        if (term.isEmpty()) {
-            if (status == null) return repository.findAll(pageable);
-            return switch (status) {
-                case OPEN -> repository.findEffectivelyOpen(now, pageable);
-                case IN_REVIEW -> repository.findEffectivelyInReview(now, pageable);
-                default -> repository.findByStatus(status, pageable);
-            };
-        }
-
-        String search = term.get();
-        if (status == null) return repository.searchByTitle(search, pageable);
-        return switch (status) {
-            case OPEN -> repository.searchEffectivelyOpen(search, now, pageable);
-            case IN_REVIEW -> repository.searchEffectivelyInReview(search, now, pageable);
-            default -> repository.searchByStatusAndTitle(status, search, pageable);
-        };
-    }
-
-    @Transactional(readOnly = true)
-    public SelectionProcessResponse findById(UUID id) {
-        SelectionProcess process = findOwned(id);
-        return SelectionProcessResponse.from(process, statsOf(statsFor(List.of(id)), process), Instant.now());
-    }
-
-    private Map<UUID, ApplicationCounts.ApplicationStats> statsFor(List<UUID> processIds) {
-        return applicationCounts.statsByProcess(processIds);
-    }
-
-    private static ApplicationCounts.ApplicationStats statsOf(
-            Map<UUID, ApplicationCounts.ApplicationStats> stats, SelectionProcess process) {
-        return stats.getOrDefault(process.getId(), ApplicationCounts.ApplicationStats.NONE);
-    }
+    private final Clock clock;
 
     @Transactional
     SelectionProcessResponse create(SelectionProcessRequest request) {
@@ -80,33 +26,30 @@ public class SelectionProcessService implements ProcessDirectory {
                 .title(request.title().trim())
                 .status(SelectionProcessStatus.DRAFT)
                 .build();
-        process.update(request.title().trim(), trimmed(request.description()),
-                request.opensAt(), request.closesAt(), request.resultAt(),
-                request.minTerm(), request.maxTerm());
-
-        return detailOf(repository.save(process), Instant.now());
+        apply(process, request);
+        return SelectionProcessResponse.from(repository.save(process), clock.instant());
     }
 
     @Transactional
     SelectionProcessResponse update(UUID id, SelectionProcessRequest request) {
         SelectionProcess process = findOwned(id);
-        process.update(request.title().trim(), trimmed(request.description()),
-                request.opensAt(), request.closesAt(), request.resultAt(),
-                request.minTerm(), request.maxTerm());
-
-        return detailOf(process, Instant.now());
+        apply(process, request);
+        return SelectionProcessResponse.from(process, clock.instant());
     }
 
-    /** Publicado dentro da transação: o fato e o aviso pendente são gravados juntos, ou nenhum. */
+    /**
+     * Publicado dentro da transação: o fato e o aviso pendente são gravados juntos, ou nenhum. E só
+     * quando o status gravado mudou — repetir a requisição não pode reenviar o aviso a cada candidato.
+     */
     @Transactional
     SelectionProcessResponse changeStatus(UUID id, SelectionProcessStatus status) {
-        Instant now = Instant.now();
+        Instant now = clock.instant();
         SelectionProcess process = findOwned(id);
-        process.changeStatusTo(status, now);
-        phaseOf(status).ifPresent(phase -> events.publishEvent(new SelectionProcessPhaseChanged(
-                process.getTenantId(), process.getId(), process.getTitle(), phase,
-                process.getResultAt(), now)));
-        return detailOf(process, now);
+        if (process.changeStatusTo(status, now))
+            phaseOf(status).ifPresent(phase -> events.publishEvent(new SelectionProcessPhaseChanged(
+                    process.getTenantId(), process.getId(), process.getTitle(), phase,
+                    process.getResultAt(), now)));
+        return SelectionProcessResponse.from(process, now);
     }
 
     /** Rascunho não é fase para ninguém de fora: nada foi publicado, nada mudou para o candidato. */
@@ -120,45 +63,10 @@ public class SelectionProcessService implements ProcessDirectory {
         });
     }
 
-    @Transactional(readOnly = true)
-    List<PublicProcessResponse> listOpen() {
-        Instant now = Instant.now();
-        return repository.findByStatusOrderByCreatedAtDesc(SelectionProcessStatus.OPEN).stream()
-                .filter(process -> process.isAcceptingApplications(now))
-                .map(process -> PublicProcessResponse.from(process, now))
-                .toList();
-    }
-
-    /**
-     * A listagem pública mostra só quem aceita inscrição, mas o detalhe responde para qualquer
-     * processo já publicado — encerrado inclusive. O candidato que voltar ao link depois do prazo
-     * precisa ler as datas, não um 404.
-     */
-    @Transactional(readOnly = true)
-    PublicProcessResponse findPublishedById(UUID id) {
-        return repository.findPublished(id)
-                .map(process -> PublicProcessResponse.from(process, Instant.now()))
-                .orElseThrow(() -> new ResourceNotFoundException("Processo seletivo não encontrado"));
-    }
-
-    /** Único ponto que decide se uma inscrição entra — por isso a janela é checada aqui, não no status. */
-    @Override
-    @Transactional(readOnly = true)
-    public Optional<SelectionProcess> findOpen(UUID processId) {
-        Instant now = Instant.now();
-        return repository.findByIdAndStatus(processId, SelectionProcessStatus.OPEN)
-                .filter(process -> process.isAcceptingApplications(now));
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public boolean exists(UUID processId) {
-        return repository.existsById(processId);
-    }
-
-    private SelectionProcessResponse detailOf(SelectionProcess process, Instant at) {
-        return SelectionProcessResponse.from(process,
-                statsOf(statsFor(List.of(process.getId())), process), at);
+    private static void apply(SelectionProcess process, SelectionProcessRequest request) {
+        process.update(request.title().trim(), trimmed(request.description()),
+                request.opensAt(), request.closesAt(), request.resultAt(),
+                request.minTerm(), request.maxTerm());
     }
 
     private SelectionProcess findOwned(UUID id) {

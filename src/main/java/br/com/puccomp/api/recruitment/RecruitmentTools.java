@@ -2,7 +2,7 @@ package br.com.puccomp.api.recruitment;
 
 import br.com.puccomp.api.recruitment.applications.CandidateApplicationFilter;
 import br.com.puccomp.api.recruitment.applications.CandidateApplicationService;
-import br.com.puccomp.api.recruitment.processes.SelectionProcessService;
+import br.com.puccomp.api.recruitment.processes.SelectionProcessQueryService;
 import br.com.puccomp.api.recruitment.processes.SelectionProcessStatus;
 import br.com.puccomp.api.shared.mcp.ToolPage;
 import lombok.RequiredArgsConstructor;
@@ -23,7 +23,7 @@ public class RecruitmentTools {
 
     private static final Sort NEWEST_FIRST = Sort.by(Sort.Direction.DESC, "createdAt", "id");
 
-    private final SelectionProcessService processes;
+    private final SelectionProcessQueryService processes;
     private final CandidateApplicationService applications;
     private final ObjectMapper json;
 
@@ -61,8 +61,9 @@ public class RecruitmentTools {
             annotations = @McpTool.McpAnnotations(readOnlyHint = true, destructiveHint = false,
                     idempotentHint = true, openWorldHint = false),
             description = """
-                    Busca um processo seletivo pelo id, com as etapas, o prazo e a configuração do \
-                    formulário. Exige a permissão recruitment:read.""")
+                    Busca um processo seletivo pelo id, com a descrição, a janela de inscrição, a \
+                    data do resultado, a faixa de período aceita e a contagem de inscrições. Exige \
+                    a permissão recruitment:read.""")
     @PreAuthorize("hasAuthority('recruitment:read')")
     public String processesGet(
             @McpToolParam(description = "Id do processo, como devolvido por "

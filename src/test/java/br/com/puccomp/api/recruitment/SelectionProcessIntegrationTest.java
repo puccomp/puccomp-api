@@ -3,6 +3,7 @@ package br.com.puccomp.api.recruitment;
 import br.com.puccomp.api.organization.CourseCatalog;
 import br.com.puccomp.api.recruitment.applications.SubmitCandidateApplicationRequest;
 import br.com.puccomp.api.recruitment.processes.ChangeStatusRequest;
+import br.com.puccomp.api.recruitment.processes.SelectionProcessDetailResponse;
 import br.com.puccomp.api.recruitment.processes.SelectionProcessRequest;
 import br.com.puccomp.api.recruitment.processes.SelectionProcessResponse;
 import br.com.puccomp.api.recruitment.processes.SelectionProcessStatus;
@@ -102,13 +103,13 @@ class SelectionProcessIntegrationTest extends AbstractIntegrationTest {
         UUID processId = createProcess(token, "PS Prazo", abriu, Instant.now().plusSeconds(2), null);
         open(token, processId);
 
-        SelectionProcessResponse aberto = read(token, processId);
+        SelectionProcessDetailResponse aberto = read(token, processId);
         assertThat(aberto.status()).isEqualTo(SelectionProcessStatus.OPEN);
         assertThat(aberto.acceptingApplications()).isTrue();
 
         await(3);
 
-        SelectionProcessResponse vencido = read(token, processId);
+        SelectionProcessDetailResponse vencido = read(token, processId);
         assertThat(vencido.status()).isEqualTo(SelectionProcessStatus.IN_REVIEW);
         assertThat(vencido.acceptingApplications()).isFalse();
     }
@@ -121,7 +122,7 @@ class SelectionProcessIntegrationTest extends AbstractIntegrationTest {
                 Instant.now().plus(2, ChronoUnit.DAYS), Instant.now().plus(9, ChronoUnit.DAYS), null);
         open(token, processId);
 
-        SelectionProcessResponse response = read(token, processId);
+        SelectionProcessDetailResponse response = read(token, processId);
         assertThat(response.status()).isEqualTo(SelectionProcessStatus.OPEN);
         assertThat(response.acceptingApplications()).isFalse();
     }
@@ -136,7 +137,7 @@ class SelectionProcessIntegrationTest extends AbstractIntegrationTest {
 
         assertThat(changeStatus(token, processId, SelectionProcessStatus.IN_REVIEW).getStatusCode())
                 .isEqualTo(HttpStatus.OK);
-        SelectionProcessResponse response = read(token, processId);
+        SelectionProcessDetailResponse response = read(token, processId);
         assertThat(response.status()).isEqualTo(SelectionProcessStatus.IN_REVIEW);
         assertThat(response.acceptingApplications()).isFalse();
     }
@@ -189,6 +190,33 @@ class SelectionProcessIntegrationTest extends AbstractIntegrationTest {
         JsonNode detalhe = mapper.readTree(
                 getWithToken("/v1/recruitment/processes/" + processId, token).getBody());
         assertThat(detalhe.path("application_count").asInt()).isEqualTo(2);
+    }
+
+    @Test
+    @DisplayName("criar e alterar devolvem só o processo; a contagem de inscrições fica na leitura")
+    void shouldKeepApplicationMetricsOutOfWriteResponses() throws Exception {
+        String token = ownerOf("EJ Escrita", "ej-escrita", "dono@escrita.dev");
+
+        ResponseEntity<String> created = post("/v1/recruitment/processes",
+                new SelectionProcessRequest("PS Escrita", null, null, null, null, null, null), token, String.class);
+        assertThat(created.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        JsonNode body = mapper.readTree(created.getBody());
+        UUID processId = UUID.fromString(body.path("id").asText());
+        assertThat(created.getHeaders().getLocation()).hasToString("/v1/recruitment/processes/" + processId);
+        assertThat(body.has("application_count")).isFalse();
+
+        open(token, processId);
+        submitApplication("ej-escrita", processId, "um@example.com");
+
+        JsonNode changed = mapper.readTree(
+                changeStatus(token, processId, SelectionProcessStatus.IN_REVIEW).getBody());
+        assertThat(changed.path("status").asText()).isEqualTo("IN_REVIEW");
+        assertThat(changed.has("application_count")).isFalse();
+        assertThat(changed.has("last_application_at")).isFalse();
+
+        JsonNode detail = mapper.readTree(
+                getWithToken(created.getHeaders().getLocation().toString(), token).getBody());
+        assertThat(detail.path("application_count").asInt()).isEqualTo(1);
     }
 
     @Test
@@ -319,8 +347,8 @@ class SelectionProcessIntegrationTest extends AbstractIntegrationTest {
                 new ChangeStatusRequest(status), token, String.class);
     }
 
-    private SelectionProcessResponse read(String token, UUID processId) {
-        return get("/v1/recruitment/processes/" + processId, token, SelectionProcessResponse.class).getBody();
+    private SelectionProcessDetailResponse read(String token, UUID processId) {
+        return get("/v1/recruitment/processes/" + processId, token, SelectionProcessDetailResponse.class).getBody();
     }
 
     private static void await(int seconds) {

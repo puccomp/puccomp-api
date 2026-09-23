@@ -3,14 +3,16 @@ package br.com.puccomp.api.recruitment.processes;
 import java.time.Instant;
 import java.util.UUID;
 
+/**
+ * O processo em si, como as alterações o devolvem. Não carrega a contagem de inscrições: ela é de
+ * outro agregado, e quem precisa dela lê o detalhe.
+ */
 public record SelectionProcessResponse(
         UUID id,
         String title,
         String description,
         SelectionProcessStatus status,
         boolean acceptingApplications,
-        long applicationCount,
-        Instant lastApplicationAt,
         Instant opensAt,
         Instant closesAt,
         Instant resultAt,
@@ -19,16 +21,13 @@ public record SelectionProcessResponse(
         Instant createdAt,
         Instant updatedAt
 ) {
-    static SelectionProcessResponse from(SelectionProcess process,
-                                         ApplicationCounts.ApplicationStats stats, Instant at) {
+    static SelectionProcessResponse from(SelectionProcess process, Instant at) {
         return new SelectionProcessResponse(
                 process.getId(),
                 process.getTitle(),
                 process.getDescription(),
                 process.effectiveStatus(at),
                 process.isAcceptingApplications(at),
-                stats.total(),
-                stats.lastSubmittedAt(),
                 process.getOpensAt(),
                 process.getClosesAt(),
                 process.getResultAt(),
