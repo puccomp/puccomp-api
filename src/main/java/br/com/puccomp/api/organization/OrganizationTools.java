@@ -28,6 +28,12 @@ public class OrganizationTools {
 
     private static final Sort BY_NAME = Sort.by("name", "id");
 
+    private static final String HAS_ROLE = "true traz só quem tem cargo; false só quem não tem. "
+            + "false junto com role_id é contraditório e devolve erro";
+
+    private static final String HAS_DEPARTMENT = "true traz só quem tem diretoria; false só quem "
+            + "não tem. false junto com department_id é contraditório e devolve erro";
+
     private final MemberService members;
     private final RoleService roles;
     private final DepartmentService departments;
@@ -65,6 +71,8 @@ public class OrganizationTools {
             @McpToolParam(required = false, description = "Diretoria atual do membro") UUID department_id,
             @McpToolParam(required = false, description = "Cargo atual do membro") UUID role_id,
             @McpToolParam(required = false, description = "Curso do membro") UUID course_id,
+            @McpToolParam(required = false, description = HAS_ROLE) Boolean has_role,
+            @McpToolParam(required = false, description = HAS_DEPARTMENT) Boolean has_department,
             @McpToolParam(required = false,
                     description = "Busca por nome ou e-mail, sem acento e sem diferenciar "
                             + "maiúsculas: 'joao' encontra 'João'. Termo com menos de dois "
@@ -74,7 +82,7 @@ public class OrganizationTools {
                     description = "Itens por página, no máximo 100; o padrão é 20") Integer size) {
 
         return json.writeValueAsString(ToolPage.of(members.findAll(
-                filtro(status, standing, department_id, role_id, course_id, q),
+                toFilter(status, standing, department_id, role_id, course_id, has_role, has_department, q),
                 ToolPage.request(page, size, BY_NAME))));
     }
 
@@ -130,6 +138,8 @@ public class OrganizationTools {
             @McpToolParam(required = false, description = "Diretoria atual do membro") UUID department_id,
             @McpToolParam(required = false, description = "Cargo atual do membro") UUID role_id,
             @McpToolParam(required = false, description = "Curso do membro") UUID course_id,
+            @McpToolParam(required = false, description = HAS_ROLE) Boolean has_role,
+            @McpToolParam(required = false, description = HAS_DEPARTMENT) Boolean has_department,
             @McpToolParam(required = false, description = "Busca por nome ou e-mail") String q,
             @McpToolParam(required = false,
                     description = "Quantas categorias identificadas manter em cada distribuição "
@@ -141,8 +151,9 @@ public class OrganizationTools {
             Integer turnover_months) {
 
         return json.writeValueAsString(members.summarize(
-                filtro(status, standing, department_id, role_id, course_id, q),
-                new MemberSummaryService.ContextAccess(pode("roles:read"), pode("departments:read")),
+                toFilter(status, standing, department_id, role_id, course_id, has_role, has_department, q),
+                new MemberSummaryService.ContextAccess(hasPermission("roles:read"),
+                        hasPermission("departments:read")),
                 new MemberSummaryService.SliceLimit(slice_limit),
                 turnover_months == null ? 12 : turnover_months));
     }
@@ -225,19 +236,20 @@ public class OrganizationTools {
     }
 
     /** include_deleted fica de fora: ele exige members:write, e a superfície MCP é de leitura. */
-    private static MemberFilter filtro(MemberStatus status, Standing standing, UUID departmentId,
-                                       UUID roleId, UUID courseId, String q) {
-        return new MemberFilter(departmentId, null, roleId, courseId, status, standing, null, null,
-                q, null);
+    private static MemberFilter toFilter(MemberStatus status, Standing standing, UUID departmentId,
+                                         UUID roleId, UUID courseId, Boolean hasRole,
+                                         Boolean hasDepartment, String q) {
+        return new MemberFilter(departmentId, null, roleId, courseId, status, standing, hasRole,
+                hasDepartment, q, null);
     }
 
     /**
      * Em {@code SYNC} a ferramenta roda na thread da requisição, então este é o mesmo contexto que
      * o {@code @PreAuthorize} acabou de consultar.
      */
-    private static boolean pode(String permissao) {
+    private static boolean hasPermission(String permission) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         return authentication != null && authentication.getAuthorities().stream()
-                .anyMatch(authority -> permissao.equals(authority.getAuthority()));
+                .anyMatch(authority -> permission.equals(authority.getAuthority()));
     }
 }

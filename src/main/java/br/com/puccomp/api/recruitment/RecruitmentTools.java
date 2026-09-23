@@ -113,7 +113,7 @@ public class RecruitmentTools {
             @McpToolParam(required = false,
                     description = "Itens por página, no máximo 100; o padrão é 20") Integer size) {
 
-        var filter = filtro(process_id, q, course_id, min_term, max_term, has_cv, has_links, from, to);
+        var filter = toFilter(process_id, q, course_id, min_term, max_term, has_cv, has_links, from, to);
         return json.writeValueAsString(ToolPage.of(applications.searchAcrossProcesses(
                 filter, ToolPage.request(page, size, NEWEST_FIRST))));
     }
@@ -153,7 +153,7 @@ public class RecruitmentTools {
                     description = "Inscrições enviadas até este instante ISO-8601") Instant to) {
 
         return json.writeValueAsString(applications.summarize(process_id,
-                filtro(null, q, course_id, min_term, max_term, has_cv, has_links, from, to)));
+                toFilter(null, q, course_id, min_term, max_term, has_cv, has_links, from, to)));
     }
 
     @McpTool(name = "recruitment_applications_summary",
@@ -191,12 +191,12 @@ public class RecruitmentTools {
                     description = "Inscrições enviadas até este instante ISO-8601") Instant to) {
 
         return json.writeValueAsString(applications.summarizeHistory(
-                filtro(process_id, q, course_id, min_term, max_term, has_cv, has_links, from, to)));
+                toFilter(process_id, q, course_id, min_term, max_term, has_cv, has_links, from, to)));
     }
 
-    private static CandidateApplicationFilter filtro(UUID processId, String q, UUID courseId,
-                                                     Short minTerm, Short maxTerm, Boolean hasCv,
-                                                     Boolean hasLinks, Instant from, Instant to) {
+    private static CandidateApplicationFilter toFilter(UUID processId, String q, UUID courseId,
+                                                       Short minTerm, Short maxTerm, Boolean hasCv,
+                                                       Boolean hasLinks, Instant from, Instant to) {
         return new CandidateApplicationFilter(q, processId, courseId, minTerm, maxTerm,
                 hasCv, hasLinks, from, to);
     }
