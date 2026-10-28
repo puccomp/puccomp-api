@@ -5,7 +5,6 @@ import br.com.puccomp.api.identity.tenant.TenantRepository;
 import br.com.puccomp.api.identity.token.JwtService;
 import br.com.puccomp.api.organization.MemberDirectory;
 import br.com.puccomp.api.organization.MemberDirectory.Membership;
-import br.com.puccomp.api.shared.exception.ConflictException;
 import br.com.puccomp.api.shared.exception.UnauthorizedException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.GrantedAuthority;
@@ -70,8 +69,11 @@ public class AuthService {
 
         if (memberships.isEmpty())
             throw new UnauthorizedException("Conta sem vínculo com nenhuma EJ");
-        if (memberships.size() > 1)
-            throw new ConflictException("Conta vinculada a várias EJs; informe o organization_id no login");
+        if (memberships.size() > 1) {
+            var organizations = tenants.findAllById(memberships.stream().map(Membership::tenantId).toList())
+                    .stream().map(OrganizationView::from).toList();
+            throw new OrganizationChoiceRequiredException(organizations);
+        }
         return memberships.getFirst();
     }
 }

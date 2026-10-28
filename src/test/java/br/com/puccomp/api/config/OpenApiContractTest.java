@@ -170,6 +170,28 @@ class OpenApiContractTest extends AbstractIntegrationTest {
     }
 
     @Test
+    @DisplayName("login publica o 409 com organizações e mantém o schema comum do 401")
+    @SuppressWarnings("unchecked")
+    void shouldDescribeOrganizationChoiceOnLogin() {
+        var responses = (Map<String, Object>) operation("/v1/auth/login", "post").get("responses");
+        var conflict = (Map<String, Object>) responses.get("409");
+        assertThat(conflict.get("content").toString())
+                .contains("#/components/schemas/OrganizationChoiceRequiredResponse");
+        var unauthorized = (Map<String, Object>) responses.get("401");
+        assertThat(unauthorized.get("content").toString()).contains("#/components/schemas/ErrorResponse");
+
+        var schemas = (Map<String, Object>) ((Map<String, Object>) spec().get("components")).get("schemas");
+        assertThat(propertyNames(schemas, "OrganizationChoiceRequiredResponse"))
+                .containsExactlyInAnyOrder("status", "message", "traceid", "timestamp", "organizations");
+        assertThat(propertyNames(schemas, "ErrorResponse"))
+                .containsExactlyInAnyOrder("status", "message", "traceid", "timestamp");
+        var properties = (Map<String, Object>) ((Map<String, Object>)
+                schemas.get("OrganizationChoiceRequiredResponse")).get("properties");
+        assertThat(properties.get("organizations").toString()).contains("#/components/schemas/OrganizationView");
+        assertThat(propertyNames(schemas, "OrganizationView")).containsExactlyInAnyOrder("id", "name", "slug");
+    }
+
+    @Test
     @DisplayName("respostas saem como application/json, não como */*")
     void shouldDeclareJsonResponses() {
         assertThat(operation("/v1/auth/me", "get").get("responses"))
