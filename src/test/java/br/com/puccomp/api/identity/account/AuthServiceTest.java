@@ -1,9 +1,11 @@
 package br.com.puccomp.api.identity.account;
 
 import br.com.puccomp.api.identity.token.JwtService;
+import br.com.puccomp.api.identity.tenant.OrganizationView;
+import br.com.puccomp.api.identity.tenant.Tenant;
+import br.com.puccomp.api.identity.tenant.TenantRepository;
 import br.com.puccomp.api.organization.MemberDirectory;
 import br.com.puccomp.api.organization.MemberDirectory.Membership;
-import br.com.puccomp.api.shared.exception.ConflictException;
 import br.com.puccomp.api.shared.exception.UnauthorizedException;
 import br.com.puccomp.api.shared.reference.Standing;
 import org.junit.jupiter.api.DisplayName;
@@ -23,6 +25,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 @ExtendWith(MockitoExtension.class)
 class AuthServiceTest {
@@ -35,6 +38,8 @@ class AuthServiceTest {
     private JwtService jwtService;
     @Mock
     private MemberDirectory memberDirectory;
+    @Mock
+    private TenantRepository tenants;
     @InjectMocks
     private AuthService service;
 
@@ -81,16 +86,58 @@ class AuthServiceTest {
     }
 
     @Test
-    @DisplayName("conta em várias EJs sem tenantId exige desambiguação (409)")
+    @DisplayName("conta em várias EJs sem organization_id recebe id, nome e slug de cada vínculo")
     void shouldRequireTenantWhenMultipleMemberships() {
+        Account acc = account(AccountStatus.ACTIVE);
+        when(accounts.findByEmailIgnoreCase("dono@ej.dev")).thenReturn(Optional.of(acc));
+        when(passwordEncoder.matches("senha", "hash")).thenReturn(true);
+        Membership comp = membership();
+        Membership outra = membership();
+        when(memberDirectory.findMembershipsByAccount(acc.getId())).thenReturn(List.of(comp, outra));
+        when(tenants.findAllById(List.of(comp.tenantId(), outra.tenantId()))).thenReturn(List.of(
+                Tenant.builder().id(comp.tenantId()).name("Comp").slug("ej-comp").build(),
+                Tenant.builder().id(outra.tenantId()).name("Outra EJ").slug("outra-ej").build()));
+
+        assertThatThrownBy(() -> service.login(new LoginRequest("dono@ej.dev", "senha", null)))
+                .isInstanceOfSatisfying(OrganizationChoiceRequiredException.class, ex ->
+                        assertThat(ex.getOrganizations()).containsExactlyInAnyOrder(
+                                new OrganizationView(comp.tenantId(), "Comp", "ej-comp"),
+                                new OrganizationView(outra.tenantId(), "Outra EJ", "outra-ej")));
+        verifyNoInteractions(jwtService);
+    }
+
+    @Test
+    @DisplayName("repetir login com a EJ escolhida emite o token daquele vínculo")
+    void shouldReturnTokenForChosenOrganization() {
+        Account acc = account(AccountStatus.ACTIVE);
+        Membership first = membership();
+        Membership chosen = membership();
+        when(accounts.findByEmailIgnoreCase("dono@ej.dev")).thenReturn(Optional.of(acc));
+        when(passwordEncoder.matches("senha", "hash")).thenReturn(true);
+        when(memberDirectory.findMembershipsByAccount(acc.getId())).thenReturn(List.of(first, chosen));
+        when(jwtService.generateAccessToken(acc, chosen.tenantId(), chosen.memberId(), chosen.standing()))
+                .thenReturn("jwt-chosen");
+        when(jwtService.accessTokenTtlSeconds()).thenReturn(28800L);
+
+        LoginResponse response = service.login(new LoginRequest("dono@ej.dev", "senha", chosen.tenantId()));
+
+        assertThat(response.accessToken()).isEqualTo("jwt-chosen");
+        verifyNoInteractions(tenants);
+    }
+
+    @Test
+    @DisplayName("organization_id sem vínculo é rejeitado sem revelar outras EJs")
+    void shouldRejectOrganizationWithoutMembership() {
         Account acc = account(AccountStatus.ACTIVE);
         when(accounts.findByEmailIgnoreCase("dono@ej.dev")).thenReturn(Optional.of(acc));
         when(passwordEncoder.matches("senha", "hash")).thenReturn(true);
         when(memberDirectory.findMembershipsByAccount(acc.getId()))
                 .thenReturn(List.of(membership(), membership()));
 
-        assertThatThrownBy(() -> service.login(new LoginRequest("dono@ej.dev", "senha", null)))
-                .isInstanceOf(ConflictException.class);
+        assertThatThrownBy(() -> service.login(new LoginRequest("dono@ej.dev", "senha", UUID.randomUUID())))
+                .isInstanceOf(UnauthorizedException.class)
+                .hasMessage("Credenciais inválidas");
+        verifyNoInteractions(tenants, jwtService);
     }
 
     @Test
@@ -100,7 +147,9 @@ class AuthServiceTest {
         when(passwordEncoder.matches("errada", "hash")).thenReturn(false);
 
         assertThatThrownBy(() -> service.login(new LoginRequest("dono@ej.dev", "errada", null)))
-                .isInstanceOf(UnauthorizedException.class);
+                .isInstanceOf(UnauthorizedException.class)
+                .hasMessage("Credenciais inválidas");
+        verifyNoInteractions(memberDirectory, tenants, jwtService);
     }
 
     @Test

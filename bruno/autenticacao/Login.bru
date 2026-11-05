@@ -21,3 +21,23 @@ script:post-response {
   if (res.getStatus() === 200) 
     bru.setEnvVar("access_token", res.getBody().access_token);
 }
+
+docs {
+  Com uma única EJ, retorna 200 e salva access_token.
+
+  Com vários vínculos e senha correta, retorna 409 no formato:
+  {
+    "status": 409,
+    "message": "Conta vinculada a várias EJs; informe o organization_id no login",
+    "trace_id": "...",
+    "timestamp": "2026-10-28T13:00:00Z",
+    "organizations": [
+      { "id": "UUID da EJ", "name": "Comp", "slug": "ej-comp" },
+      { "id": "UUID da outra EJ", "name": "Outra EJ", "slug": "outra-ej" }
+    ]
+  }
+
+  Escolha uma EJ de organizations, copie seu id para a variável organization_id
+  e execute "Login com EJ" com as mesmas credenciais.
+  Senha incorreta retorna 401 "Credenciais inválidas", sem organizations.
+}

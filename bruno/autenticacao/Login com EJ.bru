@@ -1,0 +1,30 @@
+meta {
+  name: Login com EJ
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{base_url}}/v1/auth/login
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "email": "{{owner_email}}",
+    "password": "{{owner_password}}",
+    "organization_id": "{{organization_id}}"
+  }
+}
+
+script:post-response {
+  if (res.getStatus() === 200)
+    bru.setEnvVar("access_token", res.getBody().access_token);
+}
+
+docs {
+  Preencha organization_id com o id da EJ escolhida na resposta 409 de "Login".
+  O 200 salva o token daquela EJ. Consulte "Identidade" para conferir a organização ativa.
+  Um organization_id sem vínculo retorna 401 "Credenciais inválidas", sem organizations.
+}

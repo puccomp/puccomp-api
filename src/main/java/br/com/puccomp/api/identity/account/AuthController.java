@@ -24,6 +24,8 @@ public class AuthController {
     @Operation(summary = "Autentica por e-mail e senha e retorna um access token (JWT)")
     @ApiResponse(responseCode = "401", description = "Credenciais inválidas",
             content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    @ApiResponse(responseCode = "409", description = "Conta vinculada a várias EJs; escolha uma organização e repita o login com organization_id",
+            content = @Content(schema = @Schema(implementation = OrganizationChoiceRequiredResponse.class)))
     @SecurityRequirements
     @PostMapping("/login")
     public LoginResponse login(@RequestBody @Valid LoginRequest request) {
